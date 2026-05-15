@@ -1,0 +1,17 @@
+# EasyCon-release 环境依赖
+# 安装: pip install -r requirements.txt
+
+# 图像处理 & 计算机视觉
+opencv-python>=4.5
+numpy>=1.21
+
+# GUI (pygame + 语法高亮)
+pygame>=2.0
+pygments>=2.10
+
+# 采集卡 / 串口通信
+pyserial>=3.5
+pygrabber>=0.2
+
+# VLM API (Qwen3-VL / GLM-4.6v)
+openai>=1.0

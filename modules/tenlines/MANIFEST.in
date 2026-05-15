@@ -1,0 +1,10 @@
+include LICENSE
+include README.md
+include tenlines.py
+include tenlines_utils.py
+include verify_pybind.py
+include cross_validate.py
+include test_tenlines.py
+recursive-include resources *
+recursive-include src/pybind *.cpp *.py CMakeLists.txt
+recursive-include benchmark *.py

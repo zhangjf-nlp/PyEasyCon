@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Project-specific exclusions
+rng_logs/
+debug_label/
+debug_labels/
+.env
+launch.log
+
+# DeepSeek TUI local config
+.deepseek/
+
+# OS
+.DS_Store
+Thumbs.db
