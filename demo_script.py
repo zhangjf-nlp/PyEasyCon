@@ -7,7 +7,6 @@
 #   press(key, ms=50)  — 点击按键 (A/B/X/Y/L/R/ZL/ZR/UP/DOWN/LEFT/RIGHT/HOME/CAPTURE/PLUS/MINUS)
 #   hold(key)          — 按住不释放
 #   release(key)       — 释放按键
-#   lstick(x, y, ms=50)— 左摇杆 (0~255, 128=居中)
 #   capture()          — NS 截图
 #   log(msg)           — 输出日志
 #   search_label(name, threshold=80) -> bool (threshold>=0) / int (threshold=-1)
@@ -18,7 +17,7 @@
 
 import time, json, os, glob, shutil
 
-from gui import press, hold, release, capture, wait, log, search_label, is_running, ocr_pokemon, get_frame, ocr_custom
+from gui import press, hold, release, capture, wait, log, search_label, is_running, ocr_pokemon, get_frame, ocr_custom, identify_pokemon, ocr_name
 from gui import run_script
 
 from calibration import calibrate, _obs_to_iv_range, _n_combos
@@ -128,6 +127,7 @@ def hit_super_rod():
     press('A')
 
 def hit_gift():
+    # 直接领取
     start = time.time()
     end = start + ADVANCES_MS_NORMAL / 1000.0
     sleep(0.0, end)
@@ -149,34 +149,27 @@ def hit():
     log('--- RNG 流程结束 ---')
     return True
 
-# ---------- 标签查询 ----------
-def get_labeled_zh_names():
-    """从 labels/ 目录加载已有的 3代普通xxx 标签中文名"""
-    import os as _os
-    names = []
-    try:
-        for f in _os.listdir('labels'):
-            if f.startswith('3代普通') and f.endswith('.IL'):
-                names.append(f[4:-3])  # 去掉 "3代普通" 和 ".IL"
-    except FileNotFoundError:
-        pass
-    return names
-
 def get_expected_zh_names():
     """根据当前 RNG location 获取预期宝可梦的中文名列表"""
     species_list = get_encounter_species_list(RNG_LOCATION, RNG_CATEGORY)
     return [get_species_zh_name(s) for s in species_list]
 
-def get_label_status():
-    """
-    返回 (labeled_set, missing_set):
-      labeled_set = 有标签 ∩ 预期出现的宝可梦
-      missing_set = 预期出现但缺标签的宝可梦
-    """
-    labeled = set(get_labeled_zh_names())
-    expected = set(get_expected_zh_names())
-    return labeled & expected, expected - labeled
 
+# ---------- 精灵匹配识别配置 ----------
+# 搜索区域硬编码在 pokemon_sprite 中 (GBA x=144, y=0~100)
+
+# 首次匹配跟踪（持久化到磁盘）
+_SEEN_FILE = 'rng_logs/_seen_species.json'
+def _load_seen():
+    if os.path.exists(_SEEN_FILE):
+        with open(_SEEN_FILE) as f:
+            return set(json.load(f))
+    return set()
+def _save_seen(s):
+    os.makedirs(os.path.dirname(_SEEN_FILE), exist_ok=True)
+    with open(_SEEN_FILE, 'w') as f:
+        json.dump(sorted(s), f)
+_seen_species = _load_seen()
 
 # ---------- 闪光检测 & 自动标签制作 ----------
 SHINY_THRESHOLD = 90
@@ -265,10 +258,14 @@ def _try_auto_label(missing_set):
 
 def check_shiny():
     """
-    检测当前遇到的是否闪光，必要时自动补标签。
-    返回 (is_shiny, pokemon)
+    检测当前遇到的是否闪光。
+    主识别：GBA 精灵图全局最佳匹配（normal + shiny），始终取最高分。
+    双重验证：首次匹配到某宝可梦时调用 OCR 确认。
+    返回 (is_shiny: bool, pokemon_en: str | None)
+    异常：检测不到血条/候选为空时抛出 RuntimeError。
     """
-    log('尝试识别...')
+    import cv2, hashlib, time as _time
+    log('Identifying...')
 
     # 1. 检测野怪血条
     for _ in range(20):
@@ -276,52 +273,75 @@ def check_shiny():
             break
         sleep(0.5)
     else:
-        log('未遇到宝可梦')
         return False, None
 
-    # 2. 获取标签状态
-    labeled_set, missing_set = get_label_status()
+    # 2. 获取候选
+    candidates = get_encounter_species_list(RNG_LOCATION, RNG_CATEGORY)
+    if not candidates:
+        raise RuntimeError(f'Empty encounter list for {RNG_LOCATION}/{RNG_CATEGORY}')
+    log(f'  candidates: {[get_species_en_name(get_species_zh_name(c)) for c in candidates]}')
 
-    # 3. 用已有标签匹配
-    best_name, best_deg = None, 0
-    if labeled_set:
-        for zh_name in sorted(labeled_set):
-            deg = search_label('3代普通' + zh_name, -1)
-            if deg > best_deg:
-                best_deg = deg
-                best_name = zh_name
-            if deg >= SHINY_THRESHOLD:
-                log(f'  识别: {zh_name} ({deg:.0f}%)')
-                return False, zh_name  # 非闪光，返回宝可梦名
-        # 未达严格阈值，但最高匹配度足够 → 宽松采用
-        if best_deg >= 85:
-            log(f'  识别(宽松): {best_name} ({best_deg:.0f}% < {SHINY_THRESHOLD}%)')
-            return False, best_name
+    # 3. 全局最佳匹配
+    species_id, score, is_shiny = identify_pokemon(
+        candidates=candidates,
+        threshold=0.0,
+    )
 
-    # 4. 无匹配 → 尝试自动补标签
-    if missing_set:
-        log(f'  缺标签: {sorted(missing_set)}，尝试自动制作...')
-        _try_auto_label(missing_set)
-        # 重新检测
-        re_best_name, re_best_deg = None, 0
-        for zh_name in sorted(labeled_set | missing_set):
-            deg = search_label('3代普通' + zh_name, -1)
-            if deg > re_best_deg:
-                re_best_deg = deg
-                re_best_name = zh_name
-            if deg >= SHINY_THRESHOLD:
-                log(f'  识别: {zh_name} ({deg:.0f}%)')
-                return False, zh_name
-        if re_best_deg >= 85:
-            log(f'  识别(宽松): {re_best_name} ({re_best_deg:.0f}% < {SHINY_THRESHOLD}%)')
-            return False, re_best_name
-        # 标签补完后仍不匹配 → 真闪光
-        log('  标签补完后仍无匹配 → 闪光！！')
-        return True, None
+    if species_id is None or score < 0.3:
+        # 保存调试截图
+        frame = get_frame()
+        if frame is not None:
+            try:
+                from modules.pokemon_sprite import detect_gba_area
+                gx, gy, scale = detect_gba_area(frame)
+                sx = gx + int(140 * scale)
+                sy = gy
+                sw = int(72 * scale)
+                sh = int(100 * scale)
+                ts = _time.strftime('%Y%m%d_%H%M%S')
+                h = hashlib.md5(f'{ts}{score}'.encode()).hexdigest()[:6]
+                dbg = frame.copy()
+                cv2.rectangle(dbg, (gx, gy), (gx+int(240*scale), gy+int(160*scale)), (255,255,0), 2)
+                cv2.rectangle(dbg, (sx, sy), (sx+sw, sy+sh), (0,0,255), 2)
+                os.makedirs('debug_label', exist_ok=True)
+                cv2.imencode('.png', dbg)[1].tofile(f'debug_label/identify_fail_{ts}_{h}.png')
+                log(f'  debug frame saved (score={score:.3f})')
+            except Exception:
+                pass
+        log(f'  identification failed (score={score:.3f}), assuming shiny')
+        return False, None
 
-    # 5. 标签齐全但无匹配 → 真闪光
-    log('  所有标签齐全但无匹配 → 闪光！！')
-    return True, None
+    pkm_en = get_species_en_name(get_species_zh_name(species_id))
+    log(f'  match: {pkm_en} (#{species_id}) score={score:.3f} {"SHINY" if is_shiny else "normal"}')
+
+    # 4. 双重验证：首次匹配到此宝可梦时调用 OCR 确认
+    global _seen_species
+    if species_id not in _seen_species:
+        log(f'  first encounter of #{species_id}, OCR verifying...')
+        ocr_candidates = [
+            f"{get_species_zh_name(c)}({get_species_en_name(get_species_zh_name(c))})"
+            for c in candidates
+        ]
+        ocr_en = ocr_name(candidates=ocr_candidates)
+        if ocr_en:
+            try:
+                ocr_sid = get_species_id(ocr_en)
+                if ocr_sid != species_id:
+                    log(f'  OCR mismatch: appearance={pkm_en} OCR={get_species_en_name(get_species_zh_name(ocr_sid))}')
+                    log(f'  using OCR result')
+                    species_id = ocr_sid
+                    pkm_en = get_species_en_name(get_species_zh_name(ocr_sid))
+                    is_shiny = False
+                else:
+                    log(f'  OCR confirmed: {pkm_en}')
+            except ValueError:
+                log(f'  OCR result unresolvable: {ocr_en}')
+        else:
+            log(f'  OCR unavailable, trusting appearance match')
+    _seen_species.add(species_id)
+    _save_seen(_seen_species)
+
+    return is_shiny, pkm_en
 
 # ---------- 普通捕获 (野外模式) ----------
 def catch_with_ball():
@@ -574,12 +594,11 @@ def main():
         hit()
 
         if RNG_CATEGORY in ["Grass", "Surfing", "SuperRod"]:
-            is_shiny, pokemon_zh = check_shiny()
+            is_shiny, pokemon_en = check_shiny()
             if is_shiny:
-                log('✨✨✨ 发现闪光！'); break
-            if pokemon_zh:
-                pokemon_en = get_species_en_name(pokemon_zh)
-                log(f'  当前宝可梦: {pokemon_zh} ({pokemon_en})')
+                log('Shiny found!'); break
+            if pokemon_en:
+                log(f'  current: {pokemon_en}')
                 caught = catch_with_ball()
                 if caught:
                     check_last_pokemon()
@@ -587,7 +606,7 @@ def main():
         elif RNG_CATEGORY == "Gift":
             check_last_pokemon()
             if search_label('3代闪光', 80):
-                log('✨✨✨ 发现闪光！'); break
+                log('Shiny found!'); break
             else:
                 record_for_finetune(count, POKEMON_SPECIES)
         else:

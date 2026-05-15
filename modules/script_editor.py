@@ -57,12 +57,12 @@ class ScriptEditor:
         
         # 代码内容
         self.lines: List[str] = []
-        script_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "demo_script.txt")
+        script_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "demo_script.py")
         try:
             with open(script_path, 'r', encoding='utf-8') as f:
                 self.lines = [s.replace('\r', '') for s in f.read().split('\n')]
         except FileNotFoundError:
-            self.lines = ["# demo_script.txt  not found"]
+            self.lines = ["# demo_script.py not found"]
         
         # 光标位置
         self.cursor_line = 0

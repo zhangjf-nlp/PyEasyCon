@@ -37,11 +37,14 @@ from modules.pokemon_ocr import (
     ocr_caught_info as _ocr_caught_info_module,
     ocr_caught_iv as _ocr_caught_iv_module,
     ocr_custom as _ocr_custom_module,
+    ocr_pokemon_name as _ocr_pokemon_name_module,
     get_vllm_model, 
     set_model_type, get_current_model_type, get_available_model_types,
     check_vllm_service, check_glm_service,
     MODEL_TYPE_VLLM, MODEL_TYPE_GLM, GLM_MODEL,
 )
+
+from modules.pokemon_sprite import identify_pokemon as _identify_pokemon_module
 
 
 class EasyConGUI:
@@ -446,6 +449,33 @@ class EasyConGUI:
         """获取采集卡当前帧 (1920×1080 BGR)"""
         return self.video_module.get_raw_frame()
     
+    def _identify_pokemon(self, candidates=None, threshold=0.0):
+        """识别画面中的宝可梦。返回 (species_id, score, is_shiny)。"""
+        frame = self._get_video_frame()
+        if frame is None:
+            self.output_panel.log("识别失败: 采集卡未就绪")
+            return None, 0.0, False
+        species_id, score, is_shiny = _identify_pokemon_module(
+            frame, candidates=candidates, threshold=threshold
+        )
+        if species_id is not None:
+            shiny_str = "异色" if is_shiny else "普通"
+            self.output_panel.log(f"识别结果: #{species_id} ({shiny_str}), 分数={score:.3f}")
+        return species_id, score, is_shiny
+    
+    def _ocr_name(self, candidates=None):
+        """OCR 识别画面中的宝可梦英文名。
+        candidates: 备选列表，如 ["走路草(Oddish)", "嘟嘟(Doduo)"]，None=不限定
+        返回英文名或 None。
+        """
+        frame = self._get_video_frame()
+        if frame is None:
+            return None
+        name = _ocr_pokemon_name_module(frame, candidates or [], debug=False)
+        if name and name.upper() != 'NONE':
+            self.output_panel.log(f"OCR 验证: {name}")
+        return name if name and name.upper() != 'NONE' else None
+    
     def _ocr_pokemon(self):
         """自动检测画面并 OCR"""
         frame = self._get_video_frame()
@@ -750,6 +780,23 @@ def ocr_custom(image, prompt: str, model_type: str = None):
     """自定义 VL OCR，可指定 model_type='glm' 或 'vllm'"""
     if _current_gui:
         return _current_gui._ocr_custom(image, prompt, model_type)
+    return None
+
+
+def identify_pokemon(candidates=None, threshold=0.0):
+    """识别画面中的宝可梦。返回 (species_id, score, is_shiny)。"""
+    if _current_gui:
+        return _current_gui._identify_pokemon(candidates=candidates, threshold=threshold)
+    return None, 0.0, False
+
+
+def ocr_name(candidates=None):
+    """OCR 识别画面中的宝可梦英文名。
+    candidates: 备选列表如 ["走路草(Oddish)", ...]
+    返回英文名或 None。
+    """
+    if _current_gui:
+        return _current_gui._ocr_name(candidates=candidates)
     return None
 
 
