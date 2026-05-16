@@ -71,42 +71,43 @@ def _load_sprite(path: str) -> Optional[np.ndarray]:
     return img
 
 
-def _match_one(search_frame, sprite_bgra, sprite_px, fh, fw) -> float:
+def _match_one(search_frame, sprite_bgra, sprite_px, fh, fw):
     bgr, alpha = sprite_bgra[:,:,:3], sprite_bgra[:,:,3]
     mask = (alpha > 128).astype(np.uint8) * 255
     tpl = cv2.resize(bgr, (sprite_px, sprite_px), interpolation=cv2.INTER_NEAREST)
     msk = cv2.resize(mask, (sprite_px, sprite_px), interpolation=cv2.INTER_NEAREST)
     if np.count_nonzero(msk) < 10 or sprite_px > fh or sprite_px > fw:
-        return 0.0
+        return 0.0, (0, 0)
     result = cv2.matchTemplate(search_frame, tpl, cv2.TM_SQDIFF_NORMED, mask=msk)
-    return max(0.0, 1.0 - float(np.nanmin(result)))
+    min_val, _, min_loc, _ = cv2.minMaxLoc(result)
+    return max(0.0, 1.0 - float(min_val)), (min_loc[0], min_loc[1])
 
 
-def _score_species(frame, species_id, shiny, gba) -> float:
+def _score_species(frame, species_id, shiny, gba):
     gx, gy, scale = gba
     spx = int(SPRITE_NATIVE * scale)
     if spx < 8:
-        return 0.0
+        return 0.0, (0, 0)
     sx = gx + int(140 * scale)
     sw = int(72 * scale)
     sh = int(100 * scale)
     search = frame[gy:gy+sh, sx:sx+sw]
     fh, fw = search.shape[:2]
-    best = 0.0
+    best, best_pos = 0.0, (0, 0)
     for _, np_path, sp_path in _get_sprite_paths(species_id):
         sprite = _load_sprite(sp_path if shiny else np_path)
         if sprite is None:
             continue
-        s = _match_one(search, sprite, spx, fh, fw)
+        s, (mx, my) = _match_one(search, sprite, spx, fh, fw)
         if s > best:
             best = s
-    return best
+            best_pos = (sx + mx, gy + my)
+    return best, best_pos
 
 
 def identify_pokemon(frame: np.ndarray,
                      candidates: Optional[List[int]] = None,
-                     threshold: float = 0.0) -> Tuple[Optional[int], float, bool]:
-    """识别画面中的宝可梦。返回 (species_id, score, is_shiny)。"""
+                     threshold: float = 0.0) -> Tuple[Optional[int], float, bool, int, int]:
     if candidates is None:
         candidates = sorted(set(
             int(f.split('.')[0].split('-')[0])
@@ -120,17 +121,20 @@ def identify_pokemon(frame: np.ndarray,
             _load_sprite(sp_path)
 
     best_sid, best_score, best_shiny = None, 0.0, False
+    best_mx, best_my = 0, 0
     for sid in candidates:
-        ns = _score_species(frame, sid, False, gba)
+        ns, (nmx, nmy) = _score_species(frame, sid, False, gba)
         if ns > best_score:
             best_score, best_sid, best_shiny = ns, sid, False
-        ss = _score_species(frame, sid, True, gba)
+            best_mx, best_my = nmx, nmy
+        ss, (smx, smy) = _score_species(frame, sid, True, gba)
         if ss > best_score:
             best_score, best_sid, best_shiny = ss, sid, True
+            best_mx, best_my = smx, smy
 
     if best_score < threshold:
-        return None, best_score, False
-    return best_sid, best_score, best_shiny
+        return None, best_score, False, 0, 0
+    return best_sid, best_score, best_shiny, best_mx, best_my
 
 
 def preload_sprites(species_ids: List[int]):

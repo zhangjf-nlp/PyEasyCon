@@ -17,11 +17,11 @@
 
 import time, json, os, glob, shutil
 
-from gui import press, hold, release, capture, wait, log, search_label, is_running, ocr_pokemon, get_frame, ocr_custom, identify_pokemon, ocr_name
+from gui import press, hold, release, capture, wait, log, search_label, is_running, ocr_pokemon, get_frame
 from gui import run_script
 
 from calibration import calibrate, _obs_to_iv_range, _n_combos
-from modules.tenlines.tenlines_utils import ENCOUNTER_TYPE_MAP, IVsObservation, GameSettings, get_species_id, get_personal, get_seed_time, get_species_zh_name, get_species_en_name, get_encounter_species_list, get_species_name
+from modules.tenlines.tenlines_utils import IVsObservation, GameSettings, get_species_id, get_personal, get_seed_time, get_species_zh_name, get_species_en_name, get_encounter_species_list
 
 
 def sleep(seconds, end=None):
@@ -41,9 +41,9 @@ def sleep(seconds, end=None):
             time.sleep(0.05)
 
 # ---------- 脚本设定 ----------
-FINETUNE_PRECISE_COMBOS = 64   # 符合precision条件的n_combos上限
-FINETUNE_MIN_VALID = 3         # 收集多少个符合条件的案例后进行校准
-CANDY_FEED_TIMES = 10          # 喂神奇糖果的次数
+PRECICASE_COMBOS = 64          # 精确个体值组合数上限
+FINETUNE_PER_PRECICASE = 3     # 反查校准间隔
+MAX_CANDIES = 10               # 神奇糖果次数上限
 
 # 记录符合条件的attempt次数
 valid_calibration_attempts = 0
@@ -119,7 +119,7 @@ def hit_super_rod():
     end = start + ADVANCES_MS_NORMAL / 1000.0
     press('X'); sleep(1.0); press('DOWN'); sleep(0.5); press('DOWN'); sleep(0.5)
     press('A'); sleep(2.0); press('RIGHT'); sleep(1.0)
-    assert search_label('3代关键词KeyItems', 95)
+    assert search_label('3代关键词KeyItems', 95), search_label('3代关键词KeyItems', -1)
     while not search_label('3代关键词SuperRod选中', 99):
         press('DOWN'); sleep(0.5)
     press('A'); sleep(0.5); press('A')
@@ -149,125 +149,11 @@ def hit():
     log('--- RNG 流程结束 ---')
     return True
 
-def get_expected_zh_names():
-    """根据当前 RNG location 获取预期宝可梦的中文名列表"""
-    species_list = get_encounter_species_list(RNG_LOCATION, RNG_CATEGORY)
-    return [get_species_zh_name(s) for s in species_list]
-
-
-# ---------- 精灵匹配识别配置 ----------
-# 搜索区域硬编码在 pokemon_sprite 中 (GBA x=144, y=0~100)
-
-# 首次匹配跟踪（持久化到磁盘）
-_SEEN_FILE = 'rng_logs/_seen_species.json'
-def _load_seen():
-    if os.path.exists(_SEEN_FILE):
-        with open(_SEEN_FILE) as f:
-            return set(json.load(f))
-    return set()
-def _save_seen(s):
-    os.makedirs(os.path.dirname(_SEEN_FILE), exist_ok=True)
-    with open(_SEEN_FILE, 'w') as f:
-        json.dump(sorted(s), f)
-_seen_species = _load_seen()
-
-# ---------- 闪光检测 & 自动标签制作 ----------
-SHINY_THRESHOLD = 90
-from modules.pokemon_ocr import ocr_pokemon_name
-
-# 参考现有"3代普通xxx"标签的识别范围（中位数）
-_AUTO_LABEL_RANGE = (1178, 208, 277, 259)       # RangeX, RangeY, RangeWidth, RangeHeight
-_AUTO_LABEL_TARGET = (14, 15, 246, 235)          # Target offset from Range (dx, dy, w, h)
-
-
-def _make_label(zh_name, frame):
-    """制作单个标签并保存到 labels/ 目录，返回是否成功"""
-    import cv2, base64
-
-    RX, RY, RW, RH = _AUTO_LABEL_RANGE
-    DX, DY, TW, TH = _AUTO_LABEL_TARGET
-    tx, ty = RX + DX, RY + DY
-
-    h, w = frame.shape[:2]
-    if ty + TH > h or tx + TW > w:
-        log(f'[label] 裁剪越界: ({tx},{ty},{TW},{TH}) vs ({w}x{h})')
-        return False
-
-    target_roi = frame[ty:ty + TH, tx:tx + TW]
-    label_name = f'3代普通{zh_name}'
-    label_path = os.path.join('labels', f'{label_name}.IL')
-
-    _, buf = cv2.imencode('.png', target_roi)
-    img_b64 = base64.b64encode(buf).decode()
-
-    label_data = {
-        "name": label_name,
-        "searchMethod": 1,
-        "ImgBase64": img_b64,
-        "RangeX": RX, "RangeY": RY, "RangeWidth": RW, "RangeHeight": RH,
-        "TargetX": tx, "TargetY": ty, "TargetWidth": TW, "TargetHeight": TH,
-    }
-    with open(label_path, 'w', encoding='utf-8') as f:
-        json.dump(label_data, f, indent=2)
-
-    for _ in range(5):
-        deg = search_label(label_name, -1)
-        if deg >= 99:
-            log(f'[label] ✓ {label_name} ({deg:.0f}%)')
-            return True
-        sleep(0.2)
-
-    log(f'[label] ✗ {label_name} 验证未达99%，请手动检查')
-    return False
-
-
-
-def _try_auto_label(missing_set):
-    """识别当前宝可梦名并为 missing_set 制作标签"""
-    frame = get_frame()
-    if frame is None:
-        return
-
-    # 构建备选列表
-    expected_zh = get_expected_zh_names()
-    candidates = [
-        f"{zh}({get_species_en_name(zh)})"
-        for zh in sorted(set(expected_zh))
-        if get_species_en_name(zh) != zh
-    ]
-    en_name = ocr_pokemon_name(frame, candidates)
-    if en_name is None or en_name.upper() == 'NONE':
-        log('[label] GLM 未识别到已知宝可梦')
-        return
-
-    log(f'[label] OCR: {en_name}')
-
-    try:
-        sid = get_species_id(en_name)
-    except ValueError:
-        log(f'[label] 无法解析: {en_name}')
-        return
-
-    zh_name = get_species_zh_name(sid)
-    if zh_name not in missing_set:
-        log(f'[label] {zh_name} 不在缺标签列表中')
-        return
-
-    _make_label(zh_name, frame)
-
-
 def check_shiny():
-    """
-    检测当前遇到的是否闪光。
-    主识别：GBA 精灵图全局最佳匹配（normal + shiny），始终取最高分。
-    双重验证：首次匹配到某宝可梦时调用 OCR 确认。
-    返回 (is_shiny: bool, pokemon_en: str | None)
-    异常：检测不到血条/候选为空时抛出 RuntimeError。
-    """
-    import cv2, hashlib, time as _time
+    import cv2, numpy as np, time as _time
+    from modules.pokemon_sprite import identify_pokemon as _identify, detect_gba_area, SPRITE_NATIVE
     log('Identifying...')
 
-    # 1. 检测野怪血条
     for _ in range(20):
         if search_label('3代野怪血条', 90):
             break
@@ -275,71 +161,41 @@ def check_shiny():
     else:
         return False, None
 
-    # 2. 获取候选
     candidates = get_encounter_species_list(RNG_LOCATION, RNG_CATEGORY)
     if not candidates:
         raise RuntimeError(f'Empty encounter list for {RNG_LOCATION}/{RNG_CATEGORY}')
-    log(f'  candidates: {[get_species_en_name(get_species_zh_name(c)) for c in candidates]}')
 
-    # 3. 全局最佳匹配
-    species_id, score, is_shiny = identify_pokemon(
-        candidates=candidates,
-        threshold=0.0,
-    )
+    frame = get_frame()
+    if frame is None:
+        raise RuntimeError('采集卡未就绪')
 
-    if species_id is None or score < 0.3:
-        # 保存调试截图
-        frame = get_frame()
-        if frame is not None:
-            try:
-                from modules.pokemon_sprite import detect_gba_area
-                gx, gy, scale = detect_gba_area(frame)
-                sx = gx + int(140 * scale)
-                sy = gy
-                sw = int(72 * scale)
-                sh = int(100 * scale)
-                ts = _time.strftime('%Y%m%d_%H%M%S')
-                h = hashlib.md5(f'{ts}{score}'.encode()).hexdigest()[:6]
-                dbg = frame.copy()
-                cv2.rectangle(dbg, (gx, gy), (gx+int(240*scale), gy+int(160*scale)), (255,255,0), 2)
-                cv2.rectangle(dbg, (sx, sy), (sx+sw, sy+sh), (0,0,255), 2)
-                os.makedirs('debug_label', exist_ok=True)
-                cv2.imencode('.png', dbg)[1].tofile(f'debug_label/identify_fail_{ts}_{h}.png')
-                log(f'  debug frame saved (score={score:.3f})')
-            except Exception:
-                pass
-        log(f'  identification failed (score={score:.3f}), assuming shiny')
-        return False, None
+    species_id, score, is_shiny, fx_match, fy_match = _identify(frame, candidates=candidates, threshold=0.0)
+
+    gx, gy, scale = detect_gba_area(frame)
+    spx = int(SPRITE_NATIVE * scale)
+    sx_roi = gx + int(140 * scale)
+    sy_roi = gy
+    sw_roi = int(72 * scale)
+    sh_roi = int(100 * scale)
+
+    if species_id is None or score < 0.95:
+        ts = _time.strftime('%Y%m%d_%H%M%S')
+        os.makedirs('debug_label', exist_ok=True)
+        cv2.imencode('.png', frame)[1].tofile(f'debug_label/{ts}.png')
+        log(f'identification failed (score={score:.3f})')
+        raise RuntimeError(f'宝可梦识别失败 (最高匹配度={score:.3f})')
 
     pkm_en = get_species_en_name(get_species_zh_name(species_id))
-    log(f'  match: {pkm_en} (#{species_id}) score={score:.3f} {"SHINY" if is_shiny else "normal"}')
+    log(f'match: {pkm_en} (#{species_id}) score={score:.3f} {"SHINY" if is_shiny else "normal"}')
 
-    # 4. 双重验证：首次匹配到此宝可梦时调用 OCR 确认
-    global _seen_species
-    if species_id not in _seen_species:
-        log(f'  first encounter of #{species_id}, OCR verifying...')
-        ocr_candidates = [
-            f"{get_species_zh_name(c)}({get_species_en_name(get_species_zh_name(c))})"
-            for c in candidates
-        ]
-        ocr_en = ocr_name(candidates=ocr_candidates)
-        if ocr_en:
-            try:
-                ocr_sid = get_species_id(ocr_en)
-                if ocr_sid != species_id:
-                    log(f'  OCR mismatch: appearance={pkm_en} OCR={get_species_en_name(get_species_zh_name(ocr_sid))}')
-                    log(f'  using OCR result')
-                    species_id = ocr_sid
-                    pkm_en = get_species_en_name(get_species_zh_name(ocr_sid))
-                    is_shiny = False
-                else:
-                    log(f'  OCR confirmed: {pkm_en}')
-            except ValueError:
-                log(f'  OCR result unresolvable: {ocr_en}')
-        else:
-            log(f'  OCR unavailable, trusting appearance match')
-    _seen_species.add(species_id)
-    _save_seen(_seen_species)
+    dbg = frame.copy()
+    cv2.rectangle(dbg, (sx_roi, sy_roi), (sx_roi+sw_roi, sy_roi+sh_roi), (255,255,0), 2)
+    cv2.rectangle(dbg, (fx_match, fy_match), (fx_match+spx, fy_match+spx), (0,255,0), 3)
+    cv2.putText(dbg, f'{pkm_en} score={score:.3f}', (sx_roi, sy_roi-5),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,255), 1)
+    os.makedirs('debug_label', exist_ok=True)
+    safe_name = pkm_en.replace(' ', '_').replace("'", "")
+    cv2.imencode('.png', dbg)[1].tofile(f'debug_label/{safe_name}.png')
 
     return is_shiny, pkm_en
 
@@ -495,8 +351,8 @@ def record_for_finetune(attempt, pokemon):
         )
     obs_list.append(_make_obs(ocr_caught_iv, nature))
 
-    # 喂糖循环 - 使用超参数 CANDY_FEED_TIMES
-    for i in range(CANDY_FEED_TIMES):
+    # 喂糖循环 - 使用超参数 MAX_CANDIES
+    for i in range(MAX_CANDIES):
         if i == 0:
             for _ in range(10):
                 press('B'); sleep(0.5); press('B'); sleep(0.5)
@@ -538,7 +394,7 @@ def record_for_finetune(attempt, pokemon):
         obs_list.append(_make_obs(ocr_elevated, nature))
         current_n_combos = calculate_n_combos(obs_list, pokemon)
         log(f' {len(obs_list)} IVs observations | {current_n_combos} IVs combos')
-        if current_n_combos <= FINETUNE_PRECISE_COMBOS:
+        if current_n_combos <= PRECICASE_COMBOS:
             valid_calibration_attempts += 1
             break
 
@@ -551,7 +407,7 @@ def record_for_finetune(attempt, pokemon):
             break
 
     log(f' {attempt} attempts | {valid_calibration_attempts} precise observations')
-    if valid_calibration_attempts >= FINETUNE_MIN_VALID:
+    if valid_calibration_attempts >= FINETUNE_PER_PRECICASE:
         run_calibration()
 
 def check_last_pokemon():
@@ -598,7 +454,6 @@ def main():
             if is_shiny:
                 log('Shiny found!'); break
             if pokemon_en:
-                log(f'  current: {pokemon_en}')
                 caught = catch_with_ball()
                 if caught:
                     check_last_pokemon()

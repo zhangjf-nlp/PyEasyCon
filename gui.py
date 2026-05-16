@@ -455,9 +455,10 @@ class EasyConGUI:
         if frame is None:
             self.output_panel.log("识别失败: 采集卡未就绪")
             return None, 0.0, False
-        species_id, score, is_shiny = _identify_pokemon_module(
+        result = _identify_pokemon_module(
             frame, candidates=candidates, threshold=threshold
         )
+        species_id, score, is_shiny = result[0], result[1], result[2]
         if species_id is not None:
             shiny_str = "异色" if is_shiny else "普通"
             self.output_panel.log(f"识别结果: #{species_id} ({shiny_str}), 分数={score:.3f}")
