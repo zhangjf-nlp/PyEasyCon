@@ -88,7 +88,7 @@ vl_model:
     model_name: "Qwen3-VL-2B"
   glm:
     model: "glm-4.6v-flash"
-    api_key_env: "ZHIPUAI_API_KEY"
+    api_key: ""
     rate_limit_rpm: 30
 
 # ==================== 标签目录 ====================

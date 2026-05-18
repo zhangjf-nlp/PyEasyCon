@@ -3,6 +3,8 @@ Pokemon OCR Module - 宝可梦信息 OCR 识别模块
 通过 WSL vLLM 部署的 Qwen3-VL-2B 进行图像识别，提供给 EasyCon 脚本使用
 
 ROI 坐标基于 1920×1080 (采集卡直出)
+
+配置来源：config/default.yaml → vl_model 段
 """
 
 import base64
@@ -16,47 +18,35 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import cv2
 import numpy as np
 
-# ==================== 加载 .env 配置文件 ====================
+# ==================== VL 模型配置（config/default.yaml → vl_model 段） ====================
 
-def _load_dotenv():
-    """从项目根目录的 .env 文件加载环境变量（不覆盖已有环境变量）"""
-    env_path = os.path.join(os.path.dirname(__file__), '..', '..', '.env')
-    if not os.path.isfile(env_path):
-        return
+def _read_vl_config():
+    """读取 VL 模型配置（延迟导入，避免循环依赖）"""
     try:
-        with open(env_path, 'r', encoding='utf-8') as f:
-            for line in f:
-                line = line.strip()
-                if not line or line.startswith('#'):
-                    continue
-                if '=' not in line:
-                    continue
-                key, _, value = line.partition('=')
-                key = key.strip()
-                value = value.strip().strip('"').strip("'")
-                if key and key not in os.environ:
-                    os.environ[key] = value
+        from easycon.config import get
+        return get("vl_model", {})
     except Exception:
-        pass
+        return {}
 
-_load_dotenv()
+_vl_cfg = _read_vl_config()
 
 # vLLM API 配置
-VLLM_BASE_URL = "http://localhost:8000/v1"
+VLLM_BASE_URL = _vl_cfg.get("vllm", {}).get("base_url", "http://localhost:8000/v1")
 
 # GLM-4.6v 在线API配置
 GLM_API_BASE_URL = "https://open.bigmodel.cn/api/paas/v4"
-GLM_API_KEY = os.environ.get("GLM_API_KEY", "")
-GLM_MODEL = "glm-4.6v-flash"
+GLM_API_KEY = _vl_cfg.get("glm", {}).get("api_key", "")
+GLM_MODEL = _vl_cfg.get("glm", {}).get("model", "glm-4.6v-flash")
 
 # VL模型类型选择
 MODEL_TYPE_VLLM = "vllm"
 MODEL_TYPE_GLM = "glm"
 
 # 当前使用的模型类型（可动态切换）
+_preferred = _vl_cfg.get("type", "vllm").lower()
 _current_model_type = (
-    MODEL_TYPE_GLM if os.environ.get("MODEL_TYPE", "").lower() == "glm"
-    else MODEL_TYPE_VLLM if os.environ.get("MODEL_TYPE", "").lower() == "vllm"
+    MODEL_TYPE_GLM if _preferred == "glm"
+    else MODEL_TYPE_VLLM if _preferred == "vllm"
     else MODEL_TYPE_VLLM
 )
 
@@ -336,8 +326,7 @@ def _ensure_model_init():
     with _model_init_lock:
         if _model_init_done:
             return
-        # 检查 .env 中的 MODEL_TYPE 偏好
-        preferred = os.environ.get("MODEL_TYPE", "").lower()
+        preferred = _read_vl_config().get("type", "vllm").lower()
 
         if preferred == "glm":
             if check_glm_service():

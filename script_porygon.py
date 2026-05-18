@@ -19,8 +19,8 @@ cfg = RNGConfig(
     rng_method="Static 1",
     seed_hex="0727",
     advances=186130,
-    seed_bias=-4906,
-    advances_bias=-11492,
+    seed_bias=-4950,
+    advances_bias=-11054,
     timing=TimingConfig(operation_seconds=12.0),
 )
 
