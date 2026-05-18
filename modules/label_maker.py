@@ -45,7 +45,7 @@ class LabelMaker:
         self.capture_display_height = 180
         
         # 标签数据
-        self.labels_dir = "labels"
+        self.labels_dir = "assets/labels"
         import os
         os.makedirs(self.labels_dir, exist_ok=True)
         

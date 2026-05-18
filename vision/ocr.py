@@ -20,7 +20,7 @@ import numpy as np
 
 def _load_dotenv():
     """从项目根目录的 .env 文件加载环境变量（不覆盖已有环境变量）"""
-    env_path = os.path.join(os.path.dirname(__file__), '..', '.env')
+    env_path = os.path.join(os.path.dirname(__file__), '..', '..', '.env')
     if not os.path.isfile(env_path):
         return
     try:

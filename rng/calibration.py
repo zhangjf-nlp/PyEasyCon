@@ -1,32 +1,10 @@
-"""
-calibration.py — 反查校准模块
-
-根据 rng_logs 中的 OCR 数据反查实际命中的 seed/advances，
-返回 seed_bias (ms) 和 adv_bias (advances) 建议值。
-
-用法:
-    from calibration import calibrate
-    seed_bias_ms, adv_bias = calibrate(
-        seed_hex="864A",
-        seed_time=36919,
-        advances=328348,
-        trainer_id=58888,
-        secret_id=12232,
-        game_settings=GameSettings(sound="stereo", button_mode="h"),
-        game="fr_nx",
-        method="All Wild Methods",
-        location="Route 19",
-        category="Surfing",
-        log_dir="rng_logs/20260510_020146",
-    )
-"""
 import glob
 import json
 import os
 import sys
 from typing import Dict, List, Optional, Tuple
 
-from modules.tenlines.tenlines_utils import (
+from rng.tenlines_utils import (
     calibration as _calibration_api,
     iv_calculator,
     GameSettings, IVsObservation, NATURES,
@@ -35,8 +13,8 @@ from modules.tenlines.tenlines_utils import (
 
 MAX_PRECISION_CASES = 5
 MAX_PRECISION_COMBOS = 64
-ANCHOR_SEED_BIAS = 10000
-ANCHOR_ADV_BIAS = 100000
+ANCHOR_SEED_BIAS = 5000
+ANCHOR_ADV_BIAS = 50000
 BULK_SEED_BIAS = 100
 BULK_ADV_BIAS = 1000
 

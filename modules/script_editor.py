@@ -1,800 +1,605 @@
 """
-Script Editor Module - 脚本编辑器模块
-Python代码编辑功能，支持语法高亮
+Script Editor Module - pygame-texteditor PatchedTextEditor
 """
 
-import re
-import subprocess
+import copy
+import math
 import pygame
-import os
-from typing import List, Optional, Callable, Tuple
+from pygame_texteditor import TextEditor
 
-# 语法高亮
-try:
-    from pygments import lex
-    from pygments.lexers import PythonLexer
-    from pygments.token import Token
-    _has_pygments = True
-except ImportError:
-    _has_pygments = False
+SCROLL_LINES = 3
+AUTO_SCROLL_MARGIN = 30
+AUTO_SCROLL_SPEED = 2
+UNDO_MAX = 200
 
 
-# 主题色映射
-TOKEN_COLORS = {
-    Token.Keyword: (100, 150, 220),
-    Token.Keyword.Namespace: (220, 200, 100),
-    Token.Keyword.Type: (100, 200, 200),
-    Token.Name.Function: (200, 200, 100),
-    Token.Name.Builtin: (100, 200, 200),
-    Token.Name.Decorator: (200, 180, 100),
-    Token.Comment: (100, 180, 100),
-    Token.String: (220, 150, 100),
-    Token.String.Doc: (180, 160, 100),
-    Token.Number: (180, 120, 220),
-    Token.Operator: (200, 180, 60),
-    Token.Name: (220, 220, 220),
-}
+class PatchedTextEditor(TextEditor):
+    """pygame-texteditor 全功能适配版"""
 
+    is_running = False
 
-def _token_color(token_type) -> tuple:
-    """根据 token 类型获取颜色"""
-    if not _has_pygments:
-        return None
-    ttype = token_type
-    while ttype not in TOKEN_COLORS and ttype.parent is not None:
-        ttype = ttype.parent
-    return TOKEN_COLORS.get(ttype, (200, 200, 200))
-
-
-class ScriptEditor:
-    """脚本编辑器模块 - 支持常见IDE功能"""
-    
-    def __init__(self, x: int, y: int, width: int = 640, height: int = 400):
-        self.x = x
-        self.y = y
-        self.width = width
-        self.height = height
-        
-        # 代码内容
-        self.lines: List[str] = []
-        script_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "demo_script.py")
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         try:
-            with open(script_path, 'r', encoding='utf-8') as f:
-                self.lines = [s.replace('\r', '') for s in f.read().split('\n')]
-        except FileNotFoundError:
-            self.lines = ["# demo_script.py not found"]
-        
-        # 光标位置
-        self.cursor_line = 0
-        self.cursor_col = 0
-        
-        # 选择区域
-        self.selection_start: Optional[Tuple[int, int]] = None
-        self.selection_end: Optional[Tuple[int, int]] = None
-        
-        # 运行状态
-        self.is_running = False
-        self.on_run_callback: Optional[Callable] = None
-        self.on_stop_callback: Optional[Callable] = None
-        self.on_save_callback: Optional[Callable] = None
-        self.on_load_callback: Optional[Callable] = None
-        
-        # 文件路径
-        self.file_path: Optional[str] = None
-        
-        # 按钮
-        self.buttons = {
-            'run': pygame.Rect(x + 10, y + 10, 70, 28),
-            'stop': pygame.Rect(x + 90, y + 10, 70, 28),
-            'save': pygame.Rect(x + 170, y + 10, 60, 28),
-            'load': pygame.Rect(x + 240, y + 10, 60, 28),
-        }
-        
-        # 编辑区域
-        self.editor_x = x + 10
-        self.editor_y = y + 50
-        self.editor_width = width - 20
-        self.editor_height = height - 60
-        
-        # 滚动偏移
-        self.scroll_y = 0
-        self.line_height = 20
-        
-        # 历史记录（用于撤销）
-        self.history: List[List[str]] = []
-        self.history_index = -1
-        self._save_history()
-    
-    def set_callbacks(self, on_run=None, on_stop=None, on_save=None, on_load=None):
-        """设置回调函数"""
-        self.on_run_callback = on_run
-        self.on_stop_callback = on_stop
-        self.on_save_callback = on_save
-        self.on_load_callback = on_load
-    
-    def get_code(self) -> str:
-        """获取完整代码"""
-        return "\n".join(line.rstrip('\r') for line in self.lines)
-    
-    def set_code(self, code: str):
-        """设置代码"""
-        self.lines = [line.replace('\r', '') for line in code.split("\n")]
-        self.cursor_line = min(self.cursor_line, len(self.lines) - 1)
-        self.cursor_col = min(self.cursor_col, len(self.lines[self.cursor_line]))
-        self._save_history()
-    
-    def _save_history(self):
-        """保存历史记录"""
-        # 限制历史记录数量
-        if len(self.history) > 50:
-            self.history = self.history[-50:]
-            self.history_index = len(self.history) - 1
-        
-        # 删除当前位置之后的历史
-        if self.history_index < len(self.history) - 1:
-            self.history = self.history[:self.history_index + 1]
-        
-        # 添加新历史
-        self.history.append([line[:] for line in self.lines])
-        self.history_index += 1
-    
-    def _undo(self):
-        """撤销"""
-        if self.history_index > 0:
-            self.history_index -= 1
-            self.lines = [line[:] for line in self.history[self.history_index]]
-            self.cursor_line = min(self.cursor_line, len(self.lines) - 1)
-            self.cursor_col = min(self.cursor_col, len(self.lines[self.cursor_line]))
-    
-    def _redo(self):
-        """重做"""
-        if self.history_index < len(self.history) - 1:
-            self.history_index += 1
-            self.lines = [line[:] for line in self.history[self.history_index]]
-            self.cursor_line = min(self.cursor_line, len(self.lines) - 1)
-            self.cursor_col = min(self.cursor_col, len(self.lines[self.cursor_line]))
-    
-    def handle_event(self, event: pygame.event.Event) -> bool:
-        """
-        处理事件
-        Returns: 是否处理了该事件
-        """
-        if event.type == pygame.MOUSEBUTTONDOWN:
-            if event.button == 1:
-                mx, my = event.pos
-                
-                # 检查按钮点击
-                for btn_name, btn_rect in self.buttons.items():
-                    if btn_rect.collidepoint(mx, my):
-                        if btn_name == 'run' and self.on_run_callback:
-                            self.on_run_callback()
-                        elif btn_name == 'stop' and self.on_stop_callback:
-                            self.on_stop_callback()
-                        elif btn_name == 'save' and self.on_save_callback:
-                            self.on_save_callback()
-                        elif btn_name == 'load' and self.on_load_callback:
-                            self.on_load_callback()
-                        return True
-                
-                # 检查是否在编辑区域
-                if self._is_in_editor(mx, my):
-                    self._set_cursor_from_mouse(mx, my)
-                    # 清除选择
-                    self.selection_start = None
-                    self.selection_end = None
-                    return True
-        
-        elif event.type == pygame.KEYDOWN:
-            return self._handle_key_input(event)
-
-        elif event.type == pygame.MOUSEWHEEL:
-            if self._is_in_editor(*pygame.mouse.get_pos()):
-                self.scroll_y -= event.y * self.line_height * 3
-                max_scroll = max(0, len(self.lines) * self.line_height - self.editor_height)
-                self.scroll_y = max(0, min(self.scroll_y, max_scroll))
-                return True
-
-        return False
-    
-    def _is_in_editor(self, mx: int, my: int) -> bool:
-        """检查坐标是否在编辑器内"""
-        return (self.editor_x <= mx <= self.editor_x + self.editor_width and
-                self.editor_y <= my <= self.editor_y + self.editor_height)
-    
-    def _set_cursor_from_mouse(self, mx: int, my: int):
-        """根据鼠标位置设置光标，通过字体度量精确计算列"""
-        rel_y = my - self.editor_y + self.scroll_y
-        line_idx = rel_y // self.line_height
-        line_idx = max(0, min(line_idx, len(self.lines) - 1))
-        self.cursor_line = line_idx
-        
-        rel_x = mx - self.editor_x - 45
-        if rel_x <= 0:
-            self.cursor_col = 0
-            return
-        
-        line = self.lines[line_idx].replace('\r', '')
-        font = getattr(self, '_mono_font', None)
-        if font is None:
-            self.cursor_col = max(0, int(rel_x / 8))
-            return
-        
-        cum = 0
-        for col, ch in enumerate(line):
-            cw = font.size(ch)[0]
-            if cum + cw // 2 >= rel_x:
-                self.cursor_col = col
-                return
-            cum += cw
-        self.cursor_col = len(line)
-    
-    def _handle_key_input(self, event: pygame.event.Event) -> bool:
-        """处理键盘输入"""
-        mods = pygame.key.get_mods()
-        shift_pressed = mods & pygame.KMOD_SHIFT
-        ctrl_pressed = mods & pygame.KMOD_CTRL
-        
-        # Ctrl+Z 撤销
-        if ctrl_pressed and event.key == pygame.K_z and not shift_pressed:
-            self._undo()
-            return True
-        
-        # Ctrl+Y 或 Ctrl+Shift+Z 重做
-        if (ctrl_pressed and event.key == pygame.K_y) or \
-           (ctrl_pressed and shift_pressed and event.key == pygame.K_z):
-            self._redo()
-            return True
-        
-        # Ctrl+C 复制
-        if ctrl_pressed and event.key == pygame.K_c:
-            self._copy()
-            return True
-        
-        # Ctrl+X 剪切
-        if ctrl_pressed and event.key == pygame.K_x:
-            self._cut()
-            return True
-        
-        # Ctrl+V 粘贴
-        if ctrl_pressed and event.key == pygame.K_v:
-            self._paste()
-            return True
-        
-        # Ctrl+A 全选
-        if ctrl_pressed and event.key == pygame.K_a:
-            self.selection_start = (0, 0)
-            self.selection_end = (len(self.lines) - 1, len(self.lines[-1]))
-            return True
-        
-        # F5 运行
-        if event.key == pygame.K_F5:
-            if self.on_run_callback:
-                self.on_run_callback()
-            return True
-        
-        # F6 停止
-        if event.key == pygame.K_F6:
-            if self.on_stop_callback:
-                self.on_stop_callback()
-            return True
-        
-        # 方向键（带Shift选择）
-        if event.key == pygame.K_LEFT:
-            if shift_pressed:
-                self._start_selection_if_needed()
-            self._move_cursor_left()
-            if shift_pressed:
-                self.selection_end = (self.cursor_line, self.cursor_col)
-            else:
-                self._clear_selection()
-            return True
-        
-        elif event.key == pygame.K_RIGHT:
-            if shift_pressed:
-                self._start_selection_if_needed()
-            self._move_cursor_right()
-            if shift_pressed:
-                self.selection_end = (self.cursor_line, self.cursor_col)
-            else:
-                self._clear_selection()
-            return True
-        
-        elif event.key == pygame.K_UP:
-            if shift_pressed:
-                self._start_selection_if_needed()
-            self._move_cursor_up()
-            if shift_pressed:
-                self.selection_end = (self.cursor_line, self.cursor_col)
-            else:
-                self._clear_selection()
-            return True
-        
-        elif event.key == pygame.K_DOWN:
-            if shift_pressed:
-                self._start_selection_if_needed()
-            self._move_cursor_down()
-            if shift_pressed:
-                self.selection_end = (self.cursor_line, self.cursor_col)
-            else:
-                self._clear_selection()
-            return True
-        
-        # Home键 - 行首
-        elif event.key == pygame.K_HOME:
-            if shift_pressed:
-                self._start_selection_if_needed()
-            self.cursor_col = 0
-            if shift_pressed:
-                self.selection_end = (self.cursor_line, self.cursor_col)
-            else:
-                self._clear_selection()
-            return True
-        
-        # End键 - 行尾
-        elif event.key == pygame.K_END:
-            if shift_pressed:
-                self._start_selection_if_needed()
-            self.cursor_col = len(self.lines[self.cursor_line])
-            if shift_pressed:
-                self.selection_end = (self.cursor_line, self.cursor_col)
-            else:
-                self._clear_selection()
-            return True
-        
-        # 删除选中的文本
-        if self._has_selection() and event.unicode and event.unicode.isprintable():
-            self._delete_selection()
-        
-        # 回车键
-        if event.key == pygame.K_RETURN:
-            self._save_history()
-            self._insert_newline()
-            return True
-        
-        # 退格键
-        elif event.key == pygame.K_BACKSPACE:
-            self._save_history()
-            if self._has_selection():
-                self._delete_selection()
-            else:
-                self._backspace()
-            return True
-        
-        # 删除键
-        elif event.key == pygame.K_DELETE:
-            self._save_history()
-            if self._has_selection():
-                self._delete_selection()
-            else:
-                self._delete()
-            return True
-        
-        # Tab键（支持Shift+Tab反向缩进）
-        elif event.key == pygame.K_TAB:
-            self._save_history()
-            if shift_pressed:
-                self._unindent()
-            else:
-                self._indent()
-            return True
-        
-        # 普通字符输入
-        elif event.unicode and event.unicode.isprintable():
-            self._save_history()
-            self._insert_char(event.unicode)
-            return True
-        
-        return False
-    
-    def _start_selection_if_needed(self):
-        """如果需要，开始选择"""
-        if not self._has_selection():
-            self.selection_start = (self.cursor_line, self.cursor_col)
-            self.selection_end = (self.cursor_line, self.cursor_col)
-    
-    def _clear_selection(self):
-        """清除选择"""
-        self.selection_start = None
-        self.selection_end = None
-    
-    def _has_selection(self) -> bool:
-        """检查是否有选中的文本"""
-        return self.selection_start is not None and self.selection_end is not None
-    
-    def _get_selection_range(self) -> Tuple[Tuple[int, int], Tuple[int, int]]:
-        """获取选择范围（规范化）"""
-        if not self._has_selection():
-            return (self.cursor_line, self.cursor_col), (self.cursor_line, self.cursor_col)
-        
-        start = self.selection_start
-        end = self.selection_end
-        
-        # 规范化：确保start在end之前
-        if start[0] > end[0] or (start[0] == end[0] and start[1] > end[1]):
-            start, end = end, start
-        
-        return start, end
-    
-    def _delete_selection(self):
-        """删除选中的文本"""
-        if not self._has_selection():
-            return
-        
-        start, end = self._get_selection_range()
-        
-        if start[0] == end[0]:
-            # 同一行
-            line = self.lines[start[0]]
-            self.lines[start[0]] = line[:start[1]] + line[end[1]:]
-        else:
-            # 多行
-            first_line = self.lines[start[0]][:start[1]]
-            last_line = self.lines[end[0]][end[1]:]
-            self.lines[start[0]] = first_line + last_line
-            # 删除中间行
-            del self.lines[start[0] + 1:end[0] + 1]
-        
-        self.cursor_line = start[0]
-        self.cursor_col = start[1]
-        self._clear_selection()
-
-    def _get_clipboard(self):
-        try:
-            return subprocess.check_output(
-                ['powershell', '-Command', 'Get-Clipboard'],
-                timeout=2, text=True, stderr=subprocess.DEVNULL
-            )
-        except Exception:
-            return ''
-
-    def _set_clipboard(self, text):
-        try:
-            p = subprocess.Popen(['clip'], stdin=subprocess.PIPE)
-            p.communicate(input=text.encode('utf-8', errors='replace'), timeout=2)
+            self.editor_font = pygame.font.SysFont("simsun", self.letter_height)
         except Exception:
             pass
+        self.letter_width = self.editor_font.render(" ", 1, (0, 0, 0)).get_width()
+        self.line_height_including_margin = self.letter_height + self.line_margin
+        self.showable_line_numbers_in_editor = int(
+            math.floor(self.editor_height / self.line_height_including_margin)
+        )
+        self.caret_display_intervals_per_second = 1
+        self.FPS = 60
+        if self.display_line_numbers:
+            self.line_number_width = self.letter_width * 6
+            self.line_start_x = self.editor_offset_x + self.line_number_width
 
-    def _copy(self):
-        """复制选中文本到系统剪贴板"""
-        if self._has_selection():
-            start, end = self._get_selection_range()
-            lines = []
-            if start[0] == end[0]:
-                lines.append(self.lines[start[0]][start[1]:end[1]])
-            else:
-                lines.append(self.lines[start[0]][start[1]:])
-                for i in range(start[0] + 1, end[0]):
-                    lines.append(self.lines[i])
-                lines.append(self.lines[end[0]][:end[1]])
-            text = "\n".join(lines)
-            self._set_clipboard(text)
-        else:
-            self._set_clipboard(self.lines[self.cursor_line])
+        self._undo_stack = []
+        self._redo_stack = []
+        self._suppress_undo = False
 
-    def _cut(self):
-        """剪切选中文本"""
-        self._copy()
-        self._delete_selection()
-
-    def _paste(self):
-        """从系统剪贴板粘贴"""
-        try:
-            text = self._get_clipboard()
-        except Exception:
-            text = ''
-        if not text:
-            return
-        text = text.replace('\r', '').rstrip('\n')
-        if self._has_selection():
-            self._delete_selection()
-        self._save_history()
-        line = self.lines[self.cursor_line]
-        prefix = line[:self.cursor_col]
-        suffix = line[self.cursor_col:]
-        pasted_lines = text.split('\n')
-        if len(pasted_lines) == 1:
-            self.lines[self.cursor_line] = prefix + pasted_lines[0] + suffix
-            self.cursor_col += len(pasted_lines[0])
-        else:
-            self.lines[self.cursor_line] = prefix + pasted_lines[0]
-            for i in range(1, len(pasted_lines)):
-                self.cursor_line += 1
-                self.lines.insert(self.cursor_line, pasted_lines[i])
-            self.lines[self.cursor_line] += suffix
-            self.cursor_col = len(pasted_lines[-1])
-        self._ensure_cursor_visible()
-
-    @property
-    def _visible_lines(self):
-        return self.editor_height // self.line_height
-
-    def _ensure_cursor_visible(self):
-        top = self.scroll_y // self.line_height
-        bottom = top + self._visible_lines - 1
-        if self.cursor_line < top:
-            self.scroll_y = self.cursor_line * self.line_height
-        elif self.cursor_line > bottom:
-            self.scroll_y = (self.cursor_line - self._visible_lines + 1) * self.line_height
-        max_scroll = max(0, len(self.lines) * self.line_height - self.editor_height)
-        self.scroll_y = max(0, min(self.scroll_y, max_scroll))
-
-    def _move_cursor_left(self):
-        """光标左移"""
-        if self.cursor_col > 0:
-            self.cursor_col -= 1
-        elif self.cursor_line > 0:
-            self.cursor_line -= 1
-            self.cursor_col = len(self.lines[self.cursor_line])
-    
-    def _move_cursor_right(self):
-        """光标右移"""
-        if self.cursor_col < len(self.lines[self.cursor_line]):
-            self.cursor_col += 1
-        elif self.cursor_line < len(self.lines) - 1:
-            self.cursor_line += 1
-            self.cursor_col = 0
-    
-    def _move_cursor_up(self):
-        """光标上移"""
-        if self.cursor_line > 0:
-            self.cursor_line -= 1
-            self.cursor_col = min(self.cursor_col, len(self.lines[self.cursor_line]))
-            self._ensure_cursor_visible()
-
-    def _move_cursor_down(self):
-        """光标下移"""
-        if self.cursor_line < len(self.lines) - 1:
-            self.cursor_line += 1
-            self.cursor_col = min(self.cursor_col, len(self.lines[self.cursor_line]))
-            self._ensure_cursor_visible()
-    
-    def _insert_newline(self):
-        """插入新行"""
-        line = self.lines[self.cursor_line]
-        self.lines[self.cursor_line] = line[:self.cursor_col]
-        self.lines.insert(self.cursor_line + 1, line[self.cursor_col:])
-        self.cursor_line += 1
-        self.cursor_col = 0
-        self._ensure_cursor_visible()
-    
-    def _backspace(self):
-        """退格"""
-        if self.cursor_col > 0:
-            line = self.lines[self.cursor_line]
-            self.lines[self.cursor_line] = line[:self.cursor_col-1] + line[self.cursor_col:]
-            self.cursor_col -= 1
-        elif self.cursor_line > 0:
-            line = self.lines.pop(self.cursor_line)
-            self.cursor_line -= 1
-            self.cursor_col = len(self.lines[self.cursor_line])
-            self.lines[self.cursor_line] += line
-    
-    def _delete(self):
-        """删除"""
-        line = self.lines[self.cursor_line]
-        if self.cursor_col < len(line):
-            self.lines[self.cursor_line] = line[:self.cursor_col] + line[self.cursor_col+1:]
-        elif self.cursor_line < len(self.lines) - 1:
-            self.lines[self.cursor_line] += self.lines.pop(self.cursor_line + 1)
-    
-    def _indent(self):
-        """缩进（插入4个空格）"""
-        line = self.lines[self.cursor_line]
-        self.lines[self.cursor_line] = line[:self.cursor_col] + "    " + line[self.cursor_col:]
-        self.cursor_col += 4
-    
-    def _unindent(self):
-        """反向缩进（删除行首最多4个空格）"""
-        line = self.lines[self.cursor_line]
-        # 删除光标前最多4个空格
-        spaces_to_remove = 0
-        for i in range(min(4, self.cursor_col)):
-            if line[self.cursor_col - 1 - i] == ' ':
-                spaces_to_remove += 1
-            else:
-                break
-        
-        if spaces_to_remove > 0:
-            self.lines[self.cursor_line] = line[:self.cursor_col - spaces_to_remove] + line[self.cursor_col:]
-            self.cursor_col -= spaces_to_remove
-    
-    def _insert_char(self, char: str):
-        """插入字符"""
-        char = char.replace('\r', '')
-        if not char:
-            return
-        line = self.lines[self.cursor_line]
-        self.lines[self.cursor_line] = line[:self.cursor_col] + char + line[self.cursor_col:]
-        self.cursor_col += 1
-    
-    def draw(self, screen: pygame.Surface, font: pygame.font.Font, 
-             mono_font: pygame.font.Font, small_font: pygame.font.Font):
-        """绘制编辑器"""
-        self._mono_font = mono_font
-        
-        # 背景
-        pygame.draw.rect(screen, (30, 30, 35), (self.x, self.y, self.width, self.height))
-        
-        # 标题栏
-        pygame.draw.rect(screen, (40, 40, 45), (self.x, self.y, self.width, 45))
-        
-        # 按钮
-        run_color = (0, 120, 0) if not self.is_running else (60, 60, 60)
-        stop_color = (120, 0, 0) if self.is_running else (60, 60, 60)
-        self._draw_button(screen, small_font, 'run', "Run(F5)", run_color)
-        self._draw_button(screen, small_font, 'stop', "Stop(F6)", stop_color)
-        self._draw_button(screen, small_font, 'save', "Save", (80, 80, 120))
-        self._draw_button(screen, small_font, 'load', "Load", (80, 80, 120))
-        
-        # 编辑区域背景
-        pygame.draw.rect(screen, (25, 25, 30), 
-                        (self.editor_x, self.editor_y, self.editor_width, self.editor_height))
-        
-        # 计算可见行范围
-        start_line = self.scroll_y // self.line_height
-        end_line = min(start_line + self.editor_height // self.line_height + 1, len(self.lines))
-        
-        # 获取选择范围
-        sel_start, sel_end = self._get_selection_range()
-        
-        # 绘制代码行
-        for i in range(start_line, end_line):
-            y = self.editor_y + (i - start_line) * self.line_height
-            
-            # 行号背景
-            if i == self.cursor_line:
-                pygame.draw.rect(screen, (40, 40, 50), 
-                               (self.editor_x, y, 40, self.line_height))
-            
-            # 行号
-            num_color = (100, 100, 100) if i != self.cursor_line else (150, 150, 150)
-            num_surf = mono_font.render(f"{i+1:3d}", True, num_color)
-            screen.blit(num_surf, (self.editor_x + 5, y))
-            
-            # 代码内容（先清除 Windows 换行残留）
-            line = self.lines[i].replace('\r', '').replace('\n', '')
-            x_offset = self.editor_x + 45
-            
-            # 绘制选择高亮
-            if self._has_selection() and sel_start[0] <= i <= sel_end[0]:
-                sel_start_col = sel_start[1] if i == sel_start[0] else 0
-                sel_end_col = sel_end[1] if i == sel_end[0] else len(line)
-                
-                if sel_start_col < sel_end_col:
-                    pre_text = line[:sel_start_col]
-                    sel_text = line[sel_start_col:sel_end_col]
-                    
-                    pre_width = mono_font.size(pre_text)[0]
-                    sel_width = mono_font.size(sel_text)[0]
-                    
-                    pygame.draw.rect(screen, (60, 80, 120), 
-                                   (x_offset + pre_width, y, sel_width, self.line_height))
-            
-            # 绘制代码文本（逐字符以支持语法高亮）
-            self._draw_code_line(screen, mono_font, line, x_offset, y)
-            
-            # 光标
-            if i == self.cursor_line and not self.is_running:
-                cursor_x = x_offset + mono_font.size(line[:self.cursor_col])[0]
-                pygame.draw.line(screen, (200, 200, 200),
-                               (cursor_x, y + 2), (cursor_x, y + self.line_height - 2), 2)
-
-        # 滚动条
-        total_lines = len(self.lines)
-        if total_lines > self._visible_lines:
-            sb_x = self.editor_x + self.editor_width - 6
-            sb_h = self.editor_height
-            thumb_h = max(20, int(sb_h * self._visible_lines / total_lines))
-            max_scroll = max(1, (total_lines - self._visible_lines) * self.line_height)
-            thumb_y = self.editor_y + int((sb_h - thumb_h) * self.scroll_y / max_scroll)
-            pygame.draw.rect(screen, (60, 60, 70), (sb_x, self.editor_y, 6, sb_h))
-            pygame.draw.rect(screen, (140, 140, 150), (sb_x, thumb_y, 6, thumb_h))
-
-        # 边框
-        pygame.draw.rect(screen, (100, 100, 100), (self.x, self.y, self.width, self.height), 2)
-    
-    def _draw_code_line(self, screen: pygame.Surface, font: pygame.font.Font, 
-                        line: str, x: int, y: int):
-        """绘制代码行（pygments 语法高亮）"""
-        if _has_pygments:
-            self._draw_highlighted_line(screen, font, line, x, y)
-        else:
-            self._draw_simple_line(screen, font, line, x, y)
-
-    def _draw_highlighted_line(self, screen: pygame.Surface, font: pygame.font.Font,
-                               line: str, x: int, y: int):
-        """pygments 语法高亮渲染"""
-        if not line:
-            return
-        try:
-            tokens = list(lex(line, PythonLexer()))
-            x_offset = x
-            for ttype, text in tokens:
-                text = text.replace('\r', '').replace('\n', '')
-                if not text:
-                    continue
-                color = _token_color(ttype)
-                surf = font.render(text, True, color)
-                screen.blit(surf, (x_offset, y))
-                x_offset += surf.get_width()
-        except Exception:
-            self._draw_simple_line(screen, font, line, x, y)
-
-    def _draw_simple_line(self, screen: pygame.Surface, font: pygame.font.Font,
-                          line: str, x: int, y: int):
-        """简单语法高亮（无 pygments 时的后备方案）"""
-        line = line.replace('\r', '')
-        x_offset = x
-
-        if line.strip().startswith('#'):
-            surf = font.render(line, True, (100, 180, 100))
-            screen.blit(surf, (x_offset, y))
-            return
-
-        keywords = {'def', 'class', 'import', 'from', 'if', 'elif', 'else', 'for',
-                   'while', 'return', 'try', 'except', 'finally', 'with', 'as',
-                   'True', 'False', 'None', 'and', 'or', 'not', 'in', 'is',
-                   'yield', 'raise', 'break', 'continue', 'pass', 'global', 'lambda'}
-
-        token_pattern = re.compile(
-            r'(?:^|\s)(#.*)'                  # 注释
-            r'|("""[\s\S]*?""")'              # 三引号字符串
-            r"|('''[\s\S]*?''')"              
-            r'|("(?:[^"\\]|\\.)*")'           # 双引号字符串
-            r"|('(?:[^'\\]|\\.)*')"           # 单引号字符串
-            r'|\b(' + '|'.join(keywords) + r')\b'  # 关键字
-            r'|(\b\d+\.?\d*\b)'               # 数字
-            r'|(@\w+)'                        # 装饰器
+    def _snapshot(self):
+        return (
+            copy.deepcopy(self.editor_lines),
+            self.chosen_line_index,
+            self.chosen_letter_index,
+            self.first_showable_line_index,
         )
 
-        pos = 0
-        for m in token_pattern.finditer(line):
-            if m.start() > pos:
-                plain = line[pos:m.start()]
-                surf = font.render(plain, True, (220, 220, 220))
-                screen.blit(surf, (x_offset, y))
-                x_offset += surf.get_width()
+    def _restore_snapshot(self, snap):
+        lines, li, ci, fli = snap
+        self.editor_lines = copy.deepcopy(lines)
+        self.chosen_line_index = max(0, min(li, len(self.editor_lines) - 1))
+        self.chosen_letter_index = max(0, min(ci, len(self.editor_lines[self.chosen_line_index])))
+        self.first_showable_line_index = max(0, fli)
+        self.render_line_numbers_flag = True
+        self._update_caret_x()
+        self._update_caret_y()
 
-            match_text = m.group(0)
-            if m.group(1):
-                color = (100, 180, 100)
-            elif m.group(2) or m.group(3) or m.group(4) or m.group(5):
-                color = (220, 150, 100)
-            elif m.group(6):
-                color = (100, 150, 220)
-            elif m.group(7):
-                color = (180, 120, 220)
-            elif m.group(8):
-                color = (200, 180, 100)
+    def _maybe_save_undo(self):
+        if self._suppress_undo:
+            return
+        snap = self._snapshot()
+        self._undo_stack.append(snap)
+        if len(self._undo_stack) > UNDO_MAX:
+            self._undo_stack.pop(0)
+        self._redo_stack.clear()
+
+    def undo(self):
+        if len(self._undo_stack) > 1:
+            self._redo_stack.append(self._snapshot())
+            self._undo_stack.pop()
+            self._restore_snapshot(self._undo_stack[-1])
+
+    def redo(self):
+        if self._redo_stack:
+            self._undo_stack.append(self._snapshot())
+            self._restore_snapshot(self._redo_stack.pop())
+
+    def _line_pixel_width(self, line_index, upto=None):
+        if line_index < 0 or line_index >= len(self.editor_lines):
+            return 0
+        line = self.editor_lines[line_index]
+        if upto is None:
+            text = line
+        else:
+            text = line[:upto]
+        if not text:
+            return 0
+        return self.editor_font.size(text)[0]
+
+    def _update_caret_x(self):
+        px = self._line_pixel_width(self.chosen_line_index, self.chosen_letter_index)
+        self.caret_x = self.line_start_x + px + 1
+
+    def _update_caret_y(self):
+        self.caret_y = self.editor_offset_y + (
+            (self.chosen_line_index - self.first_showable_line_index)
+            * self.line_height_including_margin
+        )
+
+    def update_caret_position(self):
+        self._update_caret_x()
+        self._update_caret_y()
+
+    def update_caret_position_by_drag_start(self):
+        self.caret_x = self.line_start_x + self._line_pixel_width(
+            self.drag_chosen_line_index_start, self.drag_chosen_letter_index_start
+        )
+        self.caret_y = (
+            self.editor_offset_y
+            + (self.drag_chosen_line_index_start * self.line_height_including_margin)
+            - (self.first_showable_line_index * self.letter_height)
+        )
+
+    def update_caret_position_by_drag_end(self):
+        self.caret_x = self.line_start_x + self._line_pixel_width(
+            self.drag_chosen_line_index_end, self.drag_chosen_letter_index_end
+        )
+        self.caret_y = (
+            self.editor_offset_y
+            + (self.drag_chosen_line_index_end * self.line_height_including_margin)
+            - (self.first_showable_line_index * self.letter_height)
+        )
+
+    def get_letter_index(self, mouse_x):
+        x = mouse_x - self.line_start_x
+        if x <= 0:
+            return 0
+        line = self.editor_lines[self.chosen_line_index] if self.chosen_line_index < len(self.editor_lines) else ""
+        for i in range(len(line)):
+            if self.editor_font.size(line[: i + 1])[0] >= x:
+                return i
+        return len(line)
+
+    def render_highlight(self, mouse_x, mouse_y):
+        if not self.dragged_active:
+            return
+        line_start = self.drag_chosen_line_index_start
+        letter_start = self.drag_chosen_letter_index_start
+
+        if self.dragged_finished:
+            line_end = self.drag_chosen_line_index_end
+            letter_end = self.drag_chosen_letter_index_end
+            if letter_end < 0:
+                letter_end = 0
+            self.highlight_lines(line_start, letter_start, line_end, letter_end)
+        else:
+            line_end = self.get_line_index(mouse_y)
+            if line_end >= self.get_showable_lines():
+                line_end = self.get_showable_lines() - 1
+            letter_end = self._get_letter_index_for_line(line_end, mouse_x)
+            if letter_end < 0:
+                letter_end = 0
+            elif letter_end > len(self.editor_lines[line_end]):
+                letter_end = len(self.editor_lines[line_end])
+            self.highlight_lines(line_start, letter_start, line_end, letter_end)
+
+    def get_rect_coord_from_indizes(self, line, letter):
+        line_coord = self.editor_offset_y + (
+            self.line_height_including_margin * (line - self.first_showable_line_index)
+        )
+        letter_coord = self.line_start_x + self._line_pixel_width(line, letter)
+        return letter_coord, line_coord
+
+    def render_line_contents(self, line_contents):
+        y_coordinate = self.line_start_y
+        first_line = self.first_showable_line_index
+        if self.showable_line_numbers_in_editor < len(self.editor_lines):
+            last_line = self.first_showable_line_index + self.showable_line_numbers_in_editor
+        else:
+            last_line = len(self.editor_lines)
+
+        for line_list in line_contents[first_line:last_line]:
+            xcoord = self.line_start_x
+            for d in line_list:
+                surface = self.editor_font.render(d["chars"], 1, d["color"])
+                self.screen.blit(surface, (xcoord, y_coordinate))
+                xcoord += surface.get_width()
+            y_coordinate += self.line_height_including_margin
+
+    def display_editor(self, pygame_events, pressed_keys, mouse_x, mouse_y, mouse_pressed):
+        self.cycleCounter = self.cycleCounter + 1
+
+        snap_before = self._snapshot() if not self._suppress_undo and pygame_events else None
+
+        if self.first_iteration_boolean:
+            pygame.draw.rect(
+                self.screen, self.color_coding_background,
+                (self.editor_offset_x, self.editor_offset_y,
+                 self.editor_width, self.editor_height),
+            )
+            self.first_iteration_boolean = False
+
+        self.render_line_numbers_flag = True
+        kb_result = self.handle_keyboard_input(pygame_events, pressed_keys)
+        self.handle_mouse_input(pygame_events, mouse_x, mouse_y, mouse_pressed)
+        self.update_line_number_display()
+        self.render_background_coloring()
+        self.render_line_numbers()
+        self.render_highlight(mouse_x, mouse_y)
+        if self.syntax_highlighting_python:
+            line_contents = self.get_syntax_coloring_dicts()
+        else:
+            line_contents = self.get_single_color_dicts()
+        self.render_line_contents(line_contents)
+        self.render_caret()
+        self.render_scrollbar_vertical()
+
+        if snap_before is not None and self._snapshot() != snap_before:
+            self._undo_stack.append(snap_before)
+            if len(self._undo_stack) > UNDO_MAX:
+                self._undo_stack.pop(0)
+            self._redo_stack.clear()
+
+        return kb_result
+
+    def update_line_number_display(self):
+        n_lines = len(self.editor_lines)
+        if n_lines != self.max_line_number_rendered:
+            digit_width = self.letter_width
+            self.line_number_width = max(
+                self.letter_width * 6,
+                digit_width * max(2, len(str(n_lines)))
+            )
+            self.line_start_x = self.editor_offset_x + self.line_number_width
+            self.max_line_number_rendered = n_lines
+
+    def get_code(self):
+        return self.get_text_as_string()
+
+    def set_code(self, code):
+        self._suppress_undo = True
+        self.clear_text()
+        self.set_text_from_string(code)
+        self._suppress_undo = False
+        self._undo_stack.clear()
+        self._redo_stack.clear()
+        self._maybe_save_undo()
+
+    def _start_shift_selection(self):
+        if not self.dragged_active:
+            self.drag_chosen_line_index_start = self.chosen_line_index
+            self.drag_chosen_letter_index_start = self.chosen_letter_index
+            self.dragged_active = True
+            self.dragged_finished = True
+
+    def _extend_shift_selection(self):
+        self.drag_chosen_line_index_end = self.chosen_line_index
+        self.drag_chosen_letter_index_end = self.chosen_letter_index
+
+    def handle_keyboard_input(self, pygame_events, pressed_keys):
+        shift = pressed_keys[pygame.K_LSHIFT] or pressed_keys[pygame.K_RSHIFT]
+        ctrl = pressed_keys[pygame.K_LCTRL] or pressed_keys[pygame.K_RCTRL]
+
+        for event in pygame_events:
+            if event.type == pygame.TEXTINPUT:
+                self.insert_unicode(event.text)
+                continue
+
+            if event.type != pygame.KEYDOWN:
+                continue
+
+            if ctrl and event.key == pygame.K_z:
+                if shift:
+                    self.redo()
+                else:
+                    self.undo()
+            elif ctrl and event.key == pygame.K_y:
+                self.redo()
+            elif ctrl and event.key == pygame.K_a:
+                self.highlight_all()
+            elif ctrl and event.key == pygame.K_s:
+                return "save"
+            elif ctrl and event.key == pygame.K_o:
+                return "load"
+            elif ctrl and event.key == pygame.K_v:
+                self.handle_highlight_and_paste()
+            elif ctrl and event.key == pygame.K_x:
+                self.handle_highlight_and_cut()
+            elif ctrl and event.key == pygame.K_c:
+                self.handle_highlight_and_copy()
+            elif self.dragged_finished and self.dragged_active:
+                if shift and event.key in (
+                    pygame.K_UP, pygame.K_DOWN, pygame.K_LEFT, pygame.K_RIGHT
+                ):
+                    self._extend_shift_selection()
+                    self._move_arrow(event.key)
+                    self._extend_shift_selection()
+                else:
+                    self.handle_input_with_highlight(event)
             else:
-                color = (220, 220, 220)
+                self.reset_text_area_to_caret()
+                self.chosen_letter_index = int(self.chosen_letter_index)
 
-            surf = font.render(match_text, True, color)
-            screen.blit(surf, (x_offset, y))
-            x_offset += surf.get_width()
-            pos = m.end()
+                if shift and event.key in (
+                    pygame.K_UP, pygame.K_DOWN, pygame.K_LEFT, pygame.K_RIGHT
+                ):
+                    self._start_shift_selection()
+                    self._move_arrow(event.key)
+                    self._extend_shift_selection()
+                elif (
+                    self.dragged_finished and self.dragged_active
+                    and event.unicode in ("\x08", "\x7f")
+                ):
+                    deletion_event = pygame.event.Event(pygame.KEYDOWN, key=pygame.K_DELETE)
+                    self.handle_input_with_highlight(deletion_event)
+                elif event.unicode == "\x08":
+                    self.handle_keyboard_backspace()
+                    self.reset_text_area_to_caret()
+                elif event.unicode == "\x7f":
+                    self.handle_keyboard_delete()
+                    self.reset_text_area_to_caret()
+                elif len(pygame.key.name(event.key)) == 1:
+                    self.insert_unicode(event.unicode)
+                elif event.mod == 4096 and 1073741913 <= event.key <= 1073741922:
+                    self.insert_unicode(event.unicode)
+                elif event.key in (
+                    pygame.K_KP_PERIOD, pygame.K_KP_DIVIDE,
+                    pygame.K_KP_MULTIPLY, pygame.K_KP_MINUS,
+                    pygame.K_KP_PLUS, pygame.K_KP_EQUALS,
+                ):
+                    self.insert_unicode(event.unicode)
+                elif event.key == pygame.K_TAB:
+                    self.handle_keyboard_tab()
+                elif event.key == pygame.K_SPACE:
+                    self.handle_keyboard_space()
+                elif event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
+                    self.handle_keyboard_return()
+                elif event.key == pygame.K_UP:
+                    self._move_arrow(pygame.K_UP)
+                elif event.key == pygame.K_DOWN:
+                    self._move_arrow(pygame.K_DOWN)
+                elif event.key == pygame.K_RIGHT:
+                    self._move_arrow(pygame.K_RIGHT)
+                elif event.key == pygame.K_LEFT:
+                    self._move_arrow(pygame.K_LEFT)
 
-        if pos < len(line):
-            plain = line[pos:]
-            surf = font.render(plain, True, (220, 220, 220))
-            screen.blit(surf, (x_offset, y))
-    
-    def _draw_button(self, screen: pygame.Surface, font: pygame.font.Font,
-                     btn_name: str, text: str, color):
-        """绘制按钮"""
-        rect = self.buttons[btn_name]
-        
-        # 检查鼠标悬停
-        if rect.collidepoint(pygame.mouse.get_pos()):
-            color = tuple(min(255, c + 20) for c in color)
-        
-        pygame.draw.rect(screen, color, rect, border_radius=3)
-        pygame.draw.rect(screen, (150, 150, 150), rect, 1, border_radius=3)
-        
-        text_surf = font.render(text, True, (220, 220, 220))
-        text_rect = text_surf.get_rect(center=rect.center)
-        screen.blit(text_surf, text_rect)
-    
-    def get_rect(self) -> pygame.Rect:
-        """获取区域矩形"""
-        return pygame.Rect(self.x, self.y, self.width, self.height)
+    def _move_arrow(self, key):
+        if key == pygame.K_UP:
+            self.handle_keyboard_arrow_up()
+        elif key == pygame.K_DOWN:
+            self.handle_keyboard_arrow_down()
+        elif key == pygame.K_LEFT:
+            self.handle_keyboard_arrow_left()
+        elif key == pygame.K_RIGHT:
+            self.handle_keyboard_arrow_right()
+
+    def insert_unicode(self, unicode):
+        line = self.editor_lines[self.chosen_line_index]
+        self.editor_lines[self.chosen_line_index] = (
+            line[: self.chosen_letter_index] + unicode + line[self.chosen_letter_index :]
+        )
+        self.chosen_letter_index += len(unicode)
+        self._update_caret_x()
+
+    def handle_keyboard_space(self):
+        self.insert_unicode(" ")
+
+    def handle_keyboard_tab(self):
+        self.insert_unicode("    ")
+
+    def handle_keyboard_backspace(self):
+        if self.chosen_letter_index == 0 and self.chosen_line_index == 0:
+            return
+        if self.chosen_letter_index == 0 and self.chosen_line_index > 0:
+            self.chosen_line_index -= 1
+            self.chosen_letter_index = len(self.editor_lines[self.chosen_line_index])
+            self.caret_y -= self.line_height_including_margin
+            self._update_caret_x()
+            self.editor_lines[self.chosen_line_index] += self.editor_lines.pop(self.chosen_line_index + 1)
+            self.render_line_numbers_flag = True
+            if self.first_showable_line_index > 0 and (
+                self.first_showable_line_index + self.showable_line_numbers_in_editor
+            ) > len(self.editor_lines):
+                self.first_showable_line_index -= 1
+                self.caret_y += self.line_height_including_margin
+            if self.chosen_line_index == self.first_showable_line_index - 1:
+                self.first_showable_line_index -= 1
+                self.caret_y += self.line_height_including_margin
+        elif self.chosen_letter_index > 0:
+            line = self.editor_lines[self.chosen_line_index]
+            self.editor_lines[self.chosen_line_index] = (
+                line[: self.chosen_letter_index - 1] + line[self.chosen_letter_index :]
+            )
+            self.chosen_letter_index -= 1
+            self._update_caret_x()
+
+    def handle_keyboard_delete(self):
+        line = self.editor_lines[self.chosen_line_index]
+        if self.chosen_letter_index < len(line):
+            self.editor_lines[self.chosen_line_index] = (
+                line[: self.chosen_letter_index] + line[self.chosen_letter_index + 1 :]
+            )
+        elif self.chosen_line_index != len(self.editor_lines) - 1:
+            self.editor_lines[self.chosen_line_index] += self.editor_lines.pop(self.chosen_line_index + 1)
+            self.render_line_numbers_flag = True
+            if self.first_showable_line_index > 0 and (
+                self.first_showable_line_index + self.showable_line_numbers_in_editor
+            ) > len(self.editor_lines):
+                self.first_showable_line_index -= 1
+                self.caret_y += self.line_height_including_margin
+
+    def handle_keyboard_arrow_left(self):
+        if self.chosen_letter_index > 0:
+            self.chosen_letter_index -= 1
+            self._update_caret_x()
+        elif self.chosen_letter_index == 0 and self.chosen_line_index > 0:
+            self.chosen_line_index -= 1
+            self.chosen_letter_index = len(self.editor_lines[self.chosen_line_index])
+            self._update_caret_x()
+            self.caret_y -= self.line_height_including_margin
+            if self.chosen_line_index < self.first_showable_line_index:
+                self.first_showable_line_index -= 1
+                self.caret_y += self.line_height_including_margin
+                self.render_line_numbers_flag = True
+
+    def handle_keyboard_arrow_right(self):
+        if self.chosen_letter_index < len(self.editor_lines[self.chosen_line_index]):
+            self.chosen_letter_index += 1
+            self._update_caret_x()
+        elif self.chosen_line_index < len(self.editor_lines) - 1:
+            self.chosen_letter_index = 0
+            self.chosen_line_index += 1
+            self._update_caret_x()
+            self.caret_y += self.line_height_including_margin
+            if self.chosen_line_index > (
+                self.first_showable_line_index + self.showable_line_numbers_in_editor - 1
+            ):
+                self.first_showable_line_index += 1
+                self.caret_y -= self.line_height_including_margin
+                self.render_line_numbers_flag = True
+
+    def handle_keyboard_arrow_up(self):
+        if self.chosen_line_index == 0:
+            self.chosen_letter_index = 0
+            self._update_caret_x()
+        else:
+            self.chosen_line_index -= 1
+            self.caret_y -= self.line_height_including_margin
+            if len(self.editor_lines[self.chosen_line_index]) < self.chosen_letter_index:
+                self.chosen_letter_index = len(self.editor_lines[self.chosen_line_index])
+            self._update_caret_x()
+            if self.chosen_line_index < self.first_showable_line_index:
+                self.scrollbar_up()
+
+    def handle_keyboard_arrow_down(self):
+        if self.chosen_line_index < len(self.editor_lines) - 1:
+            self.chosen_line_index += 1
+            self.caret_y += self.line_height_including_margin
+            if len(self.editor_lines[self.chosen_line_index]) < self.chosen_letter_index:
+                self.chosen_letter_index = len(self.editor_lines[self.chosen_line_index])
+            self._update_caret_x()
+            if self.chosen_line_index > (
+                self.first_showable_line_index + self.showable_line_numbers_in_editor - 1
+            ):
+                self.scrollbar_down()
+        elif self.chosen_line_index == len(self.editor_lines) - 1:
+            self.chosen_letter_index = len(self.editor_lines[self.chosen_line_index])
+            self._update_caret_x()
+
+    def handle_mouse_input(self, pygame_events, mouse_x, mouse_y, mouse_pressed):
+        for event in pygame_events:
+            if event.type == pygame.MOUSEBUTTONDOWN and not self.mouse_within_texteditor(
+                mouse_x, mouse_y
+            ):
+                if self.scrollbar is not None:
+                    if self.scrollbar.collidepoint(mouse_x, mouse_y):
+                        self.scrollbar_start_y = mouse_y
+                        self.scrollbar_is_being_dragged = True
+
+            if event.type == pygame.MOUSEBUTTONDOWN and self.mouse_within_texteditor(
+                mouse_x, mouse_y
+            ):
+                if event.button == 4 and self.first_showable_line_index > 0:
+                    for _ in range(SCROLL_LINES):
+                        if self.first_showable_line_index > 0:
+                            self.scrollbar_up()
+                elif event.button == 5 and (
+                    self.first_showable_line_index + self.showable_line_numbers_in_editor
+                    < len(self.editor_lines)
+                ):
+                    for _ in range(SCROLL_LINES):
+                        if (
+                            self.first_showable_line_index
+                            + self.showable_line_numbers_in_editor
+                            < len(self.editor_lines)
+                        ):
+                            self.scrollbar_down()
+                elif event.button == 1:
+                    if not self.click_hold_flag:
+                        self.last_clickdown_cycle = self.cycleCounter
+                        self.click_hold_flag = True
+                        self.dragged_active = True
+                        self.dragged_finished = False
+                        if self.mouse_within_texteditor(mouse_x, mouse_y):
+                            if self.mouse_within_existing_lines(mouse_y):
+                                self._set_drag_start_by_mouse(mouse_x, mouse_y)
+                            else:
+                                self.set_drag_start_after_last_line()
+                            self.update_caret_position_by_drag_start()
+
+            if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
+                self.scrollbar_is_being_dragged = False
+                if self.click_hold_flag:
+                    self.last_clickup_cycle = self.cycleCounter
+                    self.click_hold_flag = False
+                    if self.mouse_within_texteditor(mouse_x, mouse_y):
+                        if self.mouse_within_existing_lines(mouse_y):
+                            self._set_drag_end_by_mouse(mouse_x, mouse_y)
+                        else:
+                            self.set_drag_end_after_last_line()
+                        self.update_caret_position_by_drag_end()
+                    else:
+                        if mouse_y < self.editor_offset_y:
+                            self.drag_chosen_line_index_end = self.first_showable_line_index
+                        elif mouse_y > (
+                            self.editor_offset_y + self.editor_height - self.conclusion_bar_height
+                        ):
+                            vis = self.showable_line_numbers_in_editor
+                            if len(self.editor_lines) >= vis:
+                                self.drag_chosen_line_index_end = self.first_showable_line_index + vis - 1
+                            else:
+                                self.drag_chosen_line_index_end = len(self.editor_lines) - 1
+                        else:
+                            self.set_drag_end_line_by_mouse(mouse_y)
+                        self._set_drag_end_letter_by_mouse(mouse_x)
+
+            if (self.last_clickup_cycle - self.last_clickdown_cycle) >= 0:
+                if (
+                    self.drag_chosen_line_index_end == self.drag_chosen_line_index_start
+                    and self.drag_chosen_letter_index_end == self.drag_chosen_letter_index_start
+                ):
+                    self.dragged_active = False
+                else:
+                    self.dragged_active = True
+                self.dragged_finished = True
+                self.chosen_line_index = self.drag_chosen_line_index_end
+                self.chosen_letter_index = self.drag_chosen_letter_index_end
+                self.update_caret_position()
+                self.last_clickdown_cycle = 0
+                self.last_clickup_cycle = -1
+
+        if mouse_pressed[0] == 1 and self.scrollbar_is_being_dragged:
+            self._handle_scrollbar_drag(mouse_y)
+        elif mouse_pressed[0] == 1 and self.click_hold_flag:
+            self._handle_drag_autoscroll(mouse_x, mouse_y)
+
+    def _set_drag_start_by_mouse(self, mouse_x, mouse_y):
+        self.drag_chosen_line_index_start = self.get_line_index(mouse_y)
+        li = self.drag_chosen_line_index_start
+        max_letter = len(self.editor_lines[li]) if li < len(self.editor_lines) else 0
+        idx = self._get_letter_index_for_line(li, mouse_x)
+        if idx > max_letter:
+            self.drag_chosen_letter_index_start = max_letter
+        else:
+            self.drag_chosen_letter_index_start = idx
+
+    def _set_drag_end_by_mouse(self, mouse_x, mouse_y):
+        self.set_drag_end_line_by_mouse(mouse_y)
+        self._set_drag_end_letter_by_mouse(mouse_x)
+
+    def _set_drag_end_letter_by_mouse(self, mouse_x):
+        li = self.drag_chosen_line_index_end
+        max_letter = len(self.editor_lines[li]) if li < len(self.editor_lines) else 0
+        idx = self._get_letter_index_for_line(li, mouse_x)
+        if idx > max_letter:
+            self.drag_chosen_letter_index_end = max_letter
+        else:
+            self.drag_chosen_letter_index_end = idx
+
+    def _get_letter_index_for_line(self, line_index, mouse_x):
+        x = mouse_x - self.line_start_x
+        if x <= 0:
+            return 0
+        if line_index >= len(self.editor_lines):
+            return 0
+        line = self.editor_lines[line_index]
+        for i in range(len(line)):
+            if self.editor_font.size(line[: i + 1])[0] >= x:
+                return i
+        return len(line)
+
+    def _handle_scrollbar_drag(self, mouse_y):
+        track_top = self.editor_offset_y + self.scrollbar_width
+        track_bottom = self.editor_offset_y + self.editor_height - self.scrollbar_width
+        fraction = max(0.0, min(1.0, (mouse_y - track_top) / max(1, track_bottom - track_top)))
+        max_line = max(0, len(self.editor_lines) - self.showable_line_numbers_in_editor)
+        target = int(fraction * max_line)
+        if target != self.first_showable_line_index:
+            self.first_showable_line_index = target
+            self.render_line_numbers_flag = True
+
+    def _handle_drag_autoscroll(self, mouse_x, mouse_y):
+        if mouse_y < self.editor_offset_y + AUTO_SCROLL_MARGIN:
+            for _ in range(AUTO_SCROLL_SPEED):
+                if self.first_showable_line_index > 0:
+                    self.scrollbar_up()
+        elif mouse_y > self.editor_offset_y + self.editor_height - AUTO_SCROLL_MARGIN:
+            for _ in range(AUTO_SCROLL_SPEED):
+                if (
+                    self.first_showable_line_index + self.showable_line_numbers_in_editor
+                    < len(self.editor_lines)
+                ):
+                    self.scrollbar_down()

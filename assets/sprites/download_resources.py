@@ -18,7 +18,7 @@ PRET_BASE = "https://raw.githubusercontent.com/pret/pokefirered/master/graphics/
 POKEDEX_1 = "https://pokeapi.co/api/v2/pokedex/1/?limit=400"
 HEADERS   = {"User-Agent": "EasyCon-sprites-downloader/1.0"}
 
-RES_DIR   = os.path.join(os.path.dirname(__file__), "resources")
+RES_DIR   = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "assets", "sprites", "resources")
 os.makedirs(RES_DIR, exist_ok=True)
 
 _ssl_ctx = ssl.create_default_context()

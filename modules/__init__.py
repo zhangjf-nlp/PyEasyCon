@@ -5,7 +5,7 @@ EasyCon GUI Modules
 
 from .video_module import VideoModule
 from .label_maker import LabelMaker
-from .script_editor import ScriptEditor
+from .script_editor import PatchedTextEditor
 from .output_panel import OutputPanel
 
-__all__ = ['VideoModule', 'LabelMaker', 'ScriptEditor', 'OutputPanel']
+__all__ = ['VideoModule', 'LabelMaker', 'PatchedTextEditor', 'OutputPanel']

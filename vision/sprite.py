@@ -13,9 +13,9 @@ def _imread(path, flags=cv2.IMREAD_UNCHANGED):
     except Exception:
         return None
 
-_BASE = os.path.dirname(os.path.abspath(__file__))
-NORMAL_DIR = os.path.join(_BASE, "appearance", "normal")
-SHINY_DIR = os.path.join(_BASE, "appearance", "shiny")
+_BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+NORMAL_DIR = os.path.join(_BASE, "assets", "sprites", "normal")
+SHINY_DIR = os.path.join(_BASE, "assets", "sprites", "shiny")
 GBA_W, GBA_H = 240, 160
 SPRITE_NATIVE = 64
 

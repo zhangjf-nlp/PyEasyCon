@@ -12,18 +12,18 @@ Configuration:
 """
 import sys, os, cv2, json, base64, numpy as np
 sys.path.insert(0, '.')
-from modules.pokemon_sprite import _load_sprite, _get_sprite_paths, NORMAL_DIR
+from vision.sprite import _load_sprite, _get_sprite_paths, NORMAL_DIR
 
 SCALE = 6.5
 GBA_X, GBA_Y = 180, 5
 ROI_GBA_X, ROI_GBA_W = 140, 72
 ROI_GBA_Y, ROI_GBA_H = 0, 100
 SEARCH_METHOD = 14
-OUT_DIR = 'ImgLabel-FRLG'
+OUT_DIR = 'assets/sprite_labels'
 SPRITE_PX = int(64 * SCALE)
 
 os.makedirs(OUT_DIR, exist_ok=True)
-from modules.tenlines.tenlines_utils import get_species_en_name, get_species_zh_name
+from rng.tenlines_utils import get_species_en_name, get_species_zh_name
 
 all_ids = sorted(set(
     int(f.split('.')[0].split('-')[0])

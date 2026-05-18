@@ -2,11 +2,12 @@
 EasyCon GUI - 模块化版本
 布局：
 - 左上：游戏画面（VideoModule）
-- 左下：脚本编辑器（ScriptEditor）
+- 左下：脚本编辑器（PatchedTextEditor，基于 pygame-texteditor）
 - 右上：标签制作（LabelMaker）
 - 右下：运行输出（OutputPanel）
 """
 
+import inspect
 import os
 import time
 os.environ['SDL_VIDEO_CENTERED'] = '1'
@@ -17,40 +18,46 @@ import json
 import base64
 import numpy as np
 import threading
-import ctypes
 from typing import Optional, Tuple
 
-# 导入模块
 from modules.video_module import VideoModule
 from modules.label_maker import LabelMaker
-from modules.script_editor import ScriptEditor
 from modules.output_panel import OutputPanel
+from modules.script_editor import PatchedTextEditor
 
-# 模块级全局 GUI 实例引用（供模块级 API 函数使用）
 _current_gui = None
 
-from easycon_api import EasyConController, GamePadKey
+from easycon import EasyConController, GamePadKey, ScriptContext
 
-from modules.pokemon_ocr import (
+from .script_engine import ScriptEngine
+
+from vision import (
     ocr_pokemon as _ocr_pokemon_module,
     ocr_elevated as _ocr_elevated_module,
     ocr_caught_info as _ocr_caught_info_module,
     ocr_caught_iv as _ocr_caught_iv_module,
     ocr_custom as _ocr_custom_module,
     ocr_pokemon_name as _ocr_pokemon_name_module,
-    get_vllm_model, 
-    set_model_type, get_current_model_type, get_available_model_types,
-    check_vllm_service, check_glm_service,
-    MODEL_TYPE_VLLM, MODEL_TYPE_GLM, GLM_MODEL,
+    classify_screen_type as _classify_screen_type,
+    get_all_roi_boxes as _get_all_roi_boxes,
+    check_service as _check_service,
+    check_vllm_service as _check_vllm_service,
+    check_glm_service as _check_glm_service,
+    set_model_type as _set_model_type,
+    get_current_model_type as _get_current_model_type,
+    get_available_model_types as _get_available_model_types,
+    get_vllm_model as _get_vllm_model,
+    identify_pokemon as _identify_pokemon,
+    preload_sprites as _preload_sprites,
 )
 
-from modules.pokemon_sprite import identify_pokemon as _identify_pokemon_module
+from vision.ocr import MODEL_TYPE_VLLM, MODEL_TYPE_GLM, GLM_MODEL
 
 
 class EasyConGUI:
     """EasyCon 主GUI类 - 整合所有模块"""
     
-    def __init__(self):
+    def __init__(self, script_path=None):
         # 初始化pygame
         pygame.init()
         pygame.display.init()
@@ -69,11 +76,9 @@ class EasyConGUI:
         try:
             self.font = pygame.font.SysFont("microsoft YaHei", 14)
             self.font_small = pygame.font.SysFont("microsoft YaHei", 12)
-            self.font_mono = pygame.font.SysFont("simsun", 13)
         except:
             self.font = pygame.font.Font(None, 14)
             self.font_small = pygame.font.Font(None, 12)
-            self.font_mono = pygame.font.Font(None, 13)
         
         # 控制器
         self.controller: Optional[EasyConController] = None
@@ -92,12 +97,14 @@ class EasyConGUI:
         self.video_module = VideoModule(10, 10, 640, 360)
         
         # 左下：脚本编辑器
-        self.script_editor = ScriptEditor(10, 380, 640, 400)
-        self.script_editor.set_callbacks(
-            on_run=self._run_script,
-            on_stop=self._stop_script,
-            on_save=self._save_script,
-            on_load=self._load_script
+        self._text_editor = PatchedTextEditor(
+            offset_x=10, offset_y=410,
+            editor_width=640, editor_height=370,
+            screen=self.screen,
+            display_line_numbers=True,
+            style="dark",
+            syntax_highlighting_python=True,
+            font_size=14,
         )
         
         # 右上：标签制作
@@ -111,15 +118,44 @@ class EasyConGUI:
         # 运行状态
         self.running = False
         self.clock = pygame.time.Clock()
-        self.script_thread: Optional[threading.Thread] = None
-        self.script_running = False
-        self.stop_event = threading.Event()  # 新增：Event 来通知停止
-        self._script_func = None  # 外部注册的脚本函数（如 demo_script.py 的 main）
-        self._focused_module = 'video'  # 当前聚焦的模块: 'video'|'script'|'label'|'output'
+        self._focused_module = 'video'
+        
+        # 脚本引擎
+        self.script_engine = ScriptEngine(log_func=self.output_panel.log)
+        self.script_engine.set_code_getter(self._text_editor.get_code)
+        self.script_engine.set_on_running_change(self._on_script_running_change)
+
+        if script_path and os.path.exists(script_path):
+            with open(script_path, 'r', encoding='utf-8') as f:
+                self._text_editor.set_code(f.read())
+
+        self._btn_rects = {
+            'run':  pygame.Rect(10, 382, 50, 24),
+            'stop': pygame.Rect(64, 382, 50, 24),
+            'save': pygame.Rect(118, 382, 50, 24),
+            'load': pygame.Rect(172, 382, 50, 24),
+        }
+        self._btn_pressed = None
+        self._btn_pressed_frames = 0
         
         # 初始化控制器和视频（在模块创建之后）
         self._init_controller()
         self._init_vllm_status()
+        
+        # 创建脚本执行上下文
+        self.ctx = ScriptContext(
+            controller=self.controller,
+            get_frame=self._get_video_frame,
+            log_func=self.log,
+            is_running_func=self.script_engine.is_running,
+            ocr_pokemon_func=self._ocr_pokemon,
+            ocr_elevated_func=self._ocr_elevated,
+            ocr_caught_info_func=self._ocr_caught_info,
+            ocr_caught_iv_func=self._ocr_caught_iv,
+            ocr_custom_func=self._ocr_custom,
+            identify_pokemon_func=self._identify_pokemon,
+            ocr_name_func=self._ocr_name,
+        )
         
         # 注册为全局 GUI 实例，使模块级 API 函数可用
         global _current_gui
@@ -155,12 +191,12 @@ class EasyConGUI:
     def _init_vllm_status(self):
         """检查 VL 模型服务状态"""
         def check_worker():
-            vllm_ok = check_vllm_service()
-            glm_ok = check_glm_service()
+            vllm_ok = _check_vllm_service()
+            glm_ok = _check_glm_service()
 
             if vllm_ok:
                 try:
-                    model = get_vllm_model()
+                    model = _get_vllm_model()
                     parts = model.replace('\\', '/').split('/')
                     short = '.../' + '/'.join(parts[-2:])
                     self.output_panel.log(f"vLLM 可用 ({short})")
@@ -174,12 +210,12 @@ class EasyConGUI:
             else:
                 self.output_panel.log(f"{GLM_MODEL} 不可用")
 
-            available = get_available_model_types()
+            available = _get_available_model_types()
             if MODEL_TYPE_VLLM in available:
-                set_model_type(MODEL_TYPE_VLLM)
+                _set_model_type(MODEL_TYPE_VLLM)
                 self.output_panel.log(f"VL模型: vLLM (本地)")
             elif MODEL_TYPE_GLM in available:
-                set_model_type(MODEL_TYPE_GLM)
+                _set_model_type(MODEL_TYPE_GLM)
                 self.output_panel.log(f"VL模型: {GLM_MODEL} (在线)")
             else:
                 self.output_panel.log("VL模型: 无可用")
@@ -188,128 +224,37 @@ class EasyConGUI:
     
     # ============== 脚本执行 ==============
     
+    def _on_script_running_change(self, is_running: bool):
+        self._text_editor.is_running = is_running
+    
     def _run_script(self):
-        """运行脚本"""
-        if self.script_running:
-            self.output_panel.log("脚本已在运行中")
-            return
-        
-        self.script_running = True
-        self.script_editor.is_running = True
-        self.stop_event.clear()  # 确保 Event 是重置状态
-        
-        def script_worker():
-            try:
-                self.output_panel.log("=" * 40)
-                self.output_panel.log("脚本开始运行")
-                
-                if self._script_func is not None:
-                    # 直接调用外部注册的脚本函数（来自 run_script）
-                    self._script_func()
-                else:
-                    # 从编辑器获取代码并通过 exec 执行
-                    code = self.script_editor.get_code()
-                    exec_globals = {
-                        "gui": self,
-                        "is_running": lambda: not self.stop_event.is_set() and self.script_running,
-                        "press": self.press,
-                        "hold": self.hold,
-                        "release": self.release,
-                        "lstick": self.lstick,
-                        "capture": self.capture,
-                        "wait": self.wait,
-                        "log": self.log,
-                        "search_label": self.search_label,
-                        "ocr_pokemon": self._ocr_pokemon,
-                        "ocr_elevated": self._ocr_elevated,
-                        "ocr_caught_info": self._ocr_caught_info,
-                        "ocr_caught_iv": self._ocr_caught_iv,
-                        "ocr_custom": self._ocr_custom,
-                        "get_frame": self._get_video_frame,
-                    }
-                    exec(code, exec_globals)
-
-                self.output_panel.log("脚本运行完成")
-            except SystemExit as e:
-                self.output_panel.log(f"{e}")
-            except Exception as e:
-                self.output_panel.log(f"脚本错误: {e}")
-                import traceback
-                self.output_panel.log(traceback.format_exc())
-            finally:
-                self.script_running = False
-                self.script_editor.is_running = False
-                self.output_panel.log("=" * 40)
-        
-        self.script_thread = threading.Thread(target=script_worker, daemon=True)
-        self.script_thread.start()
+        self.script_engine.run(self.ctx)
     
     def _stop_script(self):
-        """停止脚本 - 彻底的解决方案"""
-        self.script_running = False
-        self.script_editor.is_running = False
-        self.stop_event.set()  # 触发 Event
-        self.output_panel.log("正在停止脚本...")
-        
-        # 尝试强制停止线程
-        if self.script_thread and self.script_thread.is_alive():
-            try:
-                # 使用 ctypes 注入异常来强制停止线程
-                tid = self.script_thread.ident
-                if tid:
-                    ctypes.pythonapi.PyThreadState_SetAsyncExc(
-                        ctypes.c_long(tid),
-                        ctypes.py_object(SystemExit)
-                    )
-                # 等待一小段时间让线程响应
-                time.sleep(0.1)
-                # 如果线程还在，再注入一次
-                if self.script_thread.is_alive():
-                    ctypes.pythonapi.PyThreadState_SetAsyncExc(
-                        ctypes.c_long(tid),
-                        ctypes.py_object(SystemExit)
-                    )
-                    time.sleep(0.2)
-            except Exception as e:
-                self.output_panel.log(f"停止线程时出错: {e}")
-        
-        # 重置 Event
-        self.stop_event.clear()
-        self.output_panel.log("脚本已停止")
+        self.script_engine.stop()
     
     def _save_script(self):
-        """保存脚本"""
         try:
-            import os
-            # 生成文件名
             idx = 1
             while os.path.exists(f"script_{idx}.py"):
                 idx += 1
             file_path = f"script_{idx}.py"
-            
             with open(file_path, 'w', encoding='utf-8') as f:
-                f.write(self.script_editor.get_code())
-            
+                f.write(self._text_editor.get_code())
             self.output_panel.log(f"脚本已保存: {file_path}")
         except Exception as e:
             self.output_panel.log(f"保存失败: {e}")
     
     def _load_script(self):
-        """加载脚本"""
         try:
-            import os
             script_files = [f for f in os.listdir('.') if f.startswith('script_') and f.endswith('.py')]
             if not script_files:
                 self.output_panel.log("未找到脚本文件")
                 return
-            
             script_files.sort()
             file_path = script_files[-1]
-            
             with open(file_path, 'r', encoding='utf-8') as f:
-                code = f.read()
-            
-            self.script_editor.set_code(code)
+                self._text_editor.set_code(f.read())
             self.output_panel.log(f"脚本已加载: {file_path}")
         except Exception as e:
             self.output_panel.log(f"加载失败: {e}")
@@ -351,10 +296,9 @@ class EasyConGUI:
             self.controller.capture()
     
     def wait(self, ms: int):
-        """可中断等待"""
         deadline = time.time() + ms / 1000.0
         while time.time() < deadline:
-            if self.stop_event.is_set() or not self.script_running:
+            if not self.script_engine.is_running():
                 raise SystemExit("脚本已停止")
             time.sleep(0.05)
 
@@ -366,7 +310,7 @@ class EasyConGUI:
         """搜索标签。threshold=-1 返回匹配度(int)，否则返回是否找到(bool)。"""
         try:
             import os
-            label_path = os.path.join("labels", f"{label_name}.IL")
+            label_path = os.path.join("assets", "labels", f"{label_name}.IL")
             if not os.path.exists(label_path):
                 if debug: self.output_panel.log(f"  [label] {label_name} -> 文件不存在")
                 return 0 if threshold == -1 else False
@@ -455,7 +399,7 @@ class EasyConGUI:
         if frame is None:
             self.output_panel.log("识别失败: 采集卡未就绪")
             return None, 0.0, False
-        result = _identify_pokemon_module(
+        result = _identify_pokemon(
             frame, candidates=candidates, threshold=threshold
         )
         species_id, score, is_shiny = result[0], result[1], result[2]
@@ -488,7 +432,7 @@ class EasyConGUI:
             import cv2, os
             os.makedirs('debug_ocr', exist_ok=True)
             cv2.imwrite('debug_ocr/03_unknown_frame.png', frame)
-            from modules.pokemon_ocr import classify_screen_type
+            from vision.ocr import classify_screen_type
             classify_screen_type(frame, debug=True)
         #self._log_ocr_result(result)
         return result
@@ -556,8 +500,8 @@ class EasyConGUI:
     
     def _toggle_model_type(self):
         """切换VL模型类型"""
-        current = get_current_model_type()
-        available = get_available_model_types()
+        current = _get_current_model_type()
+        available = _get_available_model_types()
 
         if len(available) <= 1:
             self.output_panel.log("只有一个模型可用，无法切换")
@@ -567,7 +511,7 @@ class EasyConGUI:
         next_index = (current_index + 1) % len(available)
         next_model = available[next_index]
 
-        set_model_type(next_model)
+        _set_model_type(next_model)
         if next_model == MODEL_TYPE_VLLM:
             self.output_panel.log("VL模型: vLLM (本地)")
         elif next_model == MODEL_TYPE_GLM:
@@ -588,82 +532,111 @@ class EasyConGUI:
     # ============== 主循环 ==============
     
     def run(self):
-        """运行主循环"""
         self.running = True
         frame_count = 0
-        
+
+        pygame.key.start_text_input()
+        pygame.key.set_text_input_rect(pygame.Rect(20, 420, 600, 30))
+
         self.output_panel.log("EasyCon GUI 已启动")
-        self.output_panel.log("F5运行脚本 | F6停止 | F9切换VL模型 | ESC退出")
-        
+        self.output_panel.log("F5运行 | F6停止 | F2保存 | F3加载 | F9切换模型 | ESC退出")
+
         while self.running:
-            # 更新视频模块
             if frame_count % 3 == 0:
                 self.video_module.update()
-            
-            # 处理事件
-            for event in pygame.event.get():
+
+            events = pygame.event.get()
+            mouse_x, mouse_y = pygame.mouse.get_pos()
+            mouse_pressed = pygame.mouse.get_pressed()
+
+            for event in events:
                 if event.type == pygame.QUIT:
                     self.running = False
-                
                 elif event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_ESCAPE:
                         self.running = False
+                    elif event.key == pygame.K_F5:
+                        self._run_script()
+                    elif event.key == pygame.K_F6:
+                        self._stop_script()
                     elif event.key == pygame.K_F9:
                         self._toggle_model_type()
-                
-                # 鼠标点击切换模块焦点
+                    elif event.key == pygame.K_F2:
+                        self._save_script()
+                    elif event.key == pygame.K_F3:
+                        self._load_script()
+
+            for event in events:
                 if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                     mx, my = event.pos
                     prev = self._focused_module
-                    # 视频模块区域 (10,10 640x360)
                     if 10 <= mx <= 650 and 10 <= my <= 370:
                         self._focused_module = 'video'
-                    # 脚本编辑器区域 (10,380 640x400)
                     elif 10 <= mx <= 650 and 380 <= my <= 780:
                         self._focused_module = 'script'
-                    # 标签制作区域 (660,10 360x360)
                     elif 660 <= mx <= 1020 and 10 <= my <= 370:
                         self._focused_module = 'label'
-                    # 运行输出区域 (660,380 360x400)
                     elif 660 <= mx <= 1020 and 380 <= my <= 780:
                         self._focused_module = 'output'
-                    # 同步视频模块焦点
                     if self._focused_module != prev:
                         self.video_module.focused = (self._focused_module == 'video')
-                
-                # 分发事件到各个模块
-                # 注意：标签制作器的输入框需要优先处理键盘事件
-                handled = False
-                
-                # 标签制作（优先处理，因为可能有输入框激活）
+
+                    for btn_name, btn_rect in self._btn_rects.items():
+                        if btn_rect.collidepoint(mx, my):
+                            self._btn_pressed = btn_name
+                            self._btn_pressed_frames = 10
+                            if btn_name == 'run':
+                                self._run_script()
+                            elif btn_name == 'stop':
+                                self._stop_script()
+                            elif btn_name == 'save':
+                                self._save_script()
+                            elif btn_name == 'load':
+                                self._load_script()
+
+            for event in events:
                 result = self.label_maker.handle_event(event)
                 if result == 'capture':
                     self._capture_for_label()
-                    handled = True
                 elif isinstance(result, str):
-                    # 保存标签的返回消息
                     self.output_panel.log(result)
-                    handled = True
-                elif result:
-                    handled = True
-                
-                # 视频模块（键盘事件）
-                if not handled:
-                    handled = self.video_module.handle_event(event)
-                
-                # 脚本编辑器
-                if not handled:
-                    handled = self.script_editor.handle_event(event)
-            
-            # 绘制所有模块
+
+            if self._focused_module == 'video':
+                for event in events:
+                    self.video_module.handle_event(event)
+
             self.screen.fill((35, 35, 40))
-            
             self.video_module.draw(self.screen, self.font)
-            self.script_editor.draw(self.screen, self.font, self.font_mono, self.font_small)
+
+            editor_events = events if self._focused_module == 'script' else []
+            result = self._text_editor.display_editor(
+                editor_events, pygame.key.get_pressed(),
+                mouse_x, mouse_y, mouse_pressed
+            )
+            if result == "save":
+                self._save_script()
+            elif result == "load":
+                self._load_script()
+
+            for btn_name, btn_rect in self._btn_rects.items():
+                if btn_name == self._btn_pressed:
+                    color = (120, 200, 255) if btn_name == 'run' else (140, 140, 150)
+                    if btn_name == 'stop':
+                        color = (255, 120, 120)
+                    self._btn_pressed_frames -= 1
+                    if self._btn_pressed_frames <= 0:
+                        self._btn_pressed = None
+                else:
+                    color = (70, 130, 180) if btn_name == 'run' else (80, 80, 90)
+                    if btn_name == 'stop':
+                        color = (180, 70, 70)
+                pygame.draw.rect(self.screen, color, btn_rect, border_radius=3)
+                label = self.font_small.render(btn_name.upper(), True, (255, 255, 255))
+                self.screen.blit(label, (btn_rect.x + 8, btn_rect.y + 4))
+
             self.label_maker.draw(self.screen, self.font, self.font_small)
             self.output_panel.draw(self.screen, self.font, self.font_small)
-            
-            # 聚焦模块边框
+
             focus_color = (0, 180, 240)
             focus_rects = {
                 'video':  (10, 10, 640, 360),
@@ -674,12 +647,12 @@ class EasyConGUI:
             if self._focused_module in focus_rects:
                 pygame.draw.rect(self.screen, focus_color,
                                focus_rects[self._focused_module], 2)
-            
+
             pygame.display.flip()
-            
             frame_count += 1
             self.clock.tick(60)
-        
+
+        pygame.key.stop_text_input()
         self._cleanup()
     
     def _cleanup(self):
@@ -748,10 +721,9 @@ def get_frame():
     return None
 
 def is_running():
-    """检查脚本是否应继续运行"""
     if _current_gui is None:
         return False
-    return _current_gui.script_running and not _current_gui.stop_event.is_set()
+    return _current_gui.script_engine.is_running()
 
 def ocr_pokemon():
     """自动检测画面并 OCR"""
@@ -802,16 +774,21 @@ def ocr_name(candidates=None):
 
 
 def run_script(script_func):
-    """脚本入口：初始化 GUI，注册脚本函数，等待用户点击运行（F5）"""
-    gui = EasyConGUI()
-    gui._script_func = script_func
-    gui.output_panel.log("脚本已加载，按 F5 运行 | F6 停止")
+    caller_path = inspect.stack()[1].filename
+    script_path = caller_path if os.path.isfile(caller_path) and caller_path.endswith('.py') else None
+    gui = EasyConGUI(script_path=script_path)
+    gui.script_engine.set_script_func(script_func)
+    if script_path:
+        gui.output_panel.log(f"已加载: {os.path.basename(script_path)}")
+    gui.output_panel.log("按 F5 运行 | F6 停止 | ESC 退出")
     gui.run()
 
 
 def main():
     """启动 GUI 编辑器模式（python gui.py）"""
-    gui = EasyConGUI()
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    script_path = os.path.join(project_root, "demo_script.py")
+    gui = EasyConGUI(script_path=script_path if os.path.exists(script_path) else None)
     gui.run()
 
 

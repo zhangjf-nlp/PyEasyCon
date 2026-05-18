@@ -1,0 +1,112 @@
+# EasyCon 默认配置文件
+# 所有路径相对于项目根目录
+
+# ==================== 采集卡 ====================
+capture:
+  width: 1920
+  height: 1080
+  fps: 60
+  device_id: 0
+  backend: dshow          # dshow | msmf | auto
+  retry_attempts: 3
+  flip_vertical: false     # 上下翻转（部分采集卡需开启）
+  flip_horizontal: false   # 左右镜像（部分采集卡需开启）
+
+# ==================== 串口 / EasyCon 控制器 ====================
+serial:
+  baudrate: 115200
+  timeout: 2.0
+  minimal_interval_ms: 30  # 两次发送之间的最小间隔
+
+# ==================== GUI ====================
+gui:
+  window_width: 1030
+  window_height: 790
+  font_family: "microsoft YaHei"
+  font_size: 14
+  font_size_small: 12
+  font_mono: "simsun"
+  font_mono_size: 13
+
+# ==================== 视觉识别 ROI (基于 1920×1080) ====================
+vision:
+  # GBA 画面区域检测
+  gba:
+    native_width: 240
+    native_height: 160
+    sprite_native: 64       # 精灵图原生尺寸
+    search_x: 144           # 搜索起始 X
+    search_y_min: 0         # 搜索 Y 范围
+    search_y_max: 100
+    sprite_roi_x: 140       # 精灵 ROI 偏移 X
+    sprite_roi_w: 72        # 精灵 ROI 宽度
+    sprite_roi_h: 100       # 精灵 ROI 高度
+
+  # Elevated IV 界面
+  elevated:
+    level_rect: [360, 876, 138, 124]
+    stat_rects:
+      - [1545, 48, 152, 97]    # HP
+      - [1545, 148, 152, 97]   # Attack
+      - [1545, 248, 152, 97]   # Defense
+      - [1545, 348, 152, 97]   # Sp.Atk
+      - [1545, 448, 152, 97]   # Sp.Def
+      - [1545, 548, 152, 97]   # Speed
+
+  # Caught Info 界面
+  caught_info:
+    level_rect: [262, 124, 108, 85]
+    gender_rect: [847, 124, 68, 81]
+    nature_rect: [222, 746, 741, 97]
+
+  # Caught IV 界面
+  caught_iv:
+    level_rect: [262, 124, 108, 85]
+    ability_rect: [635, 853, 529, 78]
+    stat_hp_rect: [1439, 140, 288, 72]
+    stat_other_rects:
+      - [1439, 240, 288, 72]   # Attack
+      - [1439, 340, 288, 72]   # Defense
+      - [1439, 440, 288, 72]   # Sp.Atk
+      - [1439, 540, 288, 72]   # Sp.Def
+      - [1439, 640, 288, 72]   # Speed
+
+  # 宝可梦名字 OCR
+  name_roi: [300, 135, 400, 55]
+
+  # 屏幕分类阈值
+  screen_classifier:
+    elevated_h_ratio: 0.15
+    caught_info_h_ratio: 0.10
+    caught_iv_h_ratio: 0.10
+
+# ==================== VL 模型 ====================
+vl_model:
+  type: vllm                # vllm | glm
+  vllm:
+    base_url: "http://localhost:8000/v1"
+    model_name: "Qwen3-VL-2B"
+  glm:
+    model: "glm-4.6v-flash"
+    api_key_env: "ZHIPUAI_API_KEY"
+    rate_limit_rpm: 30
+
+# ==================== 标签目录 ====================
+labels:
+  dir: "assets/labels"
+  sprite_labels_dir: "assets/sprite_labels"
+
+# ==================== 精灵图资源 ====================
+sprites:
+  normal_dir: "assets/sprites/normal"
+  shiny_dir: "assets/sprites/shiny"
+  resources_dir: "assets/sprites/resources"
+
+# ==================== RNG 数据 ====================
+rng:
+  resources_dir: "modules/tenlines/resources"
+  personal_bin: "Personal/Gen3/personal_rsefrlg.bin"
+  species_file: "i18n/en/species_en.txt"
+  abilities_file: "i18n/en/abilities_en.txt"
+  encounters_dir: "EncounterTables/Gen3/frlg"
+  seed_data: "fr_eng_nx.bin"

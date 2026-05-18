@@ -7,7 +7,8 @@ import pygame
 import cv2
 import threading
 from typing import Optional, Tuple, Dict
-from easycon_api import EasyConController, GamePadKey
+from easycon import EasyConController, GamePadKey
+from easycon.config import get
 
 
 class VideoModule:
@@ -37,6 +38,8 @@ class VideoModule:
         self.current_frame: Optional[pygame.Surface] = None
         self.raw_frame: Optional = None  # 原始 numpy 帧（供 OCR 等使用）
         self._frame_lock = threading.Lock()
+        self.flip_vertical = get("capture.flip_vertical", False)
+        self.flip_horizontal = get("capture.flip_horizontal", False)
         
         # 控制器
         self.controller: Optional[EasyConController] = None
@@ -138,6 +141,10 @@ class VideoModule:
                 ret, frame = self.cap.read()
                 if ret and frame is not None:
                     frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                    if self.flip_vertical:
+                        frame_rgb = cv2.flip(frame_rgb, 0)
+                    if self.flip_horizontal:
+                        frame_rgb = cv2.flip(frame_rgb, 1)
                     frame_resized = cv2.resize(frame_rgb, (self.width, self.height))
                     self.current_frame = pygame.image.frombuffer(
                         frame_resized.tobytes(),
@@ -157,7 +164,7 @@ class VideoModule:
                         
                         # 更新模型类型显示
                         try:
-                            from modules.pokemon_ocr import get_current_model_type
+                            from vision.ocr import get_current_model_type
                             model_type = get_current_model_type()
                             if model_type == "vllm":
                                 self.model_type = "vLLM(本地)"
@@ -303,7 +310,7 @@ class VideoModule:
             
             # === OCR ROI 框叠加 (1920×1080 坐标 → 缩放到显示区域) ===
             try:
-                from modules.pokemon_ocr import get_all_roi_boxes
+                from vision.ocr import get_all_roi_boxes
                 rois = get_all_roi_boxes()
                 scale_x = self.width / 1920.0
                 scale_y = self.height / 1080.0
