@@ -122,7 +122,7 @@ def check_last_pokemon(ctx):
         sleep(0.5)
         ctx.press("X")
         sleep(1.0)
-        if ctx.search_label("3代关键词POKeMON", 95):
+        if ctx.search_label("3代关键词POKeMON", 90):
             break
     if ctx.search_label("3代关键词BAG选中", 95):
         ctx.press("UP")
