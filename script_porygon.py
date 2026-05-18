@@ -7,21 +7,21 @@ from scripts.navigation import restart
 
 
 cfg = RNGConfig(
-    game_version="fr_nx",
+    game_version="fr_nx", # 叶绿改成 "lg_nx"
     trainer_id=58888,
     secret_id=12232,
     game_settings = GameSettings.from_string(
-        "Mono | Help | Seed Button: A | Extra Button: None"
-    ),
-    pokemon_species="Gyarados",
-    rng_category="SuperRod",
-    rng_location="Route 22",
-    rng_method="All Wild Methods",
-    seed_hex="0D75",
-    advances=324980,
-    seed_bias=-4266,
-    advances_bias=-10768,
-    timing=TimingConfig(operation_seconds=12.5),
+        "Stereo | Help | Seed Button: A | Extra Button: None"
+    ), # 复制粘贴Tenlines上Initial Seed查询得到的Settings
+    pokemon_species="Porygon", # 首字母大写的宝可梦名
+    rng_category="Game Corner",
+    rng_location="Game Corner",
+    rng_method="Static 1",
+    seed_hex="0727",
+    advances=186130,
+    seed_bias=-4207,
+    advances_bias=-10143,
+    timing=TimingConfig(operation_seconds=10.0),
 )
 
 
@@ -35,6 +35,11 @@ def main(ctx):
         f"Seed takes {cfg.seed_ms}ms | TV takes {cfg.advances_ms_tv}ms "
         f"| Normal takes {cfg.advances_ms_normal}ms"
     )
+
+    if cfg.seed_ms < 35000:
+        ctx.log(f'[Warning] Too low seed time: {cfg.seed_ms}ms')
+    if cfg.advances_ms_tv < 1000:
+        ctx.log(f'[Warning] Too low TV time: {cfg.advances_ms_tv}ms')
 
     count = 0
     while ctx.is_running():
@@ -53,7 +58,7 @@ def main(ctx):
                 if caught:
                     check_last_pokemon(ctx)
                     record_for_finetune(ctx, state, cfg, count, pokemon_en)
-        elif cfg.rng_category == "Gift":
+        elif cfg.rng_category in ["Gift", "Game Corner"]:
             check_last_pokemon(ctx)
             if ctx.search_label("3代闪光", 80):
                 ctx.log("闪光出现!")

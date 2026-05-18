@@ -11,17 +11,17 @@ cfg = RNGConfig(
     trainer_id=58888,
     secret_id=12232,
     game_settings = GameSettings.from_string(
-        "Mono | Help | Seed Button: A | Extra Button: None"
+        "Stereo | Help | Seed Button: A | Extra Button: None"
     ),
-    pokemon_species="Gyarados",
-    rng_category="SuperRod",
+    pokemon_species="Spearow",
+    rng_category="Grass",
     rng_location="Route 22",
     rng_method="All Wild Methods",
-    seed_hex="0D75",
-    advances=324980,
-    seed_bias=-4266,
-    advances_bias=-10768,
-    timing=TimingConfig(operation_seconds=12.5),
+    seed_hex="FEB3",
+    advances=1620088,
+    seed_bias=-4207,
+    advances_bias=-10143,
+    timing=TimingConfig(operation_seconds=10.0),
 )
 
 
@@ -35,6 +35,11 @@ def main(ctx):
         f"Seed takes {cfg.seed_ms}ms | TV takes {cfg.advances_ms_tv}ms "
         f"| Normal takes {cfg.advances_ms_normal}ms"
     )
+
+    if cfg.seed_ms < 35000:
+        ctx.log(f'[Warning] Too low seed time: {cfg.seed_ms}ms')
+    if cfg.advances_ms_tv < 1000:
+        ctx.log(f'[Warning] Too low TV time: {cfg.advances_ms_tv}ms')
 
     count = 0
     while ctx.is_running():

@@ -94,6 +94,33 @@ def hit_super_rod(ctx, cfg):
     ctx.press("A")
 
 
+def hit_game_corner(ctx, cfg):
+    start = time.time()
+    end = start + cfg.advances_ms_normal / 1000.0
+    ctx.press("A")
+    sleep(1.5)
+    ctx.press("A")
+    sleep(1.5)
+    if cfg.game_version == "fr_nx":
+        pokemon_list = ["Abra", "Clefairy", "Dratini", "Scyther", "Porygon"]
+    elif cfg.game_version == "lg_nx":
+        pokemon_list = ["Abra", "Clefairy", "Pinsir", "Dratini", "Porygon"]
+    else:
+        raise NotImplementedError(cfg.game_version)
+    for pokemon in pokemon_list:
+        if pokemon == cfg.pokemon_species:
+            break
+        ctx.press('DOWN')
+        sleep(0.5)
+    else:
+        raise ValueError(f"版本游戏厅无预期宝可梦：{cfg.game_version}-{cfg.pokemon_species}")
+    ctx.press('A')
+    sleep(0.0, end)
+    ctx.press('A')
+    sleep(3.0)
+    ctx.press("B")
+
+
 def hit_gift(ctx, cfg):
     start = time.time()
     end = start + cfg.advances_ms_normal / 1000.0
@@ -111,6 +138,8 @@ def hit(ctx, cfg):
         hit_sweet_scent(ctx, cfg)
     elif cfg.rng_category == "SuperRod":
         hit_super_rod(ctx, cfg)
+    elif cfg.rng_category == "Game Corner":
+        hit_game_corner(ctx, cfg)
     elif cfg.rng_category == "Gift":
         hit_gift(ctx, cfg)
     else:
