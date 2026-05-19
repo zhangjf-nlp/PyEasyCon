@@ -95,7 +95,10 @@ class LabelMaker:
         self.popup_mode = None
         self.popup_input = ""
         self.popup_scroll = 0
+        self.popup_search = ""
+        self.popup_confirm_name = ""
         self._popup_msg = ""
+        self._capture_callback = None
 
 
     def _refresh_saved_labels(self):
@@ -215,12 +218,15 @@ class LabelMaker:
         self.popup_input = ""
 
     def _open_load_popup(self):
+        if self.current_capture is None and self._capture_callback:
+            self._capture_callback()
         self._refresh_saved_labels()
         self.popup_mode = "load"
         self.popup_scroll = 0
+        self.popup_search = ""
 
     def _popup_rect(self):
-        pw, ph = 280, 260
+        pw, ph = 300, 260
         px = self.x + (self.width - pw) // 2
         py = self.y + (self.height - ph) // 2
         return pygame.Rect(px, py, pw, ph)
@@ -233,8 +239,12 @@ class LabelMaker:
 
         pr = self._popup_rect()
 
-        if event.type == pygame.TEXTINPUT and self.popup_mode == "save":
-            self.popup_input += event.text
+        if event.type == pygame.TEXTINPUT:
+            if self.popup_mode == "save":
+                self.popup_input += event.text
+            elif self.popup_mode == "load":
+                self.popup_search += event.text
+                self.popup_scroll = 0
             return True
 
         if event.type == pygame.KEYDOWN:
@@ -254,6 +264,16 @@ class LabelMaker:
                     elif event.key in (pygame.K_SPACE, pygame.K_MINUS, pygame.K_PERIOD):
                         self.popup_input += chr(event.key)
                 return True
+            if self.popup_mode == "load":
+                if event.key == pygame.K_BACKSPACE:
+                    self.popup_search = self.popup_search[:-1]
+                    self.popup_scroll = 0
+                return True
+
+        if self.popup_mode == "save_confirm":
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
+                self._do_overwrite_save()
+                return True
 
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             mx, my = event.pos
@@ -270,16 +290,27 @@ class LabelMaker:
                     self.popup_mode = None
                 return True
 
+            if self.popup_mode == "save_confirm":
+                btn_ok = pygame.Rect(pr.x + 60, pr.y + 200, 70, 28)
+                btn_cancel = pygame.Rect(pr.x + 150, pr.y + 200, 70, 28)
+                if btn_ok.collidepoint(mx, my):
+                    self._do_overwrite_save()
+                elif btn_cancel.collidepoint(mx, my):
+                    self.popup_mode = None
+                return True
+
             if self.popup_mode == "load":
                 btn_cancel = pygame.Rect(pr.x + 105, pr.y + 220, 70, 28)
                 if btn_cancel.collidepoint(mx, my):
                     self.popup_mode = None
                     return True
 
-                list_y_start = pr.y + 40
+                search = self.popup_search.lower()
+                filtered = [n for n in self.saved_labels if search in n.lower()]
+                list_y_start = pr.y + 75
                 item_h = 22
-                visible = (pr.height - 100) // item_h
-                for i, label_name in enumerate(self.saved_labels[self.popup_scroll:self.popup_scroll + visible]):
+                visible = (pr.height - 115) // item_h
+                for i, label_name in enumerate(filtered[self.popup_scroll:self.popup_scroll + visible]):
                     item_rect = pygame.Rect(pr.x + 10, list_y_start + i * item_h, pr.width - 20, item_h)
                     if item_rect.collidepoint(mx, my):
                         result = self._load_label(label_name)
@@ -288,8 +319,10 @@ class LabelMaker:
 
         if event.type == pygame.MOUSEWHEEL and self.popup_mode == "load":
             self.popup_scroll -= event.y
-            visible = (self._popup_rect().height - 100) // 22
-            max_scroll = max(0, len(self.saved_labels) - visible)
+            search = self.popup_search.lower()
+            filtered = [n for n in self.saved_labels if search in n.lower()]
+            visible = (self._popup_rect().height - 115) // 22
+            max_scroll = max(0, len(filtered) - visible)
             self.popup_scroll = max(0, min(self.popup_scroll, max_scroll))
             return True
 
@@ -303,8 +336,8 @@ class LabelMaker:
             return
         import os
         if os.path.exists(os.path.join(self.labels_dir, f"{label_name}.IL")):
-            self._popup_msg = f"标签 '{label_name}' 已存在"
-            self.popup_mode = "msg"
+            self.popup_confirm_name = label_name
+            self.popup_mode = "save_confirm"
             return
         result = self._save_label_with_name(label_name)
         self._refresh_saved_labels()
@@ -312,7 +345,16 @@ class LabelMaker:
         if isinstance(result, str):
             self._popup_msg = result
             self.popup_mode = "msg"
-    
+
+    def _do_overwrite_save(self):
+        label_name = self.popup_confirm_name
+        result = self._save_label_with_name(label_name)
+        self._refresh_saved_labels()
+        self.popup_mode = None
+        if isinstance(result, str):
+            self._popup_msg = result
+            self.popup_mode = "msg"
+
     def _is_in_capture_display(self, mx: int, my: int) -> bool:
         """检查坐标是否在截图显示区域内"""
         return (self.capture_display_x <= mx <= self.capture_display_x + self.capture_display_width and
@@ -600,17 +642,39 @@ class LabelMaker:
             self._draw_popup_button(screen, font, btn_ok, "确定", (60, 100, 60))
             self._draw_popup_button(screen, font, btn_cancel, "取消", (100, 60, 60))
 
+        if self.popup_mode == "save_confirm":
+            msg = font.render(f"标签 '{self.popup_confirm_name}' 已存在，是否覆盖?", True, (220, 220, 220))
+            msg_rect = msg.get_rect(center=(pr.centerx, pr.centery - 30))
+            screen.blit(msg, msg_rect)
+
+            btn_ok = pygame.Rect(pr.x + 60, pr.y + 200, 70, 28)
+            btn_cancel = pygame.Rect(pr.x + 150, pr.y + 200, 70, 28)
+            self._draw_popup_button(screen, font, btn_ok, "覆盖", (180, 120, 40))
+            self._draw_popup_button(screen, font, btn_cancel, "取消", (100, 60, 60))
+
         if self.popup_mode == "load":
             title = font.render("加载标签", True, (220, 220, 220))
             screen.blit(title, (pr.x + 15, pr.y + 12))
 
-            list_y = pr.y + 40
+            search_rect = pygame.Rect(pr.x + 15, pr.y + 40, pr.width - 30, 28)
+            pygame.draw.rect(screen, (30, 30, 35), search_rect, border_radius=3)
+            pygame.draw.rect(screen, (120, 120, 200), search_rect, 2, border_radius=3)
+            if self.popup_search:
+                text = font.render(self.popup_search, True, (220, 220, 220))
+                screen.blit(text, (search_rect.x + 6, search_rect.y + 5))
+            else:
+                hint = font.render("输入关键词搜索...", True, (100, 100, 100))
+                screen.blit(hint, (search_rect.x + 6, search_rect.y + 5))
+
+            search_text = self.popup_search.lower()
+            filtered = [n for n in self.saved_labels if search_text in n.lower()]
+            list_y = pr.y + 75
             item_h = 22
-            visible = (pr.height - 100) // item_h
+            visible = (pr.height - 115) // item_h
             list_height = visible * item_h
             pygame.draw.rect(screen, (30, 30, 35), (pr.x + 10, list_y, pr.width - 20, list_height), border_radius=3)
 
-            for i, label_name in enumerate(self.saved_labels[self.popup_scroll:self.popup_scroll + visible]):
+            for i, label_name in enumerate(filtered[self.popup_scroll:self.popup_scroll + visible]):
                 y = list_y + i * item_h
                 item_rect = pygame.Rect(pr.x + 10, y, pr.width - 20, item_h)
                 mx, my = pygame.mouse.get_pos()
@@ -619,7 +683,7 @@ class LabelMaker:
                 text = font.render(label_name, True, (200, 200, 200))
                 screen.blit(text, (pr.x + 16, y + 3))
 
-            btn_cancel = pygame.Rect(pr.x + 105, pr.y + 220, 70, 28)
+            btn_cancel = pygame.Rect(pr.x + (pr.width - 70) // 2, pr.y + 220, 70, 28)
             self._draw_popup_button(screen, font, btn_cancel, "取消", (100, 60, 60))
 
     def _update_match(self):

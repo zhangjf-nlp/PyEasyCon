@@ -11,16 +11,16 @@ cfg = RNGConfig(
     trainer_id=58888,
     secret_id=12232,
     game_settings = GameSettings.from_string(
-        "Stereo | Help | Seed Button: A | Extra Button: None"
+        "Mono | Help | Seed Button: A | Extra Button: None"
     ), # 复制粘贴Tenlines上Initial Seed查询得到的Settings
-    pokemon_species="Porygon", # 首字母大写的宝可梦名
+    pokemon_species="Dratini", # 首字母大写的宝可梦名
     rng_category="Game Corner",
     rng_location="Game Corner",
     rng_method="Static 1",
-    seed_hex="0727",
-    advances=186130,
-    seed_bias=-4950,
-    advances_bias=-11054,
+    seed_hex="ECA1",
+    advances=183988,
+    seed_bias=-4891,
+    advances_bias=-11118,
     timing=TimingConfig(operation_seconds=12.0),
 )
 

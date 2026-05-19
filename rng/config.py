@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from rng.tenlines_utils import GameSettings, get_seed_time
+from .tenlines_utils import GameSettings, get_seed_time
 
 
 @dataclass
@@ -52,7 +52,7 @@ class RNGConfig:
         self.seed_ms = int(self.seed_unbiased / t.fps_seed * 1000)
         self.advances_unbiased = self.advances - self.advances_bias
         advances_operation = int(t.operation_seconds * t.fps_normal)
-        self.advances_ms_tv = (self.advances_unbiased - advances_operation) * 100 // t.fps_tv * 10
+        self.advances_ms_tv = (self.advances_unbiased - advances_operation) * 40 // t.fps_tv * 25
         self.advances_ms_normal = int(
             (self.advances_unbiased - self.advances_ms_tv / 1000 * t.fps_tv)
             / t.fps_normal * 1000
@@ -60,8 +60,27 @@ class RNGConfig:
 
     def apply_calibration(self, seed_delta: int, adv_delta: int):
         self.seed_bias += seed_delta
-        self.advances_bias += adv_delta
-        self._recalc()
+
+        t = self.timing
+        min_normal_ms = int(t.operation_seconds * 1000)
+        max_normal_ms = int(t.operation_seconds * 1000 * 1.5)
+
+        new_advances_bias = self.advances_bias + adv_delta
+        new_advances_unbiased = self.advances - new_advances_bias
+
+        tv_adv = self.advances_ms_tv / 1000 * t.fps_tv
+        normal_remain = new_advances_unbiased - tv_adv
+        normal_try = round(normal_remain / t.fps_normal * 1000)
+
+        if min_normal_ms <= normal_try <= max_normal_ms:
+            self.advances_bias = new_advances_bias
+            self.advances_ms_normal = normal_try
+            self.seed_unbiased = self.seed - self.seed_bias
+            self.seed_ms = int(self.seed_unbiased / t.fps_seed * 1000)
+            self.advances_unbiased = new_advances_unbiased
+        else:
+            self.advances_bias = new_advances_bias
+            self._recalc()
 
 
 @dataclass
@@ -69,3 +88,4 @@ class SessionState:
     log_dir: str = None
     valid_calibration_attempts: int = 0
     calibration_start_count: int = None
+    attempts_ocr_data: dict = field(default_factory=dict)

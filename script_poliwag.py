@@ -1,5 +1,5 @@
 from gui import run_script
-from scripts.config import GameSettings, RNGConfig, TimingConfig, SessionState
+from rng.config import GameSettings, RNGConfig, TimingConfig, SessionState
 from scripts.hit import hit
 from scripts.capture import check_shiny, catch_with_ball, check_last_pokemon
 from scripts.finetune import record_for_finetune

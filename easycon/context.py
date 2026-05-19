@@ -39,6 +39,7 @@ class ScriptContext:
         self._identify_pokemon_func = identify_pokemon_func
         self._ocr_name_func = ocr_name_func
         self._labels_dir = labels_dir
+        self._label_cache = {}
 
         self._button_map = {
             'A': GamePadKey.A, 'B': GamePadKey.B, 'X': GamePadKey.X, 'Y': GamePadKey.Y,
@@ -96,35 +97,56 @@ class ScriptContext:
             return self._get_frame()
         return None
 
+    def _load_label(self, label_name):
+        label_path = os.path.join(self._labels_dir, f"{label_name}.IL")
+        if not os.path.exists(label_path):
+            self._label_cache[label_name] = None
+            return None
+
+        with open(label_path, 'r', encoding='utf-8') as f:
+            label_data = json.load(f)
+
+        if not label_data.get('ImgBase64'):
+            self._label_cache[label_name] = None
+            return None
+
+        img_bytes = base64.b64decode(label_data['ImgBase64'])
+        nparr = np.frombuffer(img_bytes, np.uint8)
+        cached = {
+            'template': cv2.imdecode(nparr, cv2.IMREAD_COLOR),
+            'rx': label_data.get('RangeX', 0),
+            'ry': label_data.get('RangeY', 0),
+            'rw': label_data.get('RangeWidth'),
+            'rh': label_data.get('RangeHeight'),
+            'search_method': label_data.get('searchMethod', 5),
+        }
+        self._label_cache[label_name] = cached
+        return cached
+
     def search_label(self, label_name: str, threshold: int = 80, debug: bool = False):
         try:
-            label_path = os.path.join(self._labels_dir, f"{label_name}.IL")
-            if not os.path.exists(label_path):
-                return 0 if threshold == -1 else False
-
-            with open(label_path, 'r', encoding='utf-8') as f:
-                label_data = json.load(f)
+            cached = self._label_cache.get(label_name)
+            if cached is None:
+                if label_name in self._label_cache:
+                    return 0 if threshold == -1 else False
+                cached = self._load_label(label_name)
+                if cached is None:
+                    return 0 if threshold == -1 else False
 
             frame = self.get_frame()
             if frame is None:
                 return 0 if threshold == -1 else False
 
-            if not label_data.get('ImgBase64'):
-                return 0 if threshold == -1 else False
-
-            img_bytes = base64.b64decode(label_data['ImgBase64'])
-            nparr = np.frombuffer(img_bytes, np.uint8)
-            template = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-
-            rx = label_data.get('RangeX', 0)
-            ry = label_data.get('RangeY', 0)
-            rw = label_data.get('RangeWidth', frame.shape[1])
-            rh = label_data.get('RangeHeight', frame.shape[0])
-            rx = max(0, rx); ry = max(0, ry)
-            rw = min(rw, frame.shape[1] - rx); rh = min(rh, frame.shape[0] - ry)
+            template = cached['template']
+            rx = max(0, cached['rx'])
+            ry = max(0, cached['ry'])
+            rw = cached['rw'] if cached['rw'] is not None else frame.shape[1]
+            rh = cached['rh'] if cached['rh'] is not None else frame.shape[0]
+            rw = min(rw, frame.shape[1] - rx)
+            rh = min(rh, frame.shape[0] - ry)
             roi = frame[ry:ry + rh, rx:rx + rw]
 
-            search_method = label_data.get('searchMethod', 5)
+            search_method = cached['search_method']
 
             if search_method == 0:
                 result = cv2.matchTemplate(roi, template, cv2.TM_SQDIFF)

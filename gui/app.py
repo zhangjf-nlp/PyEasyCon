@@ -109,6 +109,7 @@ class EasyConGUI:
         
         # 右上：标签制作
         self.label_maker = LabelMaker(660, 10, 360, 360)
+        self.label_maker._capture_callback = self._capture_for_label
         
         # 右下：运行输出（宽度与标签制作一致）
         self.output_panel = OutputPanel(660, 380, 360, 400)

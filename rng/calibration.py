@@ -105,6 +105,10 @@ def calibrate(
     location: str = "Route 19",
     category: str = "Surfing",
     log_dir: Optional[str] = None,
+    seed_ms: int = 0,
+    advances_ms_tv: int = 0,
+    advances_ms_normal: int = 0,
+    attempts_data: Optional[Dict[int, List[dict]]] = None,
 ) -> Tuple[Optional[int], Optional[int]]:
     """
     Returns (seed_bias, adv_bias) or (None, None).
@@ -113,14 +117,17 @@ def calibrate(
     seed_hex:  种子 hex 字符串 (如 "864A")
     seed_time: seed_hex 对应的毫秒时间
     """
-    if log_dir is None:
+    if attempts_data is not None:
+        pass
+    elif log_dir is None:
         log_dirs = sorted(glob.glob("rng_logs/20*"))
         if not log_dirs:
             print("[calibration] 未找到 rng_logs 目录")
             return None, None
         log_dir = log_dirs[-1]
 
-    attempts_data = _load_attempts(log_dir)
+    if attempts_data is None:
+        attempts_data = _load_attempts(log_dir)
     all_attempts = []
     for aid in sorted(attempts_data):
         obs_list, nature, gender, ability, caught_level, pokemon = _parse_attempt(attempts_data[aid])
@@ -223,6 +230,30 @@ def calibrate(
         nearest_seed = int(results[nearest_idx].seed, 16)
         nearest_seed_time = result_seed_times[nearest_idx]
         nearest_adv = min(result_advs, key=lambda a: abs(a - anchor_adv))
+
+        if log_dir is not None:
+            record = {
+                "aid": attempt["aid"],
+                "seed_ms": seed_ms,
+                "advances_ms_tv": advances_ms_tv,
+                "advances_ms_normal": advances_ms_normal,
+                "nearest_seed": f"0x{nearest_seed:04X}",
+                "nearest_seed_time": nearest_seed_time,
+                "nearest_adv": nearest_adv,
+            }
+            with open(f"{log_dir}/records.jsonl", "a", encoding="utf-8") as rf:
+                rf.write(json.dumps(record, ensure_ascii=False) + "\n")
+            detail = {
+                **record,
+                "nature": attempt["nature"],
+                "gender": attempt["gender"],
+                "ability": attempt["ability"],
+                "obs_list": [vars(o) for o in attempt["obs_list"]],
+                "pokemon": attempt["pokemon"],
+                "caught_level": attempt["caught_level"],
+            }
+            with open(f"{log_dir}/details.jsonl", "a", encoding="utf-8") as df:
+                df.write(json.dumps(detail, ensure_ascii=False) + "\n")
 
         all_seed_biases.append(nearest_seed_time - anchor_seed_time)
         all_adv_biases.append(nearest_adv - anchor_adv)

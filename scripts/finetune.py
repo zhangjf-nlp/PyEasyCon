@@ -1,8 +1,7 @@
 import json
 import os
-import glob
-import shutil
 import time
+from dataclasses import asdict
 
 from rng.calibration import calibrate, _obs_to_iv_range, _n_combos
 from gui import search_label
@@ -14,9 +13,36 @@ def init_log_dir(ctx, state, cfg):
     ts = time.strftime("%Y%m%d_%H%M%S")
     d = f"rng_logs/{ts}_{cfg.pokemon_species}"
     os.makedirs(d, exist_ok=True)
+    os.makedirs(f"{d}/screens", exist_ok=True)
     state.log_dir = d
     ctx.log(f"新建日志目录: {d}")
-    shutil.copy(__file__, f"{d}/{os.path.basename(__file__)}")
+
+    cfg_dict = {
+        "trainer_id": cfg.trainer_id,
+        "secret_id": cfg.secret_id,
+        "pokemon_species": cfg.pokemon_species,
+        "rng_category": cfg.rng_category,
+        "rng_location": cfg.rng_location,
+        "rng_method": cfg.rng_method,
+        "game_version": cfg.game_version,
+        "game_settings": vars(cfg.game_settings) if hasattr(cfg.game_settings, "__dict__") else {},
+        "seed_hex": cfg.seed_hex,
+        "advances": cfg.advances,
+        "seed_bias": cfg.seed_bias,
+        "advances_bias": cfg.advances_bias,
+        "timing": asdict(cfg.timing),
+        "precicase_combos": cfg.precicase_combos,
+        "finetune_per_precicase": cfg.finetune_per_precicase,
+        "max_candies": cfg.max_candies,
+        "seed": cfg.seed,
+        "seed_unbiased": cfg.seed_unbiased,
+        "seed_ms": cfg.seed_ms,
+        "advances_unbiased": cfg.advances_unbiased,
+        "advances_ms_tv": cfg.advances_ms_tv,
+        "advances_ms_normal": cfg.advances_ms_normal,
+    }
+    with open(f"{d}/settings.json", "w", encoding="utf-8") as f:
+        json.dump(cfg_dict, f, ensure_ascii=False, indent=2)
     return d
 
 
@@ -29,13 +55,7 @@ def save_ocr(state, ocr_result, attempt, pokemon, candy_num=None):
         "pokemon": pokemon,
         "ocr_result": ocr_result,
     }
-    if ocr_result["screen"] == "ELEVATED":
-        assert candy_num is not None
-        fname = f'{state.log_dir}/{attempt:04d}_{ocr_result["screen"]}_{candy_num:02d}.json'
-    else:
-        fname = f'{state.log_dir}/{attempt:04d}_{ocr_result["screen"]}.json'
-    with open(fname, "w", encoding="utf-8") as f:
-        json.dump(entry, f, ensure_ascii=False, indent=2)
+    state.attempts_ocr_data.setdefault(attempt, []).append(entry)
 
 
 def calculate_n_combos(obs_list, pokemon):
@@ -50,8 +70,7 @@ def calculate_n_combos(obs_list, pokemon):
 def run_calibration(ctx, state, cfg):
     if state.log_dir is None:
         return
-    files = sorted(glob.glob(f"{state.log_dir}/*.json"))
-    if len(files) < 1:
+    if not state.attempts_ocr_data:
         return
 
     seed_delta, adv_delta = calibrate(
@@ -66,12 +85,16 @@ def run_calibration(ctx, state, cfg):
         location=cfg.rng_location,
         category=cfg.rng_category,
         log_dir=state.log_dir,
+        seed_ms=cfg.seed_ms,
+        advances_ms_tv=cfg.advances_ms_tv,
+        advances_ms_normal=cfg.advances_ms_normal,
+        attempts_data=state.attempts_ocr_data,
     )
 
     if seed_delta is not None:
         cfg.apply_calibration(seed_delta, adv_delta)
         ctx.log(f"校准: seed_delta={seed_delta:+d} adv_delta={adv_delta:+d}")
-        ctx.log(f"Seed={cfg.seed} Advances={cfg.advances}")
+        ctx.log(f"Seed={cfg.seed}ms Advances={cfg.advances}")
         ctx.log(f"SeedBias={cfg.seed_bias} AdvancesBias={cfg.advances_bias}")
         ctx.log(
             f"Seed takes {cfg.seed_ms}ms | TV takes {cfg.advances_ms_tv}ms "
@@ -79,7 +102,7 @@ def run_calibration(ctx, state, cfg):
         )
         state.valid_calibration_attempts = 0
         state.calibration_start_count = None
-        init_log_dir(ctx, state, cfg)
+        state.attempts_ocr_data = {}
     else:
         ctx.log("校准失败 (数据不足)")
 
