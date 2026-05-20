@@ -1,9 +1,13 @@
+# -*- coding: utf-8 -*-
+import sys, os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from gui import run_script
 from rng.config import GameSettings, RNGConfig, TimingConfig, SessionState
-from scripts.hit import hit
-from scripts.capture import check_shiny, catch_with_ball, check_last_pokemon
-from scripts.finetune import record_for_finetune
-from scripts.navigation import restart
+from script_utils.hit import hit
+from script_utils.capture import check_shiny, catch_with_ball, check_last_pokemon
+from script_utils.finetune import record_for_finetune, init_log_dir
+from script_utils.navigation import restart
 
 
 cfg = RNGConfig(
@@ -13,20 +17,21 @@ cfg = RNGConfig(
     game_settings = GameSettings.from_string(
         "Mono | Help | Seed Button: Start | Extra Button: None"
     ),
-    pokemon_species="Poliwag",
-    rng_category="SuperRod",
-    rng_location="Route 22",
+    pokemon_species="Pikachu",
+    rng_category="Grass",
+    rng_location="Viridian Forest",
     rng_method="All Wild Methods",
-    seed_hex="883D",
-    advances=169654,
-    seed_bias=-4761,
-    advances_bias=-11365,
-    timing=TimingConfig(operation_seconds=25.0),
+    seed_hex="B235",
+    advances=153142,
+    seed_bias=-5047,
+    advances_bias=-10143,
+    timing=TimingConfig(operation_seconds=10.0),
 )
 
 
 def main(ctx):
     state = SessionState()
+    init_log_dir(ctx, state, cfg)
 
     ctx.log(f"GameSettings: {cfg.game_settings}")
     ctx.log(f"Seed={cfg.seed} Advances={cfg.advances}")
@@ -49,7 +54,7 @@ def main(ctx):
         hit(ctx, cfg)
 
         if cfg.rng_category in ["Grass", "Surfing", "SuperRod"]:
-            is_shiny, pokemon_en = check_shiny(ctx, cfg)
+            is_shiny, pokemon_en = check_shiny(ctx, cfg, state, count)
             if is_shiny:
                 ctx.log("闪光出现!")
                 break

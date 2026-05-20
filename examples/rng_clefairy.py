@@ -1,9 +1,13 @@
+# -*- coding: utf-8 -*-
+import sys, os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from gui import run_script
 from rng.config import GameSettings, RNGConfig, TimingConfig, SessionState
-from scripts.hit import hit
-from scripts.capture import check_shiny, catch_with_ball, check_last_pokemon
-from scripts.finetune import record_for_finetune
-from scripts.navigation import restart
+from script_utils.hit import hit
+from script_utils.capture import check_shiny, catch_with_ball, check_last_pokemon
+from script_utils.finetune import record_for_finetune, init_log_dir
+from script_utils.navigation import restart
 
 
 cfg = RNGConfig(
@@ -13,20 +17,21 @@ cfg = RNGConfig(
     game_settings = GameSettings.from_string(
         "Mono | Help | Seed Button: A | Extra Button: None"
     ), # 复制粘贴Tenlines上Initial Seed查询得到的Settings
-    pokemon_species="Dratini", # 首字母大写的宝可梦名
+    pokemon_species="Clefairy", # 首字母大写的宝可梦名
     rng_category="Game Corner",
     rng_location="Game Corner",
     rng_method="Static 1",
-    seed_hex="ECA1",
-    advances=183988,
+    seed_hex="BB43",
+    advances=6817,
     seed_bias=-4891,
-    advances_bias=-11118,
+    advances_bias=-100,
     timing=TimingConfig(operation_seconds=12.0),
 )
 
 
 def main(ctx):
     state = SessionState()
+    init_log_dir(ctx, state, cfg)
 
     ctx.log(f"GameSettings: {cfg.game_settings}")
     ctx.log(f"Seed={cfg.seed} Advances={cfg.advances}")
@@ -38,18 +43,16 @@ def main(ctx):
 
     if cfg.seed_ms < 35000:
         ctx.log(f'[Warning] Too low seed time: {cfg.seed_ms}ms')
-    if cfg.advances_ms_tv < 1000:
-        ctx.log(f'[Warning] Too low TV time: {cfg.advances_ms_tv}ms')
 
     count = 0
     while ctx.is_running():
         count += 1
-        ctx.log(f"========== 乱数尝试第 {count} 次 ==========")
+        ctx.log(f"========== 乱数尝试第{count} 次==========")
 
         hit(ctx, cfg)
 
         if cfg.rng_category in ["Grass", "Surfing", "SuperRod"]:
-            is_shiny, pokemon_en = check_shiny(ctx, cfg)
+            is_shiny, pokemon_en = check_shiny(ctx, cfg, state, count)
             if is_shiny:
                 ctx.log("闪光出现!")
                 break

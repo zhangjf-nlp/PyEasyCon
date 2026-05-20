@@ -133,7 +133,8 @@ def hit_gift(ctx, cfg):
 def hit(ctx, cfg):
     ctx.log("--- RNG 流程启动 ---")
     hit_init_seed(ctx, cfg)
-    hit_tv_frame(ctx, cfg)
+    if cfg.advances_ms_tv > 0:
+        hit_tv_frame(ctx, cfg)
     if cfg.rng_category in ["Grass", "Surfing"]:
         hit_sweet_scent(ctx, cfg)
     elif cfg.rng_category == "SuperRod":

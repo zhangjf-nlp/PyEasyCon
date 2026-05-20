@@ -51,17 +51,31 @@ class RNGConfig:
         self.seed_unbiased = self.seed - self.seed_bias
         self.seed_ms = int(self.seed_unbiased / t.fps_seed * 1000)
         self.advances_unbiased = self.advances - self.advances_bias
-        advances_operation = int(t.operation_seconds * t.fps_normal)
-        self.advances_ms_tv = (self.advances_unbiased - advances_operation) * 40 // t.fps_tv * 25
-        self.advances_ms_normal = int(
-            (self.advances_unbiased - self.advances_ms_tv / 1000 * t.fps_tv)
-            / t.fps_normal * 1000
-        )
+        if self.advances < 10000:
+            self.advances_ms_tv = 0
+            self.advances_ms_normal = int(self.advances_unbiased / t.fps_normal * 1000)
+        else:
+            advances_operation = int(t.operation_seconds * t.fps_normal)
+            self.advances_ms_tv = (self.advances_unbiased - advances_operation) * 1000 // t.fps_tv
+            self.advances_ms_normal = int(
+                (self.advances_unbiased - self.advances_ms_tv / 1000 * t.fps_tv)
+                / t.fps_normal * 1000
+            )
 
     def apply_calibration(self, seed_delta: int, adv_delta: int):
         self.seed_bias += seed_delta
 
         t = self.timing
+
+        if self.advances < 10000:
+            self.advances_bias += adv_delta
+            self.advances_ms_tv = 0
+            self.seed_unbiased = self.seed - self.seed_bias
+            self.seed_ms = int(self.seed_unbiased / t.fps_seed * 1000)
+            self.advances_unbiased = self.advances - self.advances_bias
+            self.advances_ms_normal = int(self.advances_unbiased / t.fps_normal * 1000)
+            return
+
         min_normal_ms = int(t.operation_seconds * 1000)
         max_normal_ms = int(t.operation_seconds * 1000 * 1.5)
 

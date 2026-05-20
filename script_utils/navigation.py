@@ -1,4 +1,4 @@
-from scripts.hit import sleep
+from script_utils.hit import sleep
 
 
 def restart(ctx):

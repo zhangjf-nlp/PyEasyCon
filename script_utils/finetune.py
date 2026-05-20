@@ -6,7 +6,7 @@ from dataclasses import asdict
 from rng.calibration import calibrate, _obs_to_iv_range, _n_combos
 from gui import search_label
 from rng.tenlines_utils import IVsObservation, get_species_id, get_personal
-from scripts.hit import sleep
+from script_utils.hit import sleep
 
 
 def init_log_dir(ctx, state, cfg):
@@ -130,6 +130,7 @@ def record_for_finetune(ctx, state, cfg, attempt, pokemon):
     ocr_caught_info = ctx.ocr_pokemon()
     assert ocr_caught_info.get("screen") == "CAUGHT_INFO"
     nature = ocr_caught_info.get("nature")
+    ctx.save_ocr_screenshot(f"{state.log_dir}/screens/{attempt:03d}-CAUGHT_INFO.png", "CAUGHT_INFO")
 
     gender = (
         "male"
@@ -147,6 +148,7 @@ def record_for_finetune(ctx, state, cfg, attempt, pokemon):
     ocr_caught_iv = ctx.ocr_pokemon()
     ocr_caught_iv["gender"] = gender
     assert ocr_caught_iv.get("screen") == "CAUGHT_IV"
+    ctx.save_ocr_screenshot(f"{state.log_dir}/screens/{attempt:03d}-CAUGHT_IV.png", "CAUGHT_IV")
     save_ocr(state, ocr_caught_iv, attempt, pokemon)
     sleep(0.5)
 
@@ -208,6 +210,7 @@ def record_for_finetune(ctx, state, cfg, attempt, pokemon):
             break
 
         assert ocr_elevated.get("screen") == "ELEVATED"
+        ctx.save_ocr_screenshot(f"{state.log_dir}/screens/{attempt:03d}-ELEVATEDx{i+1}.png", "ELEVATED")
         save_ocr(state, ocr_elevated, attempt, pokemon, candy_num=i + 1)
 
         obs_list.append(_make_obs(ocr_elevated, nature))

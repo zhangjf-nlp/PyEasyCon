@@ -1,5 +1,9 @@
+# -*- coding: utf-8 -*-
+import sys, os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from gui import run_script
-from scripts.hit import sleep
+from script_utils.hit import sleep
 
 delay = 0.860
 

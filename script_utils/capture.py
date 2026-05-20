@@ -6,10 +6,10 @@ import numpy as np
 
 from vision.sprite import identify_pokemon as _identify, detect_gba_area, SPRITE_NATIVE
 from rng.tenlines_utils import get_species_en_name, get_species_zh_name, get_encounter_species_list
-from scripts.hit import sleep
+from script_utils.hit import sleep
 
 
-def check_shiny(ctx, cfg):
+def check_shiny(ctx, cfg, state=None, attempt=0):
     ctx.log("识别宝可梦...")
 
     for _ in range(20):
@@ -49,6 +49,11 @@ def check_shiny(ctx, cfg):
     ctx.log(
         f'match: {pkm_en} (#{species_id} {"shiny" if is_shiny else "normal"}) score={score:.3f}'
     )
+
+    if state is not None and state.log_dir is not None:
+        ctx.save_ocr_screenshot(
+            f"{state.log_dir}/screens/{attempt:03d}-APPEARED.png", "APPEARED"
+        )
 
     dbg = frame.copy()
     cv2.rectangle(dbg, (sx_roi, sy_roi), (sx_roi + sw_roi, sy_roi + sh_roi), (255, 255, 0), 2)

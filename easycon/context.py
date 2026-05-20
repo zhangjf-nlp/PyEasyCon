@@ -214,3 +214,38 @@ class ScriptContext:
         if self._ocr_name_func:
             return self._ocr_name_func(candidates=candidates)
         return None
+
+    def save_ocr_screenshot(self, save_path: str, screen_type: str):
+        frame = self.get_frame()
+        if frame is None:
+            return
+        from vision.ocr import get_all_roi_boxes
+
+        _GROUP_MAP = {
+            "ELEVATED": "Elevated",
+            "CAUGHT_INFO": "Caught",
+            "CAUGHT_IV": "CaughtIV",
+            "APPEARED": "Appeared",
+        }
+        group = _GROUP_MAP.get(screen_type)
+        if group is None:
+            return
+
+        all_boxes = get_all_roi_boxes()
+        boxes = [b for b in all_boxes if b['group'] == group]
+
+        h, w = frame.shape[:2]
+        sx = w / 1920.0
+        sy = h / 1080.0
+        annotated = frame.copy()
+        for b in boxes:
+            x, y, rw, rh = b['roi']
+            x1, y1 = int(x * sx), int(y * sy)
+            x2, y2 = int((x + rw) * sx), int((y + rh) * sy)
+            color = b['color']
+            cv2.rectangle(annotated, (x1, y1), (x2, y2), color, 2)
+            cv2.putText(annotated, b['label'], (x1, y1 - 5),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1)
+
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+        cv2.imwrite(save_path, annotated)

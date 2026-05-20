@@ -70,7 +70,8 @@ except ImportError:
 # ==================== ROI 定义 (1920×1080) ====================
 
 ROI = Tuple[int, int, int, int]
-
+# Appeared 界面: 宝可梦种类
+APPEARED_NAME_RECT = (300, 135, 400, 55)
 # Elevated 界面: 等级位于左下
 ELEVATED_LEVEL_RECT: ROI = (360, 876, 138, 124)
 # Elevated 界面: 6项能力值，右侧纵列 (hp, attack, defense, sp_atk, sp_def, speed)
@@ -141,6 +142,9 @@ def get_all_roi_boxes() -> List[Dict]:
     for i in range(5):
         boxes.append({'label': f'IV {stat_labels[i+1]}', 'roi': CAUGHT_STAT_OTHER_RECTS[i], 'color': (255, 0, 255), 'group': 'CaughtIV'})
     boxes.append({'label': 'Ability', 'roi': CAUGHT_ABILITY_RECT, 'color': (255, 0, 255), 'group': 'CaughtIV'})
+
+    # Appeared
+    boxes.append({'label': 'Name', 'roi': APPEARED_NAME_RECT, 'color': (0, 255, 0), 'group': 'Appeared'})
 
     return boxes
 
