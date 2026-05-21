@@ -35,7 +35,7 @@ rng/src/pybind/*.so
 assets/sprites/resources/
 
 # Self-contained runtime (downloaded by setup.bat)
-Python310/
+Python312/
 venv/
 Git/
 _downloads/

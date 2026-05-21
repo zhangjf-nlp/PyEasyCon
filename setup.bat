@@ -5,8 +5,8 @@ title EasyCon - Environment Setup
 
 cd /d "%~dp0"
 
-set PYTHON_VERSION=3.10.11
-set PYTHON_DIR=%~dp0Python310
+set PYTHON_VERSION=3.12.10
+set PYTHON_DIR=%~dp0Python312
 set VENV_DIR=%~dp0venv
 set GIT_DIR=%~dp0Git
 set PYTHON_EXE=%PYTHON_DIR%\python.exe
@@ -56,7 +56,7 @@ if not exist "%INSTALLER%" (
         )
     )
 ) else (
-    echo   Using cached installer...
+    echo   Using pre-downloaded installer from _downloads/
 )
 
 echo   Installing Python to local directory...

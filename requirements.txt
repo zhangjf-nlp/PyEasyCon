@@ -8,7 +8,7 @@ numpy>=1.21
 # GUI (pygame + 语法高亮)
 pygame>=2.0
 pygments>=2.10
-pygame-texteditor>=1.0
+pygame-texteditor>=0.7
 
 # 采集卡 / 串口通信
 pyserial>=3.5
