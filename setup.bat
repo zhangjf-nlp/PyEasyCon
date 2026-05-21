@@ -6,12 +6,14 @@ title EasyCon - Environment Setup
 cd /d "%~dp0"
 
 set PYTHON_VERSION=3.12.10
-set PYTHON_DIR=%~dp0Python312
-set VENV_DIR=%~dp0venv
-set GIT_DIR=%~dp0Git
+set ROOT_DIR=%~dp0
+if "%ROOT_DIR:~-1%"=="\" set ROOT_DIR=%ROOT_DIR:~0,-1%
+set PYTHON_DIR=%ROOT_DIR%\Python312
+set VENV_DIR=%ROOT_DIR%\venv
+set GIT_DIR=%ROOT_DIR%\Git
 set PYTHON_EXE=%PYTHON_DIR%\python.exe
 set GIT_EXE=%GIT_DIR%\bin\git.exe
-set DOWNLOADS_DIR=%~dp0_downloads
+set DOWNLOADS_DIR=%ROOT_DIR%\_downloads
 
 :: Download URLs (official + mirrors for Chinese users)
 set PYTHON_URL_1=https://www.python.org/ftp/python/%PYTHON_VERSION%/python-%PYTHON_VERSION%-amd64.exe
