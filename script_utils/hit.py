@@ -1,7 +1,11 @@
 import time
+from typing import Optional
+
+from easycon.context import ScriptContext
+from rng.config import RNGConfig
 
 
-def sleep(seconds, end=None):
+def sleep(seconds: float, end: Optional[float] = None) -> None:
     start = time.time()
     if end is None:
         mid = start + seconds - 0.1
@@ -16,7 +20,7 @@ def sleep(seconds, end=None):
             time.sleep(0.05)
 
 
-def hit_init_seed(ctx, cfg):
+def hit_init_seed(ctx: ScriptContext, cfg: RNGConfig) -> None:
     sb, eb = cfg.game_settings.seed_button, cfg.game_settings.extra_button
     ctx.press("A")
     sleep(0.1)
@@ -43,14 +47,14 @@ def hit_init_seed(ctx, cfg):
     sleep(3.0)
 
 
-def hit_tv_frame(ctx, cfg):
+def hit_tv_frame(ctx: ScriptContext, cfg: RNGConfig) -> None:
     ctx.press("Y")
     sleep(cfg.advances_ms_tv / 1000.0)
     ctx.press("B")
     sleep(1.0)
 
 
-def hit_sweet_scent(ctx, cfg):
+def hit_sweet_scent(ctx: ScriptContext, cfg: RNGConfig) -> None:
     start = time.time()
     end = start + cfg.advances_ms_normal / 1000.0
     ctx.press("X")
@@ -66,7 +70,7 @@ def hit_sweet_scent(ctx, cfg):
     ctx.press("A")
 
 
-def hit_super_rod(ctx, cfg):
+def hit_super_rod(ctx: ScriptContext, cfg: RNGConfig) -> None:
     start = time.time()
     end = start + cfg.advances_ms_normal / 1000.0
     ctx.press("X")
@@ -94,7 +98,7 @@ def hit_super_rod(ctx, cfg):
     ctx.press("A")
 
 
-def hit_game_corner(ctx, cfg):
+def hit_game_corner(ctx: ScriptContext, cfg: RNGConfig) -> None:
     start = time.time()
     end = start + cfg.advances_ms_normal / 1000.0
     ctx.press("A")
@@ -121,7 +125,7 @@ def hit_game_corner(ctx, cfg):
     ctx.press("B")
 
 
-def hit_gift(ctx, cfg):
+def hit_gift(ctx: ScriptContext, cfg: RNGConfig) -> None:
     start = time.time()
     end = start + cfg.advances_ms_normal / 1000.0
     sleep(0.0, end)
@@ -130,7 +134,7 @@ def hit_gift(ctx, cfg):
     ctx.press("B")
 
 
-def hit(ctx, cfg):
+def hit(ctx: ScriptContext, cfg: RNGConfig) -> bool:
     ctx.log("--- RNG 流程启动 ---")
     hit_init_seed(ctx, cfg)
     if cfg.advances_ms_tv > 0:

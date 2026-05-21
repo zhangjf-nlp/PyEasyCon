@@ -1,15 +1,23 @@
 import os
 import time as _time
+from typing import Any, Optional, Tuple
 
 import cv2
 import numpy as np
 
+from easycon.context import ScriptContext
+from rng.config import RNGConfig, SessionState
 from vision.sprite import identify_pokemon as _identify, detect_gba_area, SPRITE_NATIVE
 from rng.tenlines_utils import get_species_en_name, get_species_zh_name, get_encounter_species_list
 from script_utils.hit import sleep
 
 
-def check_shiny(ctx, cfg, state=None, attempt=0):
+def check_shiny(
+    ctx: ScriptContext,
+    cfg: RNGConfig,
+    state: Optional[SessionState] = None,
+    attempt: int = 0,
+) -> Tuple[bool, Optional[str]]:
     ctx.log("识别宝可梦...")
 
     for _ in range(20):
@@ -69,7 +77,7 @@ def check_shiny(ctx, cfg, state=None, attempt=0):
     return is_shiny, pkm_en
 
 
-def catch_with_ball(ctx):
+def catch_with_ball(ctx: ScriptContext) -> bool:
     ctx.log("尝试捕获...")
     for _ in range(30):
         ctx.press("B")
@@ -100,6 +108,10 @@ def catch_with_ball(ctx):
         for _ in range(10):
             ctx.press("A")
             sleep(0.5)
+            break
+        for _ in range(10):
+            ctx.press("A")
+            sleep(0.5)
             if ctx.search_label("3代野怪血条", 90):
                 break
         else:
@@ -118,7 +130,7 @@ def catch_with_ball(ctx):
     return False
 
 
-def check_last_pokemon(ctx):
+def check_last_pokemon(ctx: ScriptContext) -> None:
     ctx.log("查看末位精灵...")
     for _ in range(20):
         ctx.press("B")

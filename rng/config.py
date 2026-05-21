@@ -1,4 +1,6 @@
 from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional
+
 from .tenlines_utils import GameSettings, get_seed_time
 
 
@@ -34,6 +36,7 @@ class RNGConfig:
     precicase_combos: int = 64
     finetune_per_precicase: int = 3
     max_candies: int = 10
+    convergence_min_observations: int = 10
 
     seed: int = field(init=False)
     seed_unbiased: int = field(init=False)
@@ -42,11 +45,11 @@ class RNGConfig:
     advances_ms_tv: int = field(init=False)
     advances_ms_normal: int = field(init=False)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         self.seed = get_seed_time(self.seed_hex, self.game_version, self.game_settings)
         self._recalc()
 
-    def _recalc(self):
+    def _recalc(self) -> None:
         t = self.timing
         self.seed_unbiased = self.seed - self.seed_bias
         self.seed_ms = int(self.seed_unbiased / t.fps_seed * 1000)
@@ -62,7 +65,7 @@ class RNGConfig:
                 / t.fps_normal * 1000
             )
 
-    def apply_calibration(self, seed_delta: int, adv_delta: int):
+    def apply_calibration(self, seed_delta: int, adv_delta: int) -> None:
         self.seed_bias += seed_delta
 
         t = self.timing
@@ -99,11 +102,11 @@ class RNGConfig:
 
 @dataclass
 class SessionState:
-    log_dir: str = None
+    log_dir: Optional[str] = None
     valid_calibration_attempts: int = 0
-    calibration_start_count: int = None
-    attempts_ocr_data: dict = field(default_factory=dict)
-    converged: int = 0
-    max_fast_tries: int = 10
-    seed_observations: list = field(default_factory=list)
-    adv_observations: list = field(default_factory=list)
+    calibration_start_count: Optional[int] = None
+    attempts_ocr_data: Dict[int, Any] = field(default_factory=dict)
+    fast_attempts: int = 0
+    max_fast_attempts: int = 10
+    seed_observations: List[int] = field(default_factory=list)
+    adv_observations: List[int] = field(default_factory=list)

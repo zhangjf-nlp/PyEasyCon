@@ -2,14 +2,17 @@ import json
 import os
 import time
 from dataclasses import asdict
+from typing import Any, Dict, List, Optional, Tuple
 
+from easycon.context import ScriptContext
 from rng.calibration import calibrate, _obs_to_iv_range, _n_combos
-from rng.convergence import check_convergence, T_S, SIGMA_S_DEFAULT, SIGMA_T_DEFAULT, SIGMA_N_DEFAULT
+from rng.config import RNGConfig, SessionState
+from rng.convergence import check_convergence
 from rng.tenlines_utils import IVsObservation, get_species_id, get_personal
 from script_utils.hit import sleep
 
 
-def init_log_dir(ctx, state, cfg):
+def init_log_dir(ctx: ScriptContext, state: SessionState, cfg: RNGConfig) -> str:
     ts = time.strftime("%Y%m%d_%H%M%S")
     d = f"rng_logs/{ts}_{cfg.pokemon_species}"
     os.makedirs(d, exist_ok=True)
@@ -46,7 +49,7 @@ def init_log_dir(ctx, state, cfg):
     return d
 
 
-def save_ocr(state, ocr_result, attempt, pokemon, candy_num=None):
+def save_ocr(state: SessionState, ocr_result: Dict[str, Any], attempt: int, pokemon: str, candy_num: Optional[int] = None) -> None:
     if state.log_dir is None:
         return
     entry = {
@@ -58,7 +61,7 @@ def save_ocr(state, ocr_result, attempt, pokemon, candy_num=None):
     state.attempts_ocr_data.setdefault(attempt, []).append(entry)
 
 
-def calculate_n_combos(obs_list, pokemon):
+def calculate_n_combos(obs_list: List[IVsObservation], pokemon: str) -> int:
     base_stats = get_personal(get_species_id(pokemon))["stats"]
     iv_range = _obs_to_iv_range(obs_list, base_stats)
     if iv_range is None:
@@ -67,7 +70,7 @@ def calculate_n_combos(obs_list, pokemon):
     return _n_combos(lo, hi)
 
 
-def run_calibration(ctx, state, cfg):
+def run_calibration(ctx: ScriptContext, state: SessionState, cfg: RNGConfig) -> None:
     if state.log_dir is None:
         return
     if not state.attempts_ocr_data:
@@ -102,7 +105,7 @@ def run_calibration(ctx, state, cfg):
             f"Seed takes {cfg.seed_ms}ms | TV takes {cfg.advances_ms_tv}ms "
             f"| Normal takes {cfg.advances_ms_normal}ms"
         )
-        check_calibration_convergence(ctx, state, cfg)
+        check_calibration_convergence(state, cfg)
         state.valid_calibration_attempts = 0
         state.calibration_start_count = None
         state.attempts_ocr_data = {}
@@ -110,18 +113,21 @@ def run_calibration(ctx, state, cfg):
         ctx.log("校准失败 (数据不足)")
 
 
-def check_calibration_convergence(ctx, state, cfg):
+def check_calibration_convergence(
+    state: SessionState,
+    cfg: RNGConfig,
+) -> None:
     seed_obs = state.seed_observations
     adv_obs = state.adv_observations
-    if len(seed_obs) < 10:
+    if len(seed_obs) < cfg.convergence_min_observations:
         return
-    seed_obs = seed_obs[-10:]
-    adv_obs = adv_obs[-10:]
+    seed_obs = seed_obs[-cfg.convergence_min_observations:]
+    adv_obs = adv_obs[-cfg.convergence_min_observations:]
 
-    target_seed = float(cfg.seed)
-    target_adv = cfg.advances
+    target_seed: int = cfg.seed
+    target_adv: int = cfg.advances
 
-    both_ok, seed_ok, tv_ok, n_ok, mu_s, mu_t, mu_n = check_convergence(
+    seed_converged, adv_converged, seed_median, adv_median = check_convergence(
         seed_observations=seed_obs,
         adv_observations=adv_obs,
         target_seed=target_seed,
@@ -132,45 +138,38 @@ def check_calibration_convergence(ctx, state, cfg):
         f"[convergence] Target: Seed={cfg.seed}ms | Advances={cfg.advances}"
     )
     print(
-        f"[convergence] Observed Seed: {seed_obs}"
+        f"[convergence] Observations: Seed={seed_obs}"
     )
     print(
-        f"[convergence] Observed Advances: {adv_obs}"
+        f"[convergence] Observations: Advances={adv_obs}"
     )
     print(
-        f"[convergence] Estimation: μ_s={mu_s:.1f}ms (σ_s={SIGMA_S_DEFAULT}, T_s={T_S})" if mu_s is not None
-        else f"[convergence] Estimation: μ_s=unk (σ_s={SIGMA_S_DEFAULT}, T_s={T_S})"
-    )
-    print(
-        f"[convergence] Estimation: μ_t={mu_t:.2f} (σ_t={SIGMA_T_DEFAULT})  "
-        f"μ_n={mu_n:.1f}ms (σ_n={SIGMA_N_DEFAULT})" if mu_t is not None and mu_n is not None
-        else f"[convergence] Estimation: μ_t=unk (σ_t={SIGMA_T_DEFAULT})  μ_n=unk (σ_n={SIGMA_N_DEFAULT})"
+        f"[convergence] Median: Seed={seed_median}ms | Advances={adv_median}"
     )
 
-    if mu_s is not None:
-        print(
-            f"[Convergence] Maximum Point: Seed={mu_s:.1f}ms | "
-            f"z_tv={round(mu_t) if mu_t is not None else '?'} | "
-            f"z_n={round(mu_n) if mu_n is not None else '?'}ms | "
-            f"Advances={round(mu_t) * 157 + round(mu_n) if mu_t is not None and mu_n is not None else '?'}"
-        )
-    else:
-        print(f"[Convergence] Maximum Point: unk")
-
+    seed_diffs = {o - target_seed for o in seed_obs}
+    adv_diffs = {o - target_adv for o in adv_obs}
     print(
-        f"[convergence] Seed: {seed_ok} | Advances: {tv_ok} | Converged: {both_ok}"
+        f"[convergence] Diffs: Seed={sorted(seed_diffs)}"
+    )
+    print(
+        f"[convergence] Diffs: Advances={sorted(adv_diffs)}"
     )
 
-    if both_ok:
-        state.converged = state.max_fast_tries
+    print(
+        f"[convergence] Converged: Seed={seed_converged} | Advances={adv_converged}"
+    )
+
+    if seed_converged and adv_converged:
+        state.fast_attempts = state.max_fast_attempts
         state.seed_observations = seed_obs[-5:] if len(seed_obs) >= 5 else list(seed_obs)
         state.adv_observations = adv_obs[-5:] if len(adv_obs) >= 5 else list(adv_obs)
-        print(f"[Convergence] Converged -> Fast Attempts = {state.max_fast_tries}")
+        print(f"[Convergence] Converged -> Fast Attempts = {state.max_fast_attempts}")
     else:
-        state.converged = 0
+        state.fast_attempts = 0
 
 
-def _make_obs(ocr, nature):
+def _make_obs(ocr: Dict[str, Any], nature: str) -> IVsObservation:
     return IVsObservation(
         nature=nature,
         level=ocr["level"],
@@ -183,7 +182,7 @@ def _make_obs(ocr, nature):
     )
 
 
-def record_for_finetune(ctx, state, cfg, attempt, pokemon):
+def record_for_finetune(ctx: ScriptContext, state: SessionState, cfg: RNGConfig, attempt: int, pokemon: str) -> None:
     if state.log_dir is None:
         init_log_dir(ctx, state, cfg)
         state.calibration_start_count = attempt

@@ -77,10 +77,10 @@ if not exist "%PYTHON_EXE%" (
 )
 echo   √ Python extracted
 
-:: Enable site-packages in embeddable Python
-echo   Enabling site-packages...
+:: Enable site-packages and add project root to sys.path
+echo   Configuring Python search path...
 powershell -NoProfile -Command ^
-    "(Get-Content '%PTH_FILE%') -replace '#import site', 'import site' | Set-Content '%PTH_FILE%'"
+    "Set-Content '%PTH_FILE%' @('python312.zip', '%ROOT_DIR%', '', 'import site')"
 
 :: ── Step 2: Download portable Git ───────────────────
 :check_git

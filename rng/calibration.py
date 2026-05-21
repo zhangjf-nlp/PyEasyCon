@@ -44,7 +44,7 @@ def _obs_to_iv_range(
 
 def _parse_attempt(
     entries: List[dict],
-) -> Tuple[List[IVsObservation], str, Optional[str], Optional[str], Optional[int], str]:
+) -> Tuple[List[IVsObservation], str, Optional[str], Optional[str], Optional[int], Optional[str]]:
     obs_list: List[IVsObservation] = []
     nature = "Any"
     gender = None
@@ -109,7 +109,7 @@ def calibrate(
     advances_ms_tv: int = 0,
     advances_ms_normal: int = 0,
     attempts_data: Optional[Dict[int, List[dict]]] = None,
-) -> Tuple[Optional[int], Optional[int]]:
+) -> Tuple[Optional[int], Optional[int], List[int], List[int]]:
     """
     Returns (seed_bias, adv_bias) or (None, None).
     seed_bias: 实际 seed_time 中位数与预期的差值 (ms)

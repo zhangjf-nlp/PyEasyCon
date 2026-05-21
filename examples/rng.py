@@ -1,17 +1,21 @@
 # -*- coding: utf-8 -*-
-import sys, os
+import sys
+import os
+from typing import Callable
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from easycon.context import ScriptContext
 from gui import run_script
-from rng.config import SessionState
+from rng.config import RNGConfig, SessionState
 from script_utils.hit import hit
 from script_utils.capture import check_shiny, catch_with_ball, check_last_pokemon
 from script_utils.finetune import record_for_finetune, init_log_dir, run_calibration
 from script_utils.navigation import restart
 
 
-def launch(cfg):
-    def main(ctx):
+def launch(cfg: RNGConfig) -> None:
+    def main(ctx: ScriptContext) -> None:
         state = SessionState()
         init_log_dir(ctx, state, cfg)
 
@@ -40,8 +44,8 @@ def launch(cfg):
                 if is_shiny:
                     ctx.log("闪光出现!")
                     break
-                elif state.converged:
-                    state.converged -= 1
+                elif state.fast_attempts:
+                    state.fast_attempts -= 1
                 elif pokemon_en:
                     if catch_with_ball(ctx):
                         check_last_pokemon(ctx)
@@ -53,8 +57,8 @@ def launch(cfg):
                 if ctx.search_label("3代闪光", 80):
                     ctx.log("闪光出现!")
                     break
-                elif state.converged:
-                    state.converged -= 1
+                elif state.fast_attempts:
+                    state.fast_attempts -= 1
                 else:
                     record_for_finetune(ctx, state, cfg, count, cfg.pokemon_species)
                     if state.valid_calibration_attempts >= cfg.finetune_per_precicase:

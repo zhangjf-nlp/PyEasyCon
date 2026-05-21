@@ -1,7 +1,8 @@
+from easycon.context import ScriptContext
 from script_utils.hit import sleep
 
 
-def restart(ctx):
+def restart(ctx: ScriptContext) -> None:
     ctx.log("重启游戏...")
     for _ in range(30):
         ctx.press("HOME")
