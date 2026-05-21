@@ -103,3 +103,7 @@ class SessionState:
     valid_calibration_attempts: int = 0
     calibration_start_count: int = None
     attempts_ocr_data: dict = field(default_factory=dict)
+    converged: int = 0
+    max_fast_tries: int = 10
+    seed_observations: list = field(default_factory=list)
+    adv_observations: list = field(default_factory=list)

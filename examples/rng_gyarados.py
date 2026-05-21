@@ -2,12 +2,8 @@
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from gui import run_script
-from rng.config import GameSettings, RNGConfig, TimingConfig, SessionState
-from script_utils.hit import hit
-from script_utils.capture import check_shiny, catch_with_ball, check_last_pokemon
-from script_utils.finetune import record_for_finetune, init_log_dir
-from script_utils.navigation import restart
+from rng.config import GameSettings, RNGConfig, TimingConfig
+from examples.rng import launch
 
 
 cfg = RNGConfig(
@@ -28,50 +24,5 @@ cfg = RNGConfig(
     timing=TimingConfig(operation_seconds=12.5),
 )
 
-
-def main(ctx):
-    state = SessionState()
-    init_log_dir(ctx, state, cfg)
-
-    ctx.log(f"GameSettings: {cfg.game_settings}")
-    ctx.log(f"Seed={cfg.seed} Advances={cfg.advances}")
-    ctx.log(f"SeedBias={cfg.seed_bias} AdvancesBias={cfg.advances_bias}")
-    ctx.log(
-        f"Seed takes {cfg.seed_ms}ms | TV takes {cfg.advances_ms_tv}ms "
-        f"| Normal takes {cfg.advances_ms_normal}ms"
-    )
-
-    count = 0
-    while ctx.is_running():
-        count += 1
-        ctx.log(f"========== 乱数尝试第{count} 次==========")
-
-        hit(ctx, cfg)
-
-        if cfg.rng_category in ["Grass", "Surfing", "SuperRod"]:
-            is_shiny, pokemon_en = check_shiny(ctx, cfg, state, count)
-            if is_shiny:
-                ctx.log("闪光出现!")
-                break
-            if pokemon_en:
-                caught = catch_with_ball(ctx)
-                if caught:
-                    check_last_pokemon(ctx)
-                    record_for_finetune(ctx, state, cfg, count, pokemon_en)
-        elif cfg.rng_category == "Gift":
-            check_last_pokemon(ctx)
-            if ctx.search_label("3代闪光", 80):
-                ctx.log("闪光出现!")
-                break
-            else:
-                record_for_finetune(ctx, state, cfg, count, cfg.pokemon_species)
-        else:
-            raise NotImplementedError(cfg.rng_category)
-
-        restart(ctx)
-
-    ctx.press("CAPTURE", 3000)
-
-
 if __name__ == "__main__":
-    run_script(main)
+    launch(cfg)

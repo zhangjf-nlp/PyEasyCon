@@ -458,9 +458,9 @@ class CalibrationResult:
         ivs_str = "/".join(str(getattr(self.ivs, a))
                           for a in ("hp","attack","defense","sp_attack","sp_defense","speed"))
         return (
-            f"{self.seed} | {self.seed_time}ms\t {self.advances}\t {method_name}\t "
-            f"{self.frames}\t {self.encounter_slot}: {self.species_name}\t "
-            f"{self.level}\t {self.shiny}\t {self.nature}\t {self.ability}\t {ivs_str}\t {self.hidden_type}\t {self.gender}"
+            f"{self.seed} | {self.seed_time}ms {self.advances} | {method_name} "
+            f"{self.frames} {self.encounter_slot}: {self.species_name:<12} "
+            f"{self.level:<2} {self.shiny} {self.nature:<8} {self.ability:<10} {ivs_str:<18} {self.hidden_type:<6} {self.gender}"
         )
 
 

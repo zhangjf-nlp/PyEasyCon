@@ -11,17 +11,17 @@ cfg = RNGConfig(
     trainer_id=58888,
     secret_id=12232,
     game_settings = GameSettings.from_string(
-        "Mono | Help | Seed Button: Start | Extra Button: None"
+        "Mono | Help | Seed Button: A | Extra Button: None"
     ),
-    pokemon_species="Poliwag",
-    rng_category="SuperRod",
-    rng_location="Route 22",
+    pokemon_species="Jigglypuff",
+    rng_category="Grass",
+    rng_location="Route 3",
     rng_method="All Wild Methods",
-    seed_hex="883D",
-    advances=169654,
-    seed_bias=-4761,
-    advances_bias=-11365,
-    timing=TimingConfig(operation_seconds=25.0),
+    seed_hex="4F70",
+    advances=1709801,
+    seed_bias=-3942,
+    advances_bias=-9553,
+    timing=TimingConfig(operation_seconds=10.0),
 )
 
 if __name__ == "__main__":

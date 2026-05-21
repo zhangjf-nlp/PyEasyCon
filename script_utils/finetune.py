@@ -4,7 +4,7 @@ import time
 from dataclasses import asdict
 
 from rng.calibration import calibrate, _obs_to_iv_range, _n_combos
-from gui import search_label
+from rng.convergence import check_convergence, T_S, SIGMA_S_DEFAULT, SIGMA_T_DEFAULT, SIGMA_N_DEFAULT
 from rng.tenlines_utils import IVsObservation, get_species_id, get_personal
 from script_utils.hit import sleep
 
@@ -73,7 +73,7 @@ def run_calibration(ctx, state, cfg):
     if not state.attempts_ocr_data:
         return
 
-    seed_delta, adv_delta = calibrate(
+    seed_delta, adv_delta, seed_obs, adv_obs = calibrate(
         seed_hex=cfg.seed_hex,
         seed_time=cfg.seed,
         advances=cfg.advances,
@@ -93,6 +93,8 @@ def run_calibration(ctx, state, cfg):
 
     if seed_delta is not None:
         cfg.apply_calibration(seed_delta, adv_delta)
+        state.seed_observations.extend(seed_obs)
+        state.adv_observations.extend(adv_obs)
         ctx.log(f"校准: seed_delta={seed_delta:+d} adv_delta={adv_delta:+d}")
         ctx.log(f"Seed={cfg.seed}ms Advances={cfg.advances}")
         ctx.log(f"SeedBias={cfg.seed_bias} AdvancesBias={cfg.advances_bias}")
@@ -100,11 +102,72 @@ def run_calibration(ctx, state, cfg):
             f"Seed takes {cfg.seed_ms}ms | TV takes {cfg.advances_ms_tv}ms "
             f"| Normal takes {cfg.advances_ms_normal}ms"
         )
+        check_calibration_convergence(ctx, state, cfg)
         state.valid_calibration_attempts = 0
         state.calibration_start_count = None
         state.attempts_ocr_data = {}
     else:
         ctx.log("校准失败 (数据不足)")
+
+
+def check_calibration_convergence(ctx, state, cfg):
+    seed_obs = state.seed_observations
+    adv_obs = state.adv_observations
+    if len(seed_obs) < 10:
+        return
+    seed_obs = seed_obs[-10:]
+    adv_obs = adv_obs[-10:]
+
+    target_seed = float(cfg.seed)
+    target_adv = cfg.advances
+
+    both_ok, seed_ok, tv_ok, n_ok, mu_s, mu_t, mu_n = check_convergence(
+        seed_observations=seed_obs,
+        adv_observations=adv_obs,
+        target_seed=target_seed,
+        target_adv=target_adv,
+    )
+
+    print(
+        f"[convergence] Target: Seed={cfg.seed}ms | Advances={cfg.advances}"
+    )
+    print(
+        f"[convergence] Observed Seed: {seed_obs}"
+    )
+    print(
+        f"[convergence] Observed Advances: {adv_obs}"
+    )
+    print(
+        f"[convergence] Estimation: μ_s={mu_s:.1f}ms (σ_s={SIGMA_S_DEFAULT}, T_s={T_S})" if mu_s is not None
+        else f"[convergence] Estimation: μ_s=unk (σ_s={SIGMA_S_DEFAULT}, T_s={T_S})"
+    )
+    print(
+        f"[convergence] Estimation: μ_t={mu_t:.2f} (σ_t={SIGMA_T_DEFAULT})  "
+        f"μ_n={mu_n:.1f}ms (σ_n={SIGMA_N_DEFAULT})" if mu_t is not None and mu_n is not None
+        else f"[convergence] Estimation: μ_t=unk (σ_t={SIGMA_T_DEFAULT})  μ_n=unk (σ_n={SIGMA_N_DEFAULT})"
+    )
+
+    if mu_s is not None:
+        print(
+            f"[Convergence] Maximum Point: Seed={mu_s:.1f}ms | "
+            f"z_tv={round(mu_t) if mu_t is not None else '?'} | "
+            f"z_n={round(mu_n) if mu_n is not None else '?'}ms | "
+            f"Advances={round(mu_t) * 157 + round(mu_n) if mu_t is not None and mu_n is not None else '?'}"
+        )
+    else:
+        print(f"[Convergence] Maximum Point: unk")
+
+    print(
+        f"[convergence] Seed: {seed_ok} | Advances: {tv_ok} | Converged: {both_ok}"
+    )
+
+    if both_ok:
+        state.converged = state.max_fast_tries
+        state.seed_observations = seed_obs[-5:] if len(seed_obs) >= 5 else list(seed_obs)
+        state.adv_observations = adv_obs[-5:] if len(adv_obs) >= 5 else list(adv_obs)
+        print(f"[Convergence] Converged -> Fast Attempts = {state.max_fast_tries}")
+    else:
+        state.converged = 0
 
 
 def _make_obs(ocr, nature):
@@ -234,5 +297,3 @@ def record_for_finetune(ctx, state, cfg, attempt, pokemon):
             break
 
     ctx.log(f"{attempt} attempts | {state.valid_calibration_attempts} precise observations")
-    if state.valid_calibration_attempts >= cfg.finetune_per_precicase:
-        run_calibration(ctx, state, cfg)

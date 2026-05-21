@@ -123,7 +123,7 @@ def calibrate(
         log_dirs = sorted(glob.glob("rng_logs/20*"))
         if not log_dirs:
             print("[calibration] 未找到 rng_logs 目录")
-            return None, None
+            return None, None, [], []
         log_dir = log_dirs[-1]
 
     if attempts_data is None:
@@ -150,7 +150,7 @@ def calibrate(
 
     if not all_attempts:
         print("[calibration] 无有效 attempt")
-        return None, None
+        return None, None, [], []
     
     precision_cases = []
     for attempt in all_attempts:
@@ -189,12 +189,12 @@ def calibrate(
         nearest_advs = min(attempt_advs, key=lambda a: abs(a - advances))
         for result in attempt_results:
             print(f"[calibration] #{attempt['aid']} {result}")
-        print(f"[calibration] #{attempt['aid']} 0x{nearest_seed:04X} | {nearest_seed_time}ms {nearest_advs} - nearest")
+        print(f"[calibration] #{attempt['aid']} 0x{nearest_seed:04X} | {nearest_seed_time}ms {nearest_advs} - nearest (1/{len(attempt_results)})")
         anchor_candidates.append((nearest_seed, nearest_advs, nearest_seed_time))
 
     if not anchor_candidates:
         print("[calibration] Phase 1 无候选")
-        return None, None
+        return None, None, [], []
 
     if len(anchor_candidates) == 1:
         anchor_seed, anchor_adv, anchor_seed_time = anchor_candidates[0]
@@ -204,11 +204,13 @@ def calibrate(
             key=lambda k: abs(k[2] - orig_seed_time) + abs(k[1] - advances) // 120
         )
 
-    print(f"[calibration] Phase 1 anchor: 0x{anchor_seed:04X} | {anchor_seed_time}ms\t{anchor_adv}")
+    print(f"[calibration] Phase 1 anchor: 0x{anchor_seed:04X} | {anchor_seed_time}ms {anchor_adv}")
 
     # Phase 2: 每个 attempt 计算 seed_time 偏移和 advances 偏移
     all_seed_biases: List[int] = []
     all_adv_biases: List[int] = []
+    seed_observations: List[int] = []
+    adv_observations: List[int] = []
     hits = 0
     for attempt in all_attempts:
         results = _calibration_api(
@@ -230,6 +232,8 @@ def calibrate(
         nearest_seed = int(results[nearest_idx].seed, 16)
         nearest_seed_time = result_seed_times[nearest_idx]
         nearest_adv = min(result_advs, key=lambda a: abs(a - anchor_adv))
+        seed_observations.append(nearest_seed_time)
+        adv_observations.append(nearest_adv)
 
         if log_dir is not None:
             record = {
@@ -258,21 +262,21 @@ def calibrate(
         all_seed_biases.append(nearest_seed_time - anchor_seed_time)
         all_adv_biases.append(nearest_adv - anchor_adv)
         hits += 1
-        print(f"[calibration] #{attempt['aid']}: 0x{nearest_seed:04X} | {nearest_seed_time}ms advances={nearest_adv}")
+        print(f"[calibration] #{attempt['aid']}: 0x{nearest_seed:04X} | {nearest_seed_time}ms advances={nearest_adv} - nearest (1/{len(results)})")
 
     if not all_seed_biases:
         print("[calibration] Phase 2 no hit")
-        return None, None
+        return None, None, [], []
 
     seed_bias = sorted(all_seed_biases)[len(all_seed_biases) // 2] + anchor_seed_time - seed_time
     adv_bias = sorted(all_adv_biases)[len(all_adv_biases) // 2] + anchor_adv - advances
     
     print(f"[calibration] {hits}/{len(all_attempts)} hits  seed_bias={seed_bias:+d}ms  adv_bias={adv_bias:+d}")
-    return seed_bias, adv_bias
+    return seed_bias, adv_bias, seed_observations, adv_observations
 
 
 if __name__ == "__main__":
-    seed_bias, adv_bias = calibrate(
+    seed_bias, adv_bias, *_ = calibrate(
         seed_hex="864A",
         seed_time=36919,
         advances=328348,
