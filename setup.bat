@@ -48,25 +48,28 @@ if exist "%PYTHON_EXE%" (
 )
 
 if not exist "%DOWNLOADS_DIR%" mkdir "%DOWNLOADS_DIR%"
-set ZIP_FILE=%DOWNLOADS_DIR%\%ZIP_NAME%
+set "ZIP_FILE=%DOWNLOADS_DIR%\%ZIP_NAME%"
 
-if not exist "%ZIP_FILE%" (
-    echo   Downloading Python %PYTHON_VERSION% embeddable...
-    echo   (~11MB, please wait)
-    call :download "%PYTHON_URL_1%" "%ZIP_FILE%" "python.org"
+if exist "!ZIP_FILE!" for %%F in ("!ZIP_FILE!") do if %%~zF gtr 0 goto :zip_cached
+
+echo   Downloading Python %PYTHON_VERSION% embeddable...
+echo   (~11MB, please wait)
+call :download "%PYTHON_URL_1%" "!ZIP_FILE!" "python.org"
+if !ERRORLEVEL! neq 0 (
+    echo   Retrying from mirror...
+    call :download "%PYTHON_URL_2%" "!ZIP_FILE!" "npmmirror.com"
     if !ERRORLEVEL! neq 0 (
-        echo   Retrying from mirror...
-        call :download "%PYTHON_URL_2%" "%ZIP_FILE%" "npmmirror.com"
-        if !ERRORLEVEL! neq 0 (
-            echo   X Download failed. Please check your network.
-            pause
-            exit /b 1
-        )
+        echo   X Download failed. Please check your network.
+        pause
+        exit /b 1
     )
-) else (
-    echo   Using pre-downloaded zip from _downloads/
 )
+goto :zip_ready
 
+:zip_cached
+echo   Using pre-downloaded zip from _downloads/
+
+:zip_ready
 echo   Extracting Python...
 powershell -NoProfile -Command ^
     "Expand-Archive -Path '%ZIP_FILE%' -DestinationPath '%PYTHON_DIR%' -Force"
@@ -187,26 +190,14 @@ if !ERRORLEVEL! neq 0 (
 echo   √ Dependencies installed
 
 :: ── Step 6/6: GLM API-KEY ────────────────────────────
-:glm_key
 echo.
 echo [6/6] GLM API-KEY for free image recognition
-
-set "YAML_FILE=%ROOT_DIR%\config\default.yaml"
-
-"%PYTHON_EXE%" -c "import yaml; d=yaml.safe_load(open(r'%YAML_FILE%','r',encoding='utf-8')); print(d.get('vl_model',{}).get('glm',{}).get('api_key',''))" > "%TEMP%\easycon_apikey.txt" 2>nul
-set /p CURRENT_KEY=<"%TEMP%\easycon_apikey.txt"
-
-if not "%CURRENT_KEY%"=="" (
-    echo   Found existing API-KEY, do you want to keep it?
-    choice /c yn /n /m "[Y] Keep  [N] Re-enter: " /t 60 /d y
-    if !ERRORLEVEL! equ 1 goto :setup_done
-)
-
-echo.
-echo   EasyCon needs a free GLM API-KEY for image recognition.
 echo   Please register at: https://bigmodel.cn/apikey/platform
 echo   Then create an API-KEY and enter it below.
 echo.
+
+set "YAML_FILE=%ROOT_DIR%\config\default.yaml"
+set "GLM_SCRIPT=%ROOT_DIR%\setup_glm.py"
 
 :glk_input
 set /p APIKEY="API-KEY: "
@@ -215,39 +206,13 @@ if "%APIKEY%"=="" (
     goto :glk_input
 )
 
-echo   Validating API-KEY...
-
-"%PYTHON_EXE%" -c ^
-"from openai import OpenAI; import sys; key = sys.argv[1]; "^
-"try: client = OpenAI(api_key=key, base_url='https://open.bigmodel.cn/api/paas/v4', timeout=15); client.models.list(); print('OK'); sys.exit(0)^
-"except Exception as e: print(f'FAIL: {e}'); sys.exit(1)" ^
-"%APIKEY%" > "%TEMP%\easycon_validate.txt" 2>&1
-
+echo   Validating...
+"%PYTHON_EXE%" -u "%GLM_SCRIPT%" "%YAML_FILE%" "%APIKEY%"
 if !ERRORLEVEL! neq 0 (
-    echo   ! Validation failed. Response:
-    type "%TEMP%\easycon_validate.txt"
-    echo.
+    echo   ! Validation failed. Please check your API-KEY.
     goto :glk_input
 )
-
-echo   √ API-KEY verified
-
-:: Write to YAML
-"%PYTHON_EXE%" -c ^
-"import yaml; key = __import__('sys').argv[1]; path = __import__('sys').argv[2]; "^
-"with open(path, 'r', encoding='utf-8') as f: cfg = yaml.safe_load(f) or {}; "^
-"cfg.setdefault('vl_model', {}).setdefault('glm', {})['api_key'] = key; "^
-"with open(path, 'w', encoding='utf-8') as f: yaml.dump(cfg, f, allow_unicode=True, default_flow_style=False)" ^
-"%APIKEY%" "%YAML_FILE%"
-
-if !ERRORLEVEL! neq 0 (
-    echo   ! Failed to write config
-    pause
-    exit /b 1
-)
-echo   √ Config saved
-
-del "%TEMP%\easycon_apikey.txt" "%TEMP%\easycon_validate.txt" 2>nul
+echo   √ API-KEY verified and saved
 
 :: ── Cleanup ─────────────────────────────────────────
 :setup_done
