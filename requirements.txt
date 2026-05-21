@@ -8,10 +8,14 @@ numpy>=1.21
 # GUI (pygame + 语法高亮)
 pygame>=2.0
 pygments>=2.10
+pygame-texteditor>=1.0
 
 # 采集卡 / 串口通信
 pyserial>=3.5
 pygrabber>=0.2
+
+# 配置解析
+pyyaml>=5.1
 
 # VLM API (Qwen3-VL / GLM-4.6v)
 openai>=1.0

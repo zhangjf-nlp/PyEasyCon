@@ -183,5 +183,5 @@ def check_convergence(
 ) -> Tuple[bool, bool, bool, bool, Optional[float], Optional[float], Optional[float]]:
     seed_ok, seed_dist, mu_s = check_seed_convergence(seed_observations, target_seed, sigma_s)
     tv_ok, n_ok, adv_dist, mu_t, mu_n = check_advances_convergence(adv_observations, target_adv, sigma_t, sigma_n)
-    both_ok = sum([seed_ok, tv_ok, n_ok]) >= 2
+    both_ok = all([seed_ok, tv_ok, n_ok])
     return both_ok, seed_ok, tv_ok, n_ok, mu_s, mu_t, mu_n

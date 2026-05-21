@@ -19,8 +19,8 @@ cfg = RNGConfig(
     rng_method="All Wild Methods",
     seed_hex="4F70",
     advances=1709801,
-    seed_bias=-3942,
-    advances_bias=-9553,
+    seed_bias=-3927,
+    advances_bias=-9622,
     timing=TimingConfig(operation_seconds=10.0),
 )
 
