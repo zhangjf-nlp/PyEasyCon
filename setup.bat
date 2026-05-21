@@ -224,7 +224,7 @@ echo   Double-click run.bat to start EasyCon
 echo ========================================
 echo.
 if exist "%DOWNLOADS_DIR%" (
-    choice /c yn /n /m "Delete downloaded files to save space? [Y/N] " /t 10 /d y
+    choice /c yn /n /m "Delete downloaded files to save space? [Y/N] "
     if !ERRORLEVEL! equ 1 (
         rmdir /s /q "%DOWNLOADS_DIR%"
         echo   Cleaned up
