@@ -13,16 +13,25 @@ set GIT_EXE=
 :: ── 检查环境是否已安装 ────────────────────────────
 if not exist "%VENV_PYTHON%" (
     echo ========================================
-    echo   检测到 EasyCon 环境尚未安装
-    echo   即将运行环境安装向导...
+    echo   Environment not found. Running setup...
     echo ========================================
     echo.
     pause
     call "%~dp0setup.bat"
     if not exist "%VENV_PYTHON%" (
-        echo 环境安装未完成，无法启动。
+        echo Setup incomplete. Cannot start.
         pause
         exit /b 1
+    )
+) else (
+    "%VENV_PYTHON%" -c "exit(0)" >nul 2>&1
+    if !ERRORLEVEL! neq 0 (
+        echo ========================================
+        echo   Existing venv is broken, running setup to fix...
+        echo ========================================
+        echo.
+        pause
+        call "%~dp0setup.bat"
     )
 )
 

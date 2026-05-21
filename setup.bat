@@ -124,18 +124,25 @@ echo.
 echo [3/5] Setting up virtual environment...
 
 if exist "%VENV_DIR%\Scripts\python.exe" (
-    echo   √ venv already exists, skipping
-) else (
-    echo   Creating venv...
-    "%PYTHON_EXE%" -m venv "%VENV_DIR%"
-    if !ERRORLEVEL! neq 0 (
-        echo   X venv creation failed
-        pause
-        exit /b 1
+    "%VENV_DIR%\Scripts\python.exe" -c "exit(0)" >nul 2>&1
+    if !ERRORLEVEL! equ 0 (
+        echo   √ venv is healthy, skipping
+        goto :venv_ready
     )
-    echo   √ venv created
+    echo   ! Existing venv is broken (stale Python reference), recreating...
+    rmdir /s /q "%VENV_DIR%" 2>nul
 )
 
+echo   Creating venv...
+"%PYTHON_EXE%" -m venv "%VENV_DIR%"
+if !ERRORLEVEL! neq 0 (
+    echo   X venv creation failed
+    pause
+    exit /b 1
+)
+echo   √ venv created
+
+:venv_ready
 set VENV_PYTHON=%VENV_DIR%\Scripts\python.exe
 
 :: ── Step 4: Upgrade pip ────────────────────────────
