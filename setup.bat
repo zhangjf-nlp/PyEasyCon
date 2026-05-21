@@ -34,8 +34,8 @@ echo This script will set up a standalone Python for EasyCon.
 echo It will NOT affect any existing Python on your system.
 echo.
 
-:: ── Step 1: Unpack clean Python ─────────────────────
-echo [1/5] Checking Python...
+:: ── Step 1/6: Unpack clean Python ─────────────────────
+echo [1/6] Checking Python...
 
 if exist "%PYTHON_EXE%" (
     "%PYTHON_EXE%" -c "exit(0)" >nul 2>&1
@@ -82,10 +82,10 @@ echo   Configuring Python search path...
 powershell -NoProfile -Command ^
     "Set-Content '%PTH_FILE%' @('python312.zip', '%ROOT_DIR%', '', 'import site')"
 
-:: ── Step 2: Download portable Git ───────────────────
+:: ── Step 2/6: Download portable Git ─────────────────
 :check_git
 echo.
-echo [2/5] Checking Git...
+echo [2/6] Checking Git...
 
 where git >nul 2>&1
 if !ERRORLEVEL! equ 0 (
@@ -125,10 +125,10 @@ if exist "%GIT_EXE%" (
     echo   ! Git extraction failed. Auto-update will be unavailable.
 )
 
-:: ── Step 3: Bootstrap pip ───────────────────────────
+:: ── Step 3/6: Bootstrap pip ─────────────────────────
 :install_pip
 echo.
-echo [3/5] Checking pip...
+echo [3/6] Checking pip...
 
 "%PYTHON_EXE%" -m pip --version >nul 2>&1
 if !ERRORLEVEL! equ 0 (
@@ -159,10 +159,10 @@ if !ERRORLEVEL! neq 0 (
 )
 echo   √ pip installed
 
-:: ── Step 4: Upgrade pip ─────────────────────────────
+:: ── Step 4/6: Upgrade pip ───────────────────────────
 :upgrade_pip
 echo.
-echo [4/5] Upgrading pip...
+echo [4/6] Upgrading pip...
 
 "%PYTHON_EXE%" -m pip install --upgrade pip -q -i %PIP_INDEX% --trusted-host pypi.tuna.tsinghua.edu.cn
 if !ERRORLEVEL! neq 0 (
@@ -171,9 +171,9 @@ if !ERRORLEVEL! neq 0 (
     echo   √ pip upgraded
 )
 
-:: ── Step 5: Install project dependencies ────────────
+:: ── Step 5/6: Install project dependencies ──────────
 echo.
-echo [5/5] Installing dependencies...
+echo [5/6] Installing dependencies...
 echo   (First time may take a few minutes, please wait)
 
 "%PYTHON_EXE%" -m pip install -r "%ROOT_DIR%\requirements.txt" ^
@@ -186,7 +186,71 @@ if !ERRORLEVEL! neq 0 (
 
 echo   √ Dependencies installed
 
+:: ── Step 6/6: GLM API-KEY ────────────────────────────
+:glm_key
+echo.
+echo [6/6] GLM API-KEY for free image recognition
+
+set "YAML_FILE=%ROOT_DIR%\config\default.yaml"
+
+"%PYTHON_EXE%" -c "import yaml; d=yaml.safe_load(open(r'%YAML_FILE%','r',encoding='utf-8')); print(d.get('vl_model',{}).get('glm',{}).get('api_key',''))" > "%TEMP%\easycon_apikey.txt" 2>nul
+set /p CURRENT_KEY=<"%TEMP%\easycon_apikey.txt"
+
+if not "%CURRENT_KEY%"=="" (
+    echo   Found existing API-KEY, do you want to keep it?
+    choice /c yn /n /m "[Y] Keep  [N] Re-enter: " /t 60 /d y
+    if !ERRORLEVEL! equ 1 goto :setup_done
+)
+
+echo.
+echo   EasyCon needs a free GLM API-KEY for image recognition.
+echo   Please register at: https://bigmodel.cn/apikey/platform
+echo   Then create an API-KEY and enter it below.
+echo.
+
+:glk_input
+set /p APIKEY="API-KEY: "
+if "%APIKEY%"=="" (
+    echo   API-KEY cannot be empty.
+    goto :glk_input
+)
+
+echo   Validating API-KEY...
+
+"%PYTHON_EXE%" -c ^
+"from openai import OpenAI; import sys; key = sys.argv[1]; "^
+"try: client = OpenAI(api_key=key, base_url='https://open.bigmodel.cn/api/paas/v4', timeout=15); client.models.list(); print('OK'); sys.exit(0)^
+"except Exception as e: print(f'FAIL: {e}'); sys.exit(1)" ^
+"%APIKEY%" > "%TEMP%\easycon_validate.txt" 2>&1
+
+if !ERRORLEVEL! neq 0 (
+    echo   ! Validation failed. Response:
+    type "%TEMP%\easycon_validate.txt"
+    echo.
+    goto :glk_input
+)
+
+echo   √ API-KEY verified
+
+:: Write to YAML
+"%PYTHON_EXE%" -c ^
+"import yaml; key = __import__('sys').argv[1]; path = __import__('sys').argv[2]; "^
+"with open(path, 'r', encoding='utf-8') as f: cfg = yaml.safe_load(f) or {}; "^
+"cfg.setdefault('vl_model', {}).setdefault('glm', {})['api_key'] = key; "^
+"with open(path, 'w', encoding='utf-8') as f: yaml.dump(cfg, f, allow_unicode=True, default_flow_style=False)" ^
+"%APIKEY%" "%YAML_FILE%"
+
+if !ERRORLEVEL! neq 0 (
+    echo   ! Failed to write config
+    pause
+    exit /b 1
+)
+echo   √ Config saved
+
+del "%TEMP%\easycon_apikey.txt" "%TEMP%\easycon_validate.txt" 2>nul
+
 :: ── Cleanup ─────────────────────────────────────────
+:setup_done
 echo.
 echo ========================================
 echo   Setup complete!

@@ -19,3 +19,6 @@ pyyaml>=5.1
 
 # VLM API (Qwen3-VL / GLM-4.6v)
 openai>=1.0
+
+# C++ extension compilation (not needed at runtime if .pyd is pre-built)
+pybind11>=2.10

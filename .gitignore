@@ -28,8 +28,6 @@ Thumbs.db
 
 # RNG calibration build artifacts
 rng/src/pybind/build/
-rng/src/pybind/*.pyd
-rng/src/pybind/*.so
 
 # Asset generation scratch
 assets/sprites/resources/
