@@ -1,7 +1,7 @@
 @echo off
 setlocal enabledelayedexpansion
 chcp 65001 >nul
-title EasyCon - 环境安装
+title EasyCon - Environment Setup
 
 cd /d "%~dp0"
 
@@ -11,162 +11,186 @@ set VENV_DIR=%~dp0venv
 set GIT_DIR=%~dp0Git
 set PYTHON_EXE=%PYTHON_DIR%\python.exe
 set GIT_EXE=%GIT_DIR%\bin\git.exe
-set PYTHON_URL=https://www.python.org/ftp/python/%PYTHON_VERSION%/python-%PYTHON_VERSION%-amd64.exe
-set GIT_URL=https://github.com/git-for-windows/git/releases/download/v2.47.0.windows.2/PortableGit-2.47.0.2-64-bit.7z.exe
 set DOWNLOADS_DIR=%~dp0_downloads
 
+:: Download URLs (official + mirrors for Chinese users)
+set PYTHON_URL_1=https://www.python.org/ftp/python/%PYTHON_VERSION%/python-%PYTHON_VERSION%-amd64.exe
+set PYTHON_URL_2=https://npmmirror.com/mirrors/python/%PYTHON_VERSION%/python-%PYTHON_VERSION%-amd64.exe
+set GIT_URL_1=https://github.com/git-for-windows/git/releases/download/v2.47.0.windows.2/PortableGit-2.47.0.2-64-bit.7z.exe
+set GIT_URL_2=https://ghproxy.net/https://github.com/git-for-windows/git/releases/download/v2.47.0.windows.2/PortableGit-2.47.0.2-64-bit.7z.exe
+set PIP_INDEX=https://pypi.tuna.tsinghua.edu.cn/simple
+
 echo ========================================
-echo   EasyCon 环境安装向导
+echo   EasyCon Environment Setup
 echo ========================================
 echo.
-echo 本脚本将为 EasyCon 安装独立的 Python 环境，
-echo 不会影响您系统中已有的任何 Python 安装。
+echo This script will install a standalone Python for EasyCon.
+echo It will NOT affect any existing Python on your system.
 echo.
 
-:: ── 步骤1：下载/安装干净 Python ──────────────────
-echo [1/5] 检查 Python 环境...
+:: ── Step 1: Download / Install clean Python ────────
+echo [1/5] Checking Python...
 
 if exist "%PYTHON_EXE%" (
-    echo   √ 本地 Python 已存在，跳过下载
+    echo   √ Local Python found, skipping download
     goto :check_venv
 )
 
-echo   正在下载 Python %PYTHON_VERSION% ...
-echo   (文件约 27MB，请耐心等待)
+echo   Downloading Python %PYTHON_VERSION% ...
+echo   (~27MB, please wait)
 echo.
 
 if not exist "%DOWNLOADS_DIR%" mkdir "%DOWNLOADS_DIR%"
 set INSTALLER=%DOWNLOADS_DIR%\python-%PYTHON_VERSION%-amd64.exe
 
 if not exist "%INSTALLER%" (
-    powershell -NoProfile -Command ^
-        "Invoke-WebRequest -Uri '%PYTHON_URL%' -OutFile '%INSTALLER%' -UseBasicParsing"
+    call :download "%PYTHON_URL_1%" "%INSTALLER%" "python.org"
     if !ERRORLEVEL! neq 0 (
-        echo   X 下载失败，请检查网络连接后重试
-        echo   手动下载地址: %PYTHON_URL%
-        pause
-        exit /b 1
+        echo   Retrying from mirror...
+        call :download "%PYTHON_URL_2%" "%INSTALLER%" "npmmirror.com"
+        if !ERRORLEVEL! neq 0 (
+            echo   X Download failed. Please check your network.
+            echo   Manual download: %PYTHON_URL_1%
+            pause
+            exit /b 1
+        )
     )
 ) else (
-    echo   使用已下载的安装包...
+    echo   Using cached installer...
 )
 
-echo   正在安装 Python 到本地目录...
-echo   (这不会影响您系统中的 Python)
+echo   Installing Python to local directory...
+echo   (This will NOT affect your system Python)
 "%INSTALLER%" /quiet InstallAllUsers=0 TargetDir="%PYTHON_DIR%" ^
     Include_launcher=0 Include_test=0 Include_tcltk=0 ^
     Include_pip=1 Include_dev=1 ^
     Shortcuts=0 AssociateFiles=0
 
 if not exist "%PYTHON_EXE%" (
-    echo   X Python 安装失败
+    echo   X Python installation failed
     pause
     exit /b 1
 )
-echo   √ Python 安装完成
+echo   √ Python installed
 
-:: ── 步骤2：下载便携版 Git ────────────────────────
+:: ── Step 2: Download portable Git ──────────────────
 echo.
-echo [2/5] 检查 Git ...
+echo [2/5] Checking Git...
 
 where git >nul 2>&1
 if !ERRORLEVEL! equ 0 (
     for /f "delims=" %%i in ('where git') do set GIT_PATH=%%i
-    echo   √ 系统已安装 Git: !GIT_PATH!
+    echo   √ System Git found: !GIT_PATH!
     set GIT_EXE=git
     goto :check_venv
 )
 
 if exist "%GIT_EXE%" (
-    echo   √ 本地 Git 已存在，跳过下载
+    echo   √ Local Git found, skipping download
     goto :check_venv
 )
 
-echo   正在下载便携版 Git ...
-echo   (文件约 50MB，请耐心等待)
+echo   Downloading portable Git for auto-update...
+echo   (~50MB, please wait - this is optional)
 echo.
 
-set GIT_INSTALLER=%DOWNLOADS_DIR%\PortableGit-2.47.0.2-64-bit.7z.exe
+set GIT_INSTALLER=%DOWNLOADS_DIR%\PortableGit.7z.exe
 
 if not exist "%GIT_INSTALLER%" (
-    powershell -NoProfile -Command ^
-        "Invoke-WebRequest -Uri '%GIT_URL%' -OutFile '%GIT_INSTALLER%' -UseBasicParsing"
+    call :download "%GIT_URL_1%" "%GIT_INSTALLER%" "GitHub"
     if !ERRORLEVEL! neq 0 (
-        echo   ! Git 下载失败，自动更新功能将不可用
-        echo   (不影响正常使用，仅不能自动更新)
-        goto :check_venv
+        echo   Retrying from mirror...
+        call :download "%GIT_URL_2%" "%GIT_INSTALLER%" "ghproxy"
+        if !ERRORLEVEL! neq 0 (
+            echo   ! Git download failed. Auto-update will be unavailable.
+            echo   (This does NOT affect normal usage, only git pull update)
+            goto :check_venv
+        )
     )
 )
 
-echo   正在解压 Git ...
+echo   Extracting Git...
 mkdir "%GIT_DIR%" 2>nul
 "%GIT_INSTALLER%" -o"%GIT_DIR%" -y
 if exist "%GIT_EXE%" (
-    echo   √ Git 安装完成
+    echo   √ Git ready
 ) else (
-    echo   ! Git 安装失败，自动更新功能将不可用
+    echo   ! Git extraction failed. Auto-update will be unavailable.
 )
 
-:: ── 步骤3：创建虚拟环境 ──────────────────────────
+:: ── Step 3: Create virtual environment ─────────────
 :check_venv
 echo.
-echo [3/5] 设置虚拟环境...
+echo [3/5] Setting up virtual environment...
 
 if exist "%VENV_DIR%\Scripts\python.exe" (
-    echo   √ 虚拟环境已存在，跳过创建
+    echo   √ venv already exists, skipping
 ) else (
-    echo   正在创建虚拟环境...
+    echo   Creating venv...
     "%PYTHON_EXE%" -m venv "%VENV_DIR%"
     if !ERRORLEVEL! neq 0 (
-        echo   X 虚拟环境创建失败
+        echo   X venv creation failed
         pause
         exit /b 1
     )
-    echo   √ 虚拟环境创建完成
+    echo   √ venv created
 )
 
 set VENV_PYTHON=%VENV_DIR%\Scripts\python.exe
 
-:: ── 步骤4：升级 pip ──────────────────────────────
+:: ── Step 4: Upgrade pip ────────────────────────────
 echo.
-echo [4/5] 升级 pip ...
+echo [4/5] Upgrading pip...
 
-"%VENV_PYTHON%" -m pip install --upgrade pip -q
+"%VENV_PYTHON%" -m pip install --upgrade pip -q -i %PIP_INDEX% --trusted-host pypi.tuna.tsinghua.edu.cn
 if !ERRORLEVEL! neq 0 (
-    echo   ! pip 升级失败，继续安装依赖...
+    echo   ! pip upgrade failed, continuing anyway...
 ) else (
-    echo   √ pip 升级完成
+    echo   √ pip upgraded
 )
 
-:: ── 步骤5：安装项目依赖 ──────────────────────────
+:: ── Step 5: Install project dependencies ───────────
 echo.
-echo [5/5] 安装项目依赖...
-echo   (首次安装可能需要几分钟，请耐心等待)
+echo [5/5] Installing dependencies...
+echo   (First time may take a few minutes, please wait)
 
-"%VENV_PYTHON%" -m pip install -r "%~dp0requirements.txt"
+"%VENV_PYTHON%" -m pip install -r "%~dp0requirements.txt" ^
+    -i %PIP_INDEX% --trusted-host pypi.tuna.tsinghua.edu.cn
 if !ERRORLEVEL! neq 0 (
-    echo   X 依赖安装失败，请检查 requirements.txt
+    echo   X Dependency installation failed
     pause
     exit /b 1
 )
 
-echo   √ 依赖安装完成
+echo   √ Dependencies installed
 
-:: ── 清理 ─────────────────────────────────────────
+:: ── Cleanup ────────────────────────────────────────
 echo.
 echo ========================================
-echo   环境安装完成！
+echo   Setup complete!
 echo.
-echo   下次直接双击 run.bat 即可启动 EasyCon
+echo   Double-click run.bat to start EasyCon
 echo ========================================
 echo.
 if exist "%DOWNLOADS_DIR%" (
-    choice /c yn /n /m "是否删除下载的安装包以节省空间? [Y/N] " /t 10 /d y
+    choice /c yn /n /m "Delete downloaded installers to save space? [Y/N] " /t 10 /d y
     if !ERRORLEVEL! equ 1 (
         rmdir /s /q "%DOWNLOADS_DIR%"
-        echo   已清理
+        echo   Cleaned up
     )
 )
 echo.
 pause
 exit /b 0
+
+:: ── Helper: download with retry ────────────────────
+:download
+set URL=%~1
+set OUTPUT=%~2
+set LABEL=%~3
+echo     [%LABEL%] %URL%
+powershell -NoProfile -Command ^
+    "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; " ^
+    "$ProgressPreference = 'SilentlyContinue'; " ^
+    "Invoke-WebRequest -Uri '%URL%' -OutFile '%OUTPUT%' -UseBasicParsing -TimeoutSec 300"
+exit /b %ERRORLEVEL%
