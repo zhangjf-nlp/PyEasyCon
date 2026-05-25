@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 from .tenlines_utils import GameSettings, get_seed_time
 
@@ -34,79 +34,58 @@ class RNGConfig:
     timing: TimingConfig = field(default_factory=TimingConfig)
 
     precicase_combos: int = 64
-    finetune_per_precicase: int = 3
+    coldstart_credits: int = 3
+    calibration_credits: int = 10
     max_candies: int = 10
-    convergence_min_observations: int = 10
+    max_fast_attempts: int = 10
 
-    seed: int = field(init=False)
-    seed_unbiased: int = field(init=False)
+    seed_time: int = field(init=False)
+    seed_time_unbiased: int = field(init=False)
     seed_ms: int = field(init=False)
     advances_unbiased: int = field(init=False)
     advances_ms_tv: int = field(init=False)
     advances_ms_normal: int = field(init=False)
 
     def __post_init__(self) -> None:
-        self.seed = get_seed_time(self.seed_hex, self.game_version, self.game_settings)
+        self.seed_time = get_seed_time(self.seed_hex, self.game_version, self.game_settings)
         self._recalc()
 
     def _recalc(self) -> None:
         t = self.timing
-        self.seed_unbiased = self.seed - self.seed_bias
-        self.seed_ms = int(self.seed_unbiased / t.fps_seed * 1000)
+        self.seed_time_unbiased = self.seed_time - self.seed_bias
+        self.seed_ms = int(self.seed_time_unbiased / t.fps_seed * 1000)
         self.advances_unbiased = self.advances - self.advances_bias
         if self.advances < 10000:
             self.advances_ms_tv = 0
             self.advances_ms_normal = int(self.advances_unbiased / t.fps_normal * 1000)
         else:
             advances_operation = int(t.operation_seconds * t.fps_normal)
-            self.advances_ms_tv = (self.advances_unbiased - advances_operation) * 1000 // t.fps_tv
+            min_normal_ms = int(t.operation_seconds * 1000)
+            tv_advances = self.advances_unbiased - advances_operation
+            raw_tv_ms = tv_advances * 1000 // t.fps_tv
+            self.advances_ms_tv = (raw_tv_ms // 16) * 16
+            tv_adv_consumed = self.advances_ms_tv / 1000 * t.fps_tv
             self.advances_ms_normal = int(
-                (self.advances_unbiased - self.advances_ms_tv / 1000 * t.fps_tv)
-                / t.fps_normal * 1000
+                (tv_advances - tv_adv_consumed) / t.fps_normal * 1000
             )
+            while self.advances_ms_normal < min_normal_ms and self.advances_ms_tv >= 16:
+                self.advances_ms_tv -= 16
+                tv_adv_consumed = self.advances_ms_tv / 1000 * t.fps_tv
+                self.advances_ms_normal = int(
+                    (tv_advances - tv_adv_consumed) / t.fps_normal * 1000
+                )
 
     def apply_calibration(self, seed_delta: int, adv_delta: int) -> None:
         self.seed_bias += seed_delta
-
-        t = self.timing
-
-        if self.advances < 10000:
-            self.advances_bias += adv_delta
-            self.advances_ms_tv = 0
-            self.seed_unbiased = self.seed - self.seed_bias
-            self.seed_ms = int(self.seed_unbiased / t.fps_seed * 1000)
-            self.advances_unbiased = self.advances - self.advances_bias
-            self.advances_ms_normal = int(self.advances_unbiased / t.fps_normal * 1000)
-            return
-
-        min_normal_ms = int(t.operation_seconds * 1000)
-        max_normal_ms = int(t.operation_seconds * 1000 * 1.5)
-
-        new_advances_bias = self.advances_bias + adv_delta
-        new_advances_unbiased = self.advances - new_advances_bias
-
-        tv_adv = self.advances_ms_tv / 1000 * t.fps_tv
-        normal_remain = new_advances_unbiased - tv_adv
-        normal_try = round(normal_remain / t.fps_normal * 1000)
-
-        if min_normal_ms <= normal_try <= max_normal_ms:
-            self.advances_bias = new_advances_bias
-            self.advances_ms_normal = normal_try
-            self.seed_unbiased = self.seed - self.seed_bias
-            self.seed_ms = int(self.seed_unbiased / t.fps_seed * 1000)
-            self.advances_unbiased = new_advances_unbiased
-        else:
-            self.advances_bias = new_advances_bias
-            self._recalc()
+        self.advances_bias += adv_delta
+        self._recalc()
 
 
 @dataclass
 class SessionState:
     log_dir: Optional[str] = None
-    valid_calibration_attempts: int = 0
-    calibration_start_count: Optional[int] = None
-    attempts_ocr_data: Dict[int, Any] = field(default_factory=dict)
     fast_attempts: int = 0
-    max_fast_attempts: int = 10
-    seed_observations: List[int] = field(default_factory=list)
-    adv_observations: List[int] = field(default_factory=list)
+    attempt_index: int = 0
+    coldstart_done: bool = False
+    attempts_ocr_data: Dict[int, list] = field(default_factory=dict)
+    attempts: Dict[int, Any] = field(default_factory=dict)

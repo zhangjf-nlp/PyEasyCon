@@ -70,12 +70,34 @@ class EasyConGUI:
             (self.window_width, self.window_height),
             pygame.DOUBLEBUF
         )
-        pygame.display.set_caption("EasyCon - 宝可梦自动化工具")
-        
+        pygame.display.set_caption("PyEasyCon")
+
+        icon_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets", "sprites", "shiny", "137.png")
+        if os.path.exists(icon_path):
+            icon_surf = pygame.image.load(icon_path).convert_alpha()
+            min_x, min_y = icon_surf.get_width(), icon_surf.get_height()
+            max_x, max_y = 0, 0
+            w, h = icon_surf.get_size()
+            pad = 4
+            for y in range(0, h, pad):
+                for x in range(0, w, pad):
+                    if icon_surf.get_at((x, y)).a > 0:
+                        min_x, min_y = min(min_x, x), min(min_y, y)
+                        max_x, max_y = max(max_x, x), max(max_y, y)
+            min_x = max(0, min_x - pad)
+            min_y = max(0, min_y - pad)
+            max_x = min(w-1, max_x + pad)
+            max_y = min(h-1, max_y + pad)
+            crop_w = max_x - min_x + 1
+            crop_h = max_y - min_y + 1
+            cropped = icon_surf.subsurface((min_x, min_y, crop_w, crop_h))
+            icon_final = pygame.transform.smoothscale(cropped, (64, 64))
+            pygame.display.set_icon(icon_final)
+
         # 字体
         try:
             self.font = pygame.font.SysFont("microsoft YaHei", 14)
-            self.font_small = pygame.font.SysFont("microsoft YaHei", 12)
+            self.font_small = pygame.font.SysFont("SimSun", 12)
         except:
             self.font = pygame.font.Font(None, 14)
             self.font_small = pygame.font.Font(None, 12)

@@ -30,19 +30,18 @@ def _read_vl_config():
 
 _vl_cfg = _read_vl_config()
 
-# vLLM API 配置
 VLLM_BASE_URL = _vl_cfg.get("vllm", {}).get("base_url", "http://localhost:8000/v1")
+VLLM_API_KEY = _vl_cfg.get("vllm", {}).get("api_key", "sk-PyEasyCon")
+VLLM_MODEL_NAME = _vl_cfg.get("vllm", {}).get("model_name", "/opt/models/Qwen3-VL-2B-Instruct-FP8")
 
-# GLM-4.6v 在线API配置
 GLM_API_BASE_URL = "https://open.bigmodel.cn/api/paas/v4"
 GLM_API_KEY = _vl_cfg.get("glm", {}).get("api_key", "")
 GLM_MODEL = _vl_cfg.get("glm", {}).get("model", "glm-4.6v-flash")
+GLM_MAX_RETRIES = _vl_cfg.get("glm", {}).get("max_retries", 8)
 
-# VL模型类型选择
 MODEL_TYPE_VLLM = "vllm"
 MODEL_TYPE_GLM = "glm"
 
-# 当前使用的模型类型（可动态切换）
 _preferred = _vl_cfg.get("type", "vllm").lower()
 _current_model_type = (
     MODEL_TYPE_GLM if _preferred == "glm"
@@ -50,16 +49,14 @@ _current_model_type = (
     else MODEL_TYPE_VLLM
 )
 
-# 模型初始化状态（确保首次 OCR 调用前完成阻塞式检测）
 _model_init_done = False
 _model_init_lock = threading.Lock()
 
 _glm_semaphore = threading.Semaphore(2)
 
 _client = None
-_openai_available = False
-_vllm_model = None
 _glm_client = None
+_openai_available = False
 
 try:
     from openai import OpenAI
@@ -149,28 +146,39 @@ def get_all_roi_boxes() -> List[Dict]:
     return boxes
 
 
-# ==================== vLLM 客户端 ====================
+# ==================== VL 客户端 & 服务检测 ====================
 
-def _get_vllm_client():
-    """获取vLLM客户端"""
-    global _client, _vllm_model
+def _make_message(image_base64: str, prompt: str) -> list:
+    return [{
+        "role": "user",
+        "content": [
+            {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{image_base64}"}},
+            {"type": "text", "text": prompt}
+        ]
+    }]
+
+
+def _probe_openai(base_url: str, api_key: str, timeout: float = 5) -> bool:
+    if not _openai_available:
+        return False
+    try:
+        client = OpenAI(api_key=api_key, base_url=base_url, timeout=timeout)
+        models = client.models.list()
+        return len(models.data) > 0
+    except Exception:
+        return False
+
+
+def _get_vllm_client() -> OpenAI:
+    global _client
     if not _openai_available:
         raise ImportError("openai 库未安装，请运行: pip install openai")
     if _client is None:
-        _client = OpenAI(api_key="EMPTY", base_url=VLLM_BASE_URL, timeout=60)
-    if _vllm_model is None:
-        try:
-            models = _client.models.list()
-            if models.data:
-                _vllm_model = models.data[0].id
-            else:
-                raise RuntimeError("vLLM 未加载任何模型")
-        except Exception:
-            raise RuntimeError(f"无法获取 vLLM 模型列表，请确认 {VLLM_BASE_URL} 服务已启动")
+        _client = OpenAI(api_key=VLLM_API_KEY, base_url=VLLM_BASE_URL, timeout=60)
     return _client
 
-def _get_glm_client():
-    """获取GLM客户端"""
+
+def _get_glm_client() -> OpenAI:
     global _glm_client
     if not _openai_available:
         raise ImportError("openai 库未安装，请运行: pip install openai")
@@ -178,105 +186,47 @@ def _get_glm_client():
         _glm_client = OpenAI(api_key=GLM_API_KEY, base_url=GLM_API_BASE_URL, timeout=60)
     return _glm_client
 
+
 def set_model_type(model_type: str):
-    """
-    设置当前使用的VL模型类型
-    
-    Args:
-        model_type: 模型类型，"vllm" 或 "glm"
-    """
     global _current_model_type
     if model_type not in [MODEL_TYPE_VLLM, MODEL_TYPE_GLM]:
         raise ValueError(f"不支持的模型类型: {model_type}，支持的类型: {MODEL_TYPE_VLLM}, {MODEL_TYPE_GLM}")
-    
     _current_model_type = model_type
 
+
 def get_current_model_type() -> str:
-    """获取当前使用的模型类型"""
     return _current_model_type
 
+
 def get_available_model_types() -> list:
-    """获取可用的模型类型列表"""
-    available_types = []
-    
-    # 检查vLLM是否可用（避免强制初始化客户端）
-    if _openai_available:
-        try:
-            from openai import OpenAI
-            client = OpenAI(api_key="EMPTY", base_url=VLLM_BASE_URL, timeout=5)
-            models = client.models.list()
-            if len(models.data) > 0:
-                available_types.append(MODEL_TYPE_VLLM)
-        except Exception:
-            pass
-    
-    # 检查GLM是否可用（避免强制初始化客户端）
-    if _openai_available:
-        try:
-            from openai import OpenAI
-            client = OpenAI(api_key=GLM_API_KEY, base_url=GLM_API_BASE_URL, timeout=5)
-            models = client.models.list()
-            if len(models.data) > 0:
-                available_types.append(MODEL_TYPE_GLM)
-        except Exception:
-            pass
-    
-    return available_types
+    available = []
+    if _probe_openai(VLLM_BASE_URL, VLLM_API_KEY):
+        available.append(MODEL_TYPE_VLLM)
+    if _probe_openai(GLM_API_BASE_URL, GLM_API_KEY):
+        available.append(MODEL_TYPE_GLM)
+    return available
 
 
 def get_vllm_model() -> str:
-    """返回当前 vLLM 服务的模型名称（如果vLLM不可用会抛出异常）"""
-    try:
-        _get_vllm_client()
-        return _vllm_model
-    except Exception:
+    if not _probe_openai(VLLM_BASE_URL, VLLM_API_KEY):
         raise RuntimeError("vLLM 服务不可用")
+    return VLLM_MODEL_NAME
 
 
 def check_service() -> bool:
-    """检查当前模型服务是否可用"""
-    if not _openai_available:
-        return False
-    
     if _current_model_type == MODEL_TYPE_VLLM:
-        try:
-            client = OpenAI(api_key="EMPTY", base_url=VLLM_BASE_URL, timeout=5)
-            models = client.models.list()
-            return len(models.data) > 0
-        except Exception:
-            return False
-    
+        return _probe_openai(VLLM_BASE_URL, VLLM_API_KEY)
     elif _current_model_type == MODEL_TYPE_GLM:
-        try:
-            _get_glm_client()
-            return True
-        except Exception:
-            return False
-    
+        return _probe_openai(GLM_API_BASE_URL, GLM_API_KEY)
     return False
 
 
 def check_vllm_service() -> bool:
-    """检查本地vLLM服务是否可用"""
-    if not _openai_available:
-        return False
-    try:
-        client = OpenAI(api_key="EMPTY", base_url=VLLM_BASE_URL, timeout=5)
-        models = client.models.list()
-        return len(models.data) > 0
-    except Exception:
-        return False
+    return _probe_openai(VLLM_BASE_URL, VLLM_API_KEY)
 
 
 def check_glm_service() -> bool:
-    """检查GLM在线API是否可用"""
-    if not _openai_available:
-        return False
-    try:
-        _get_glm_client()
-        return True
-    except Exception:
-        return False
+    return _probe_openai(GLM_API_BASE_URL, GLM_API_KEY)
 
 
 # ==================== 画面预处理 (1920×1080 直入) ====================
@@ -366,18 +316,13 @@ def _call_vlm(image: np.ndarray, prompt: str, max_tokens: int = 64, temperature:
     _ensure_model_init()
     effective_model = model_type or _current_model_type
     image_base64 = _image_to_base64(image)
+    msg = _make_message(image_base64, prompt)
 
     try:
         if effective_model == MODEL_TYPE_VLLM:
             response = _get_vllm_client().chat.completions.create(
-                model=_vllm_model,
-                messages=[{
-                    "role": "user",
-                    "content": [
-                        {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{image_base64}"}},
-                        {"type": "text", "text": prompt}
-                    ]
-                }],
+                model=VLLM_MODEL_NAME,
+                messages=msg,
                 max_tokens=max_tokens,
                 temperature=temperature,
             )
@@ -385,19 +330,12 @@ def _call_vlm(image: np.ndarray, prompt: str, max_tokens: int = 64, temperature:
             return _clean_vlm_response(raw)
 
         elif effective_model == MODEL_TYPE_GLM:
-            max_retries = 8
-            for attempt in range(max_retries):
+            for attempt in range(GLM_MAX_RETRIES):
                 with _glm_semaphore:
                     try:
                         response = _get_glm_client().chat.completions.create(
                             model=GLM_MODEL,
-                            messages=[{
-                                "role": "user",
-                                "content": [
-                                    {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{image_base64}"}},
-                                    {"type": "text", "text": prompt}
-                                ]
-                            }],
+                            messages=msg,
                             max_tokens=max_tokens,
                             temperature=temperature,
                             extra_body={"thinking": {"type": "disabled"}},
@@ -407,10 +345,10 @@ def _call_vlm(image: np.ndarray, prompt: str, max_tokens: int = 64, temperature:
                     except Exception as e:
                         err_str = str(e)
                         is_rate_limit = '429' in err_str or '1302' in err_str or '1305' in err_str
-                        if not is_rate_limit or attempt >= max_retries - 1:
+                        if not is_rate_limit or attempt >= GLM_MAX_RETRIES - 1:
                             raise
                 wait = 2 ** attempt
-                print(f"GLM rate limit, retry in {wait:.0f}s (attempt {attempt + 1}/{max_retries})")
+                print(f"GLM rate limit, retry in {wait:.0f}s (attempt {attempt + 1}/{GLM_MAX_RETRIES})")
                 time.sleep(wait)
 
         else:

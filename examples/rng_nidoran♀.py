@@ -11,16 +11,16 @@ cfg = RNGConfig(
     trainer_id=58888,
     secret_id=12232,
     game_settings = GameSettings.from_string(
-        "Mono | Help | Seed Button: A | Extra Button: None"
+        "Mono | Help | Seed Button: Start | Extra Button: None"
     ),
-    pokemon_species="Jigglypuff",
+    pokemon_species="Nidoran♀",
     rng_category="Grass",
     rng_location="Route 3",
     rng_method="All Wild Methods",
-    seed_hex="4F70",
-    advances=1709801,
-    seed_bias=-3942,
-    advances_bias=-9920,
+    seed_hex="DA56",
+    advances=33357,
+    seed_bias=-3946,
+    advances_bias=-9289,
     timing=TimingConfig(operation_seconds=10.0),
 )
 

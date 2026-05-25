@@ -7,6 +7,7 @@ export CUDA_VISIBLE_DEVICES=0
 vllm serve /opt/models/Qwen3-VL-2B-Instruct-FP8 \
   --host 0.0.0.0 \
   --port 8000 \
+  --api-key sk-PyEasyCon \
   --max-model-len 2048 \
   --gpu-memory-utilization 0.65 \
   --max-num-seqs 8 \

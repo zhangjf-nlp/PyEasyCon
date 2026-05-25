@@ -38,7 +38,7 @@ if ($LASTEXITCODE -ne 0) {
     Write-Host "Please check:"
     Write-Host "  1. WSL installed: wsl --list -v"
     Write-Host "  2. start_vllm.sh exists: wsl -e ls ~/vllm-qwen3vl/start_vllm.sh"
-    Write-Host "  3. Model downloaded: wsl -e ls ~/.cache/modelscope/hub/models/Qwen/Qwen3-VL-2B-Instruct-FP8/"
+    Write-Host "  3. Model downloaded: wsl -e ls /opt/models/Qwen3-VL-2B-Instruct-FP8/"
 }
 
 Write-Host ""

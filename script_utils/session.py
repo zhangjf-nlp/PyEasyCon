@@ -2,12 +2,12 @@ import json
 import os
 import time
 from dataclasses import asdict
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
+from easycon.config import get
 from easycon.context import ScriptContext
-from rng.calibration import calibrate, _obs_to_iv_range, _n_combos
+from rng.calibration import calibrate, n_combos, _obs_to_iv_range, RNGAttempt, RNGSlot
 from rng.config import RNGConfig, SessionState
-from rng.convergence import check_convergence
 from rng.tenlines_utils import IVsObservation, get_species_id, get_personal
 from script_utils.hit import sleep
 
@@ -35,10 +35,9 @@ def init_log_dir(ctx: ScriptContext, state: SessionState, cfg: RNGConfig) -> str
         "advances_bias": cfg.advances_bias,
         "timing": asdict(cfg.timing),
         "precicase_combos": cfg.precicase_combos,
-        "finetune_per_precicase": cfg.finetune_per_precicase,
         "max_candies": cfg.max_candies,
-        "seed": cfg.seed,
-        "seed_unbiased": cfg.seed_unbiased,
+        "seed_time": cfg.seed_time,
+        "seed_time_unbiased": cfg.seed_time_unbiased,
         "seed_ms": cfg.seed_ms,
         "advances_unbiased": cfg.advances_unbiased,
         "advances_ms_tv": cfg.advances_ms_tv,
@@ -61,114 +60,6 @@ def save_ocr(state: SessionState, ocr_result: Dict[str, Any], attempt: int, poke
     state.attempts_ocr_data.setdefault(attempt, []).append(entry)
 
 
-def calculate_n_combos(obs_list: List[IVsObservation], pokemon: str) -> int:
-    base_stats = get_personal(get_species_id(pokemon))["stats"]
-    iv_range = _obs_to_iv_range(obs_list, base_stats)
-    if iv_range is None:
-        return 0
-    lo, hi = iv_range
-    return _n_combos(lo, hi)
-
-
-def run_calibration(ctx: ScriptContext, state: SessionState, cfg: RNGConfig) -> None:
-    if state.log_dir is None:
-        return
-    if not state.attempts_ocr_data:
-        return
-
-    seed_delta, adv_delta, seed_obs, adv_obs = calibrate(
-        seed_hex=cfg.seed_hex,
-        seed_time=cfg.seed,
-        advances=cfg.advances,
-        trainer_id=cfg.trainer_id,
-        secret_id=cfg.secret_id,
-        game_settings=cfg.game_settings,
-        game=cfg.game_version,
-        method=cfg.rng_method,
-        location=cfg.rng_location,
-        category=cfg.rng_category,
-        log_dir=state.log_dir,
-        seed_ms=cfg.seed_ms,
-        advances_ms_tv=cfg.advances_ms_tv,
-        advances_ms_normal=cfg.advances_ms_normal,
-        attempts_data=state.attempts_ocr_data,
-    )
-
-    if seed_delta is not None:
-        cfg.apply_calibration(seed_delta, adv_delta)
-        state.seed_observations.extend(seed_obs)
-        state.adv_observations.extend(adv_obs)
-        ctx.log(f"校准: seed_delta={seed_delta:+d} adv_delta={adv_delta:+d}")
-        ctx.log(f"Seed={cfg.seed}ms Advances={cfg.advances}")
-        ctx.log(f"SeedBias={cfg.seed_bias} AdvancesBias={cfg.advances_bias}")
-        ctx.log(
-            f"Seed takes {cfg.seed_ms}ms | TV takes {cfg.advances_ms_tv}ms "
-            f"| Normal takes {cfg.advances_ms_normal}ms"
-        )
-        check_calibration_convergence(state, cfg)
-        state.valid_calibration_attempts = 0
-        state.calibration_start_count = None
-        state.attempts_ocr_data = {}
-    else:
-        ctx.log("校准失败 (数据不足)")
-
-
-def check_calibration_convergence(
-    state: SessionState,
-    cfg: RNGConfig,
-) -> None:
-    seed_obs = state.seed_observations
-    adv_obs = state.adv_observations
-    if len(seed_obs) < cfg.convergence_min_observations:
-        return
-    seed_obs = seed_obs[-cfg.convergence_min_observations:]
-    adv_obs = adv_obs[-cfg.convergence_min_observations:]
-
-    target_seed: int = cfg.seed
-    target_adv: int = cfg.advances
-
-    seed_converged, adv_converged, seed_median, adv_median = check_convergence(
-        seed_observations=seed_obs,
-        adv_observations=adv_obs,
-        target_seed=target_seed,
-        target_adv=target_adv,
-    )
-
-    print(
-        f"[convergence] Target: Seed={cfg.seed}ms | Advances={cfg.advances}"
-    )
-    print(
-        f"[convergence] Observations: Seed={seed_obs}"
-    )
-    print(
-        f"[convergence] Observations: Advances={adv_obs}"
-    )
-    print(
-        f"[convergence] Median: Seed={seed_median}ms | Advances={adv_median}"
-    )
-
-    seed_diffs = {o - target_seed for o in seed_obs}
-    adv_diffs = {o - target_adv for o in adv_obs}
-    print(
-        f"[convergence] Diffs: Seed={sorted(seed_diffs)}"
-    )
-    print(
-        f"[convergence] Diffs: Advances={sorted(adv_diffs)}"
-    )
-
-    print(
-        f"[convergence] Converged: Seed={seed_converged} | Advances={adv_converged}"
-    )
-
-    if seed_converged and adv_converged:
-        state.fast_attempts = state.max_fast_attempts
-        state.seed_observations = seed_obs[-5:] if len(seed_obs) >= 5 else list(seed_obs)
-        state.adv_observations = adv_obs[-5:] if len(adv_obs) >= 5 else list(adv_obs)
-        print(f"[Convergence] Converged -> Fast Attempts = {state.max_fast_attempts}")
-    else:
-        state.fast_attempts = 0
-
-
 def _make_obs(ocr: Dict[str, Any], nature: str) -> IVsObservation:
     return IVsObservation(
         nature=nature,
@@ -182,10 +73,68 @@ def _make_obs(ocr: Dict[str, Any], nature: str) -> IVsObservation:
     )
 
 
-def record_for_finetune(ctx: ScriptContext, state: SessionState, cfg: RNGConfig, attempt: int, pokemon: str) -> None:
+def run_calibration(ctx: ScriptContext, state: SessionState, cfg: RNGConfig) -> None:
+    if state.log_dir is None or not state.attempts:
+        return
+
+    threshold = cfg.coldstart_credits if not state.coldstart_done else cfg.calibration_credits
+    credits = sum(a.credit for a in state.attempts.values())
+    if credits < threshold:
+        ctx.log(f"[skip] credits={credits}/{threshold} 不足，跳过校准")
+        return
+
+    result = calibrate(cfg, state)
+
+    t = cfg.timing
+    new_seed_bias = cfg.seed_bias + result["seed_bias"]
+    new_seed_time_unbiased = cfg.seed_time - new_seed_bias
+    new_seed_ms = int(new_seed_time_unbiased / t.fps_seed * 1000)
+
+    new_adv_unbiased = cfg.advances - (cfg.advances_bias + result["adv_bias"])
+    if cfg.advances < 10000:
+        new_adv_ms_tv = 0
+    else:
+        advances_operation = int(t.operation_seconds * t.fps_normal)
+        raw_tv_ms = (new_adv_unbiased - advances_operation) * 1000 // t.fps_tv
+        new_adv_ms_tv = (raw_tv_ms // 16) * 16
+
+    seed_ms_min = get("rng.calibration.seed_ms_min", 35000)
+    seed_ms_max = get("rng.calibration.seed_ms_max", 60000)
+    tv_ms_min = get("rng.calibration.tv_ms_min", 3000)
+
+    if new_seed_ms < seed_ms_min:
+        ctx.log(f"[reject] Seed takes {new_seed_ms}ms < {seed_ms_min}ms，拒绝校准")
+        return
+    if new_seed_ms > seed_ms_max:
+        ctx.log(f"[reject] Seed takes {new_seed_ms}ms > {seed_ms_max}ms，拒绝校准")
+        return
+    if new_adv_ms_tv < tv_ms_min:
+        ctx.log(f"[reject] TV takes {new_adv_ms_tv}ms < {tv_ms_min}ms，拒绝校准")
+        return
+
+    cfg.apply_calibration(result["seed_bias"], result["adv_bias"])
+    ctx.log(f"SeedTime={cfg.seed_time}ms Advances={cfg.advances}")
+    ctx.log(f"SeedBias={cfg.seed_bias} AdvancesBias={cfg.advances_bias}")
+    ctx.log(
+        f"Seed takes {cfg.seed_ms}ms | TV takes {cfg.advances_ms_tv}ms "
+        f"| Normal takes {cfg.advances_ms_normal}ms"
+    )
+
+    if result["seed_converged"] and result["advances_converged"]:
+        state.fast_attempts = cfg.max_fast_attempts
+        ctx.log(f"[convergence] fast_attempts={cfg.max_fast_attempts}")
+    else:
+        state.fast_attempts = 0
+
+    state.coldstart_done = state.coldstart_done or all(abs(result[d]) <= 1 for d in ["ds", "dt", "dn"])
+    state.attempts_ocr_data.clear()
+    state.attempts.clear()
+
+
+def observe_pokemon(ctx: ScriptContext, state: SessionState, cfg: RNGConfig, attempt: int, pokemon: str) -> None:
+    state.attempt_index = attempt
     if state.log_dir is None:
         init_log_dir(ctx, state, cfg)
-        state.calibration_start_count = attempt
 
     sleep(1.0)
     assert not ctx.search_label('3代闪光', 90)
@@ -195,10 +144,8 @@ def record_for_finetune(ctx: ScriptContext, state: SessionState, cfg: RNGConfig,
     ctx.save_ocr_screenshot(f"{state.log_dir}/screens/{attempt:03d}-CAUGHT_INFO.png", "CAUGHT_INFO")
 
     gender = (
-        "male"
-        if ctx.search_label("3代性别符号♂", 98)
-        else "female"
-        if ctx.search_label("3代性别符号♀", 98)
+        "male" if ctx.search_label("3代性别符号♂", 98)
+        else "female" if ctx.search_label("3代性别符号♀", 98)
         else "unknown"
     )
     ocr_caught_info["gender"] = gender
@@ -276,11 +223,16 @@ def record_for_finetune(ctx: ScriptContext, state: SessionState, cfg: RNGConfig,
         save_ocr(state, ocr_elevated, attempt, pokemon, candy_num=i + 1)
 
         obs_list.append(_make_obs(ocr_elevated, nature))
-        current_n_combos = calculate_n_combos(obs_list, pokemon)
-        ctx.log(f"{len(obs_list)} IVs observations | {current_n_combos} IVs combos")
-        if current_n_combos <= cfg.precicase_combos:
-            state.valid_calibration_attempts += 1
-            break
+        try:
+            base_stats = get_personal(get_species_id(pokemon))["stats"]
+            iv_range = _obs_to_iv_range(obs_list, base_stats)
+            if iv_range is not None:
+                current_n_combos = n_combos(*iv_range)
+                ctx.log(f"{len(obs_list)} IVs observations | {current_n_combos} IVs combos")
+                if current_n_combos <= cfg.precicase_combos:
+                    break
+        except Exception:
+            pass
 
         for _ in range(30):
             ctx.press("B")
@@ -295,4 +247,29 @@ def record_for_finetune(ctx: ScriptContext, state: SessionState, cfg: RNGConfig,
         else:
             break
 
-    ctx.log(f"{attempt} attempts | {state.valid_calibration_attempts} precise observations")
+    target = RNGSlot(0, cfg.seed_time, cfg.advances)
+    rng_attempt = RNGAttempt(attempt, state.attempts_ocr_data.get(attempt, []), target, cfg)
+
+    if not rng_attempt.is_valid:
+        ctx.log(f"[invalid] #{attempt} -> no result")
+        state.attempts_ocr_data.pop(attempt, None)
+        return
+
+    state.attempts[attempt] = rng_attempt
+
+    precise_count = sum(1 for a in state.attempts.values() if a.is_precise)
+    vague_count = sum(1 for a in state.attempts.values() if not a.is_precise)
+    keys = sorted(state.attempts.keys())
+    attempt_range = f"#{keys[0]}-{keys[-1]}" if len(keys) > 1 else f"#{keys[0]}"
+    total_credits = sum(a.credit for a in state.attempts.values())
+    threshold = cfg.coldstart_credits if not state.coldstart_done else cfg.calibration_credits
+    ctx.log(f"{attempt_range} {precise_count}p/{vague_count}v => credits={total_credits}/{threshold}")
+
+    if rng_attempt.is_precise:
+        ctx.log(f"[precise] #{attempt} -> unique slot")
+
+
+def ready_for_calibration(state: SessionState, cfg: RNGConfig) -> bool:
+    credits = sum(a.credit for a in state.attempts.values())
+    threshold = cfg.coldstart_credits if not state.coldstart_done else cfg.calibration_credits
+    return credits >= threshold

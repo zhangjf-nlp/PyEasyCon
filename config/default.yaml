@@ -85,10 +85,12 @@ vl_model:
   type: vllm                # vllm | glm
   vllm:
     base_url: "http://localhost:8000/v1"
-    model_name: "Qwen3-VL-2B"
+    api_key: "sk-PyEasyCon"
+    model_name: "/opt/models/Qwen3-VL-2B-Instruct-FP8"
   glm:
     model: "glm-4.6v-flash"
     api_key: ""
+    max_retries: 8
     rate_limit_rpm: 30
 
 # ==================== 标签目录 ====================
@@ -110,3 +112,8 @@ rng:
   abilities_file: "i18n/en/abilities_en.txt"
   encounters_dir: "EncounterTables/Gen3/frlg"
   seed_data: "fr_eng_nx.bin"
+  # 校准合理性校验
+  calibration:
+    seed_ms_min: 33000
+    seed_ms_max: 72000
+    tv_ms_min: 3000
