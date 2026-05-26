@@ -21,7 +21,7 @@ def check_shiny(
     ctx.log("识别宝可梦...")
 
     for _ in range(20):
-        if ctx.search_label("3代野怪血条", 90):
+        if ctx.search_label("FRLG野怪血条", 90):
             break
         sleep(0.5)
     else:
@@ -86,7 +86,7 @@ def catch_with_ball(ctx: ScriptContext) -> bool:
         sleep(0.5)
         ctx.press("UP")
         sleep(0.5)
-        if ctx.search_label("3代关键词Bag", 90):
+        if ctx.search_label("FRLG关键词Bag", 90):
             break
     else:
         ctx.log("无法打开背包")
@@ -98,10 +98,10 @@ def catch_with_ball(ctx: ScriptContext) -> bool:
         for _ in range(5):
             ctx.press("RIGHT")
             sleep(0.5)
-            if ctx.search_label("3代关键词PokeBalls", 95):
+            if ctx.search_label("FRLG关键词PokeBalls", 95):
                 break
         for _ in range(5):
-            if ctx.search_label("3代关键词UltraBall选中", 98):
+            if ctx.search_label("FRLG关键词UltraBall选中", 98):
                 break
             ctx.press("DOWN")
             sleep(0.5)
@@ -112,7 +112,7 @@ def catch_with_ball(ctx: ScriptContext) -> bool:
         for _ in range(10):
             ctx.press("A")
             sleep(0.5)
-            if ctx.search_label("3代野怪血条", 90):
+            if ctx.search_label("FRLG野怪血条", 90):
                 break
         else:
             ctx.log("血条异常退出")
@@ -120,9 +120,9 @@ def catch_with_ball(ctx: ScriptContext) -> bool:
         for _ in range(60):
             ctx.press("B")
             sleep(1.0)
-            if ctx.search_label("3代关键词Bag", 90):
+            if ctx.search_label("FRLG关键词Bag", 90):
                 break
-            if ctx.search_label("3代关键词Gotcha", 90):
+            if ctx.search_label("FRLG关键词Gotcha", 90):
                 return True
         else:
             ctx.log("界面异常退出")
@@ -139,13 +139,13 @@ def check_last_pokemon(ctx: ScriptContext) -> None:
         sleep(0.5)
         ctx.press("X")
         sleep(1.0)
-        if ctx.search_label("3代关键词POKeMON", 90):
+        if ctx.search_label("FRLG关键词POKeMON", 90):
             break
-    if ctx.search_label("3代关键词BAG选中", 95):
+    if ctx.search_label("FRLG关键词BAG选中", 95):
         ctx.press("UP")
         sleep(0.5)
     for _ in range(20):
-        if ctx.search_label("3代关键词POKeMON选中", 97):
+        if ctx.search_label("FRLG关键词POKeMON选中", 97):
             break
         ctx.press("DOWN")
         sleep(0.5)
@@ -159,5 +159,5 @@ def check_last_pokemon(ctx: ScriptContext) -> None:
     for _ in range(100):
         ctx.press("A")
         sleep(1.0)
-        if ctx.search_label("3代精灵球", 85):
+        if ctx.search_label("FRLG精灵球", 85):
             break

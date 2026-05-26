@@ -136,15 +136,15 @@ def observe_pokemon(ctx: ScriptContext, state: SessionState, cfg: RNGConfig, att
         init_log_dir(ctx, state, cfg)
 
     sleep(1.0)
-    assert not ctx.search_label('3代闪光', 90)
+    assert not ctx.search_label('FRLG闪光', 90)
     ocr_caught_info = ctx.ocr_pokemon()
     assert ocr_caught_info.get("screen") == "CAUGHT_INFO"
     nature = ocr_caught_info.get("nature")
     ctx.save_ocr_screenshot(f"{state.log_dir}/screens/{attempt:03d}-CAUGHT_INFO.png", "CAUGHT_INFO")
 
     gender = (
-        "male" if ctx.search_label("3代性别符号♂", 98)
-        else "female" if ctx.search_label("3代性别符号♀", 98)
+        "male" if ctx.search_label("FRLG性别符号♂", 98)
+        else "female" if ctx.search_label("FRLG性别符号♀", 98)
         else "unknown"
     )
     ocr_caught_info["gender"] = gender
@@ -171,10 +171,10 @@ def observe_pokemon(ctx: ScriptContext, state: SessionState, cfg: RNGConfig, att
                 sleep(0.5)
                 ctx.press("X")
                 sleep(1.0)
-                if ctx.search_label("3代关键词POKeMON", 95):
+                if ctx.search_label("FRLG关键词POKeMON", 95):
                     break
             for _ in range(20):
-                if ctx.search_label("3代关键词BAG选中", 97):
+                if ctx.search_label("FRLG关键词BAG选中", 97):
                     break
                 ctx.press("DOWN")
                 sleep(0.5)
@@ -183,10 +183,10 @@ def observe_pokemon(ctx: ScriptContext, state: SessionState, cfg: RNGConfig, att
             for _ in range(5):
                 ctx.press("LEFT")
                 sleep(0.5)
-                if ctx.search_label("3代关键词Items", 95):
+                if ctx.search_label("FRLG关键词Items", 95):
                     break
             for _ in range(30):
-                if ctx.search_label("3代神奇糖果", 95):
+                if ctx.search_label("FRLG神奇糖果", 95):
                     break
                 ctx.press("DOWN")
                 sleep(0.5)
@@ -209,7 +209,7 @@ def observe_pokemon(ctx: ScriptContext, state: SessionState, cfg: RNGConfig, att
         for _ in range(10):
             ctx.press("B")
             sleep(1.0)
-            if ctx.search_label("3代升级能力值", 97):
+            if ctx.search_label("FRLG升级能力值", 97):
                 ctx.press("B")
                 sleep(0.5)
                 ocr_elevated = ctx.ocr_pokemon()
@@ -236,9 +236,9 @@ def observe_pokemon(ctx: ScriptContext, state: SessionState, cfg: RNGConfig, att
         for _ in range(30):
             ctx.press("B")
             sleep(0.5)
-            if ctx.search_label("3代神奇糖果", 95):
+            if ctx.search_label("FRLG神奇糖果", 95):
                 break
-            if ctx.search_label("3代技能替换", 95):
+            if ctx.search_label("FRLG技能替换", 95):
                 ctx.press("B")
                 sleep(1.0)
                 ctx.press("A")

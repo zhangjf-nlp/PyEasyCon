@@ -498,6 +498,21 @@ def ocr_custom(roi_image: np.ndarray, prompt: str, model_type: str = None) -> Op
     return _call_vlm(roi_image, prompt, max_tokens=128, temperature=0.2, model_type=model_type)
 
 
+# 拾取道具提示 ROI：来自 labels/roi-miaomiao.IL 的 Target 区域
+_TAKEN_ITEM_ROI = (208, 774, 1485, 228)
+
+
+def ocr_taken_item(frame: np.ndarray) -> Optional[str]:
+    x, y, w, h = _TAKEN_ITEM_ROI
+    h_frame, w_frame = frame.shape[:2]
+    x1, y1 = max(0, x), max(0, y)
+    x2, y2 = min(w_frame, x + w), min(h_frame, y + h)
+    roi = frame[y1:y2, x1:x2]
+    prompt = "识别图片中的文字，只输出文字内容本身，不要添加任何额外描述或格式。"
+    result = _call_vlm(roi, prompt, max_tokens=128, temperature=0.1)
+    return result.strip() if result else None
+
+
 # 宝可梦名字识别 ROI：来自 labels/roi.IL 的 Target 区域
 _NAME_ROI = (300, 135, 400, 55)
 

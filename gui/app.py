@@ -37,6 +37,7 @@ from vision import (
     ocr_caught_info as _ocr_caught_info_module,
     ocr_caught_iv as _ocr_caught_iv_module,
     ocr_custom as _ocr_custom_module,
+    ocr_taken_item as _ocr_taken_item_module,
     ocr_pokemon_name as _ocr_pokemon_name_module,
     classify_screen_type as _classify_screen_type,
     get_all_roi_boxes as _get_all_roi_boxes,
@@ -176,6 +177,7 @@ class EasyConGUI:
             ocr_caught_info_func=self._ocr_caught_info,
             ocr_caught_iv_func=self._ocr_caught_iv,
             ocr_custom_func=self._ocr_custom,
+            ocr_taken_item_func=self._ocr_taken_item,
             identify_pokemon_func=self._identify_pokemon,
             ocr_name_func=self._ocr_name,
         )
@@ -496,6 +498,9 @@ class EasyConGUI:
         if result:
             self.output_panel.log(f"OCR 结果: {result}")
         return result
+
+    def _ocr_taken_item(self, frame):
+        return _ocr_taken_item_module(frame)
 
     def _log_ocr_result(self, result: dict):
         screen_type = result.get('screen', '')

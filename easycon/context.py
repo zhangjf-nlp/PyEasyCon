@@ -23,6 +23,7 @@ class ScriptContext:
         ocr_caught_info_func: Optional[Callable[[], Any]] = None,
         ocr_caught_iv_func: Optional[Callable[[], Any]] = None,
         ocr_custom_func: Optional[Callable] = None,
+        ocr_taken_item_func: Optional[Callable] = None,
         identify_pokemon_func: Optional[Callable] = None,
         ocr_name_func: Optional[Callable] = None,
         labels_dir: str = "assets/labels",
@@ -36,6 +37,7 @@ class ScriptContext:
         self._ocr_caught_info_func = ocr_caught_info_func
         self._ocr_caught_iv_func = ocr_caught_iv_func
         self._ocr_custom_func = ocr_custom_func
+        self._ocr_taken_item_func = ocr_taken_item_func
         self._identify_pokemon_func = identify_pokemon_func
         self._ocr_name_func = ocr_name_func
         self._labels_dir = labels_dir
@@ -203,6 +205,11 @@ class ScriptContext:
     def ocr_custom(self, image, prompt: str, model_type: str = None):
         if self._ocr_custom_func:
             return self._ocr_custom_func(image, prompt, model_type)
+        return None
+
+    def ocr_taken_item(self, frame):
+        if self._ocr_taken_item_func:
+            return self._ocr_taken_item_func(frame)
         return None
 
     def identify_pokemon(self, candidates=None, threshold=0.0):

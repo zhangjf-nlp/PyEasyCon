@@ -54,7 +54,7 @@ def launch(cfg: RNGConfig, state: SessionState = None) -> None:
                         run_calibration(ctx, state, cfg)
             elif cfg.rng_category in ["Gift", "Game Corner"]:
                 check_last_pokemon(ctx)
-                if ctx.search_label("3代闪光", 80):
+                if ctx.search_label("FRLG闪光", 80):
                     ctx.log("闪光出现!")
                     break
                 elif state.fast_attempts:

@@ -84,7 +84,7 @@ def hit_super_rod(ctx: ScriptContext, cfg: RNGConfig) -> None:
     ctx.press("RIGHT")
     sleep(0.5)
     for _ in range(100):
-        if ctx.search_label("3代关键词SuperRod选中", 99):
+        if ctx.search_label("FRLG关键词SuperRod选中", 99):
             break
         ctx.press("DOWN")
         sleep(0.3)

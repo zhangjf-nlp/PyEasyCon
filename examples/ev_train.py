@@ -3,9 +3,13 @@ import sys
 import os
 import json
 
+import cv2
+import time
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from dataclasses import dataclass
+from typing import List
 
 from easycon.context import ScriptContext
 from gui import run_script
@@ -20,7 +24,7 @@ _BASEPOINTS_PATH = os.path.join(
 with open(_BASEPOINTS_PATH, "r", encoding="utf-8") as f:
     _BASEPOINTS = json.load(f)
 
-_STAT_KEY_MAP = {
+_STAT_ALIAS = {
     "hp": "hp", "attack": "attack", "atk": "attack",
     "defense": "defense", "def": "defense",
     "sp_atk": "sp_atk", "spatk": "sp_atk", "spa": "sp_atk",
@@ -33,23 +37,50 @@ _STAT_ZH = {
     "sp_atk": "特攻", "sp_def": "特防", "speed": "速度",
 }
 
+_ALL_STATS = ["hp", "attack", "defense", "sp_atk", "sp_def", "speed"]
+
+
+def get_bp(sid):
+    return _BASEPOINTS.get(str(sid), {})
+
+
+def get_name(sid):
+    bp = get_bp(sid)
+    return bp.get("zh_name", f"#{sid}")
+
+
+def format_ev(bp, stat_keys=None):
+    keys = stat_keys if stat_keys is not None else _ALL_STATS
+    return ", ".join(f"{_STAT_ZH[k]}+{bp.get(k, 0)}" for k in keys if bp.get(k, 0) > 0)
+
+
+def in_wild(ctx: ScriptContext) -> bool:
+    return ctx.search_label("FRLG草丛", 90) or ctx.search_label("FRLG对话", 90) \
+        or ctx.search_label("FRLG水面", 90) or ctx.search_label("FRLG洞穴", 90)
+
 
 @dataclass
 class EVTrainConfig:
     location: str = "Route 1"
     category: str = "Grass"
-    base_points: str = "speed"
+    base_points: List[str] = None
     game_version: str = "frlg"
+
+    def __post_init__(self):
+        if self.base_points is None:
+            self.base_points = ["speed"]
 
 
 def resolve_target_species(config: EVTrainConfig):
-    stat_key = _STAT_KEY_MAP.get(config.base_points.lower())
+    stat_keys = []
+    for bp_item in config.base_points:
+        k = _STAT_ALIAS.get(bp_item.lower())
+        if k is None:
+            raise ValueError(f"未知的基础点数类型: {bp_item}，支持: HP/攻击/防御/特攻/特防/速度")
+        stat_keys.append(k)
 
-    if stat_key is None:
-        valid = list(set(_STAT_KEY_MAP.values()))
-        raise ValueError(
-            f"未知的基础点数类型: {config.base_points}，支持: HP/攻击/防御/特攻/特防/速度"
-        )
+    if "safari" in config.location.lower():
+        raise RuntimeError("沙湖乐园 (Safari Zone) 暂不支持！")
 
     encounter = get_encounter(config.location, config.category)
     if encounter is None:
@@ -58,46 +89,68 @@ def resolve_target_species(config: EVTrainConfig):
             f"支持的 category: Grass / Surfing / OldRod / GoodRod / SuperRod"
         )
 
-    encounter_species = set()
-    for slot in encounter.get("slots", []):
-        sid = slot.get("species")
-        if sid is not None:
-            encounter_species.add(sid)
+    encounter_species = {slot["species"] for slot in encounter.get("slots", []) if "species" in slot}
+    stat_set = set(stat_keys)
 
-    target = []
+    targets = []
     for sid in sorted(encounter_species):
-        sid_str = str(sid)
-        bp = _BASEPOINTS.get(sid_str)
-        if bp and bp[stat_key] > 0:
-            target.append(sid)
+        bp = get_bp(sid)
+        pkm_stats = {k for k in _ALL_STATS if bp.get(k, 0) > 0}
+        if pkm_stats and pkm_stats.issubset(stat_set):
+            targets.append(sid)
 
-    if not target:
-        names_in_area = []
-        for sid in sorted(encounter_species):
-            sid_str = str(sid)
-            bp = _BASEPOINTS.get(sid_str)
-            zh = bp["zh_name"] if bp else f"#{sid}"
-            ev_str = ", ".join(
-                f"{_STAT_ZH[k]}+{bp[k]}" for k in ["hp", "attack", "defense", "sp_atk", "sp_def", "speed"]
-                if bp and bp[k] > 0
-            ) if bp else "无数据"
-            names_in_area.append(f"  {zh} (#{sid}) → {ev_str}")
-
-        area_list = "\n".join(names_in_area) if names_in_area else "(无)"
+    if not targets:
+        lines = "\n".join(
+            f"  {get_name(sid)} (#{sid}) → {format_ev(get_bp(sid))}"
+            for sid in sorted(encounter_species)
+        )
         raise RuntimeError(
-            f"在 {config.location}/{config.category} 中没有找到提供 {_STAT_ZH[stat_key]} 基础点数的宝可梦！\n"
-            f"该地区存在的宝可梦及基础点数:\n{area_list}"
+            f"在 {config.location}/{config.category} 中没有找到"
+            f"基础点数是 [{', '.join(_STAT_ZH[k] for k in stat_keys)}] 子集的宝可梦！\n"
+            f"该地区存在的宝可梦及基础点数:\n{lines}"
         )
 
-    return target, stat_key
+    return targets, sorted(encounter_species), stat_keys
 
 
-def _navigate_to_sweet_scent(ctx: ScriptContext) -> bool:
+def search_and_take_meowth_items(ctx: ScriptContext) -> None:
+    for _ in range(3):
+        if not ctx.search_label("FRLG喵喵携带物", 95):
+            continue
+        ctx.log("检测到喵喵携带物")
+        for __ in range(7):
+            ctx.press("DOWN")
+            sleep(0.5)
+            for ___ in range(3):
+                if ctx.search_label("FRLG喵喵携带物选中", 95):
+                    break
+            else:
+                continue
+            ctx.press("A")
+            sleep(0.8)
+            ctx.press("UP")
+            sleep(0.8)
+            ctx.press("UP")
+            sleep(0.8)
+            ctx.press("A")
+            sleep(0.8)
+            ctx.press("DOWN")
+            sleep(0.8)
+            ctx.press("A")
+            sleep(1.5)
+            text = ctx.ocr_taken_item(ctx.get_frame())
+            ctx.log(f"拾取道具: {text}" if text else "拾取道具: (识别失败)")
+            sleep(0.5)
+            ctx.press("B")
+            sleep(1.0)
+
+
+def navigate_to_sweet_scent(ctx: ScriptContext) -> bool:
     ctx.press("X")
     sleep(1.0)
 
     for _ in range(10):
-        if ctx.search_label("3代关键词POKeMON选中", 90):
+        if ctx.search_label("FRLG关键词POKeMON选中", 98):
             break
         ctx.press("DOWN")
         sleep(0.5)
@@ -107,35 +160,44 @@ def _navigate_to_sweet_scent(ctx: ScriptContext) -> bool:
 
     ctx.press("A")
     sleep(2.0)
+
+    # 判断是否有喵喵携带物品
+    search_and_take_meowth_items(ctx)
+
+    ctx.press("UP")
+    sleep(0.5)
+    ctx.press("UP")
+    sleep(0.5)
     ctx.press("A")
-    sleep(1.5)
+    sleep(1.0)
+
+    if not ctx.search_label("FRLG关键词SweetScent", 80):
+        ctx.log("队末宝可梦未学习甜甜香气")
 
     for _ in range(5):
-        if ctx.search_label("3代关键词Skills", 90):
+        if ctx.search_label("FRLG关键词SweetScent", 99):
             break
-        ctx.press("DOWN")
-        sleep(0.5)
+        else:
+            ctx.press("DOWN")
+            sleep(0.5)
     else:
-        ctx.log("无法定位到技能菜单")
+        ctx.log("队末宝可梦未找到甜甜香气")
+        sleep(3600)
         return False
 
     ctx.press("A")
-    sleep(1.0)
-    ctx.press("A")
+    sleep(8.0)
     return True
 
 
 def use_sweet_scent(ctx: ScriptContext) -> bool:
     ctx.log("使用甜甜香气...")
-
-    if not _navigate_to_sweet_scent(ctx):
+    if not navigate_to_sweet_scent(ctx):
         return False
-
-    for _ in range(60):
+    for _ in range(10):
         sleep(0.5)
-        if ctx.search_label("3代野怪血条", 90):
+        if ctx.search_label("FRLG野怪血条", 90):
             return True
-
     ctx.log("甜甜香气未触发遇敌")
     return False
 
@@ -149,162 +211,113 @@ def run_away(ctx: ScriptContext) -> None:
         sleep(0.3)
         ctx.press("RIGHT")
         sleep(0.3)
-        if ctx.search_label("3代逃跑", 90):
+        if ctx.search_label("FRLG逃跑", 90):
             ctx.press("A")
             sleep(1.0)
             break
-
     for _ in range(30):
         sleep(0.5)
-        if ctx.search_label("3代家门草丛", 90):
+        if in_wild(ctx):
             return
         ctx.press("B")
         sleep(0.3)
 
 
-def _cancel_evolution(ctx: ScriptContext) -> None:
-    ctx.log("取消进化...")
-    for _ in range(50):
-        ctx.press("B")
-        sleep(0.2)
-        if ctx.search_label("3代升级能力值", 95):
-            return
-        if ctx.search_label("3代技能替换", 95):
-            return
-        if ctx.search_label("3代战斗结算", 95):
-            return
-        if ctx.search_label("3代家门草丛", 90):
-            return
-    ctx.log("进化取消循环结束")
-
-
-def _refuse_skill_learning(ctx: ScriptContext) -> None:
-    for _ in range(60):
-        if ctx.search_label("3代技能替换", 95):
-            break
-        if ctx.search_label("3代放弃学习技能", 95):
-            break
-        if ctx.search_label("3代战斗结算", 95):
-            return
-        if ctx.search_label("3代家门草丛", 90):
-            return
-        if ctx.search_label("3代升级能力值", 95):
-            return
-        sleep(0.3)
-    else:
-        return
-
-    ctx.log("放弃学习新技能...")
-    ctx.press("DOWN")
-    sleep(0.3)
-    ctx.press("A")
-    sleep(1.0)
-
-    for _ in range(30):
-        if ctx.search_label("3代放弃学习技能", 95):
-            ctx.press("A")
-            sleep(1.0)
-            break
-        sleep(0.3)
-    ctx.log("已跳过新技能学习")
-
-
-def _handle_post_battle_events(ctx: ScriptContext) -> None:
+def handle_post_battle(ctx: ScriptContext) -> None:
     ctx.log("等待战斗后事件...")
-    for _ in range(100):
-        if ctx.search_label("3代升级", 95):
-            ctx.log("检测到升级")
+    for i in range(100):
+        if ctx.search_label("FRLG技能替换", 95) or ctx.search_label("FRLG技能替换v2", 95):
+            ctx.press("B")
             sleep(1.0)
-
-        if ctx.search_label("3代升级能力值", 95):
-            ctx.log("能力值变化")
-            sleep(0.5)
-
-        if ctx.search_label("3代技能替换", 95):
-            _refuse_skill_learning(ctx)
-            continue
-
-        if ctx.search_label("3代放弃学习技能", 95):
+        elif ctx.search_label("FRLG放弃学习技能", 95) or ctx.search_label("FRLG放弃学习技能v2", 95):
             ctx.press("A")
             sleep(1.0)
-            continue
-
-        if ctx.search_label("3代战斗结算", 95):
+        elif ctx.search_label("FRLG战斗结算", 95):
+            ctx.press("B")
             sleep(0.5)
-            continue
-
-        if ctx.search_label("3代家门草丛", 90):
+        elif ctx.search_label("FRLG升级", 95):
+            ctx.press("B")
+            sleep(0.5)
+        elif ctx.search_label("FRLG升级能力值", 95):
+            ctx.press("B")
+            sleep(0.5)
+        elif ctx.search_label("FRLG进化What", 95):
+            ctx.press("B")
+            sleep(0.5)
+        elif in_wild(ctx):
             return
-        if ctx.search_label("3代对话", 90):
-            return
-        if ctx.search_label("3代水面", 90):
-            return
-        if ctx.search_label("3代洞穴", 90):
-            return
-
-        ctx.press("B")
-        sleep(0.3)
+        else:
+            if i > 30:
+                ctx.log("未知画面")
+                frame = ctx.get_frame()
+                if frame is not None:
+                    ts = time.strftime("%Y%m%d_%H%M%S")
+                    os.makedirs("debug_label", exist_ok=True)
+                    cv2.imencode(".png", frame)[1].tofile(f"debug_label/{ts}_unknown.png")
+            ctx.press("B")
+            sleep(0.5)
 
 
 def defeat_pokemon(ctx: ScriptContext) -> bool:
     ctx.log("击败宝可梦...")
     pp_switches = 0
-    max_pp_switches = 5
 
     for _ in range(10):
         sleep(0.3)
-        if ctx.search_label("3代野怪血条", 90):
+        if ctx.search_label("FRLG野怪血条", 90):
             break
 
     while True:
-        ctx.press("A")
-        sleep(0.3)
-
-        if ctx.search_label("3代战斗结算", 95):
-            sleep(2.0)
-            return True
-        if ctx.search_label("3代升级", 95):
-            sleep(2.0)
-            return True
-        if ctx.search_label("3代空PP", 98):
-            if pp_switches < max_pp_switches:
-                ctx.log(f"PP耗尽, 切换技能 ({pp_switches + 1}/{max_pp_switches})")
+        if ctx.search_label("FRLG空PP", 98):
+            if pp_switches == 0:
+                ctx.log(f"一技能PP耗尽, 切换三技能")
                 ctx.press("DOWN")
-                sleep(0.3)
+                sleep(1.0)
                 pp_switches += 1
+                continue
+            elif pp_switches == 1:
+                ctx.log(f"三技能PP耗尽, 切换四技能")
+                ctx.press("RIGHT")
+                sleep(1.0)
+                pp_switches += 1
+                continue
+            elif pp_switches == 2:
+                ctx.log(f"四技能PP耗尽, 切换二技能")
+                ctx.press("UP")
+                sleep(1.0)
+                pp_switches += 1
+                continue
             else:
                 ctx.log("所有技能PP耗尽!")
                 return False
 
+        ctx.press("A")
+        sleep(0.5)
 
-def dismiss_battle_end(ctx: ScriptContext) -> None:
-    _handle_post_battle_events(ctx)
+        if (ctx.search_label("FRLG战斗结算", 95)
+                or ctx.search_label("FRLG升级", 95)
+                or in_wild(ctx)):
+            sleep(1.0)
+            return True
 
 
 def ev_train(config: EVTrainConfig) -> None:
     def main(ctx: ScriptContext) -> None:
-        target_ids, stat_key = resolve_target_species(config)
-
-        species_names = []
-        for sid in target_ids:
-            sid_str = str(sid)
-            bp = _BASEPOINTS.get(sid_str, {})
-            zh = bp.get("zh_name", f"#{sid}")
-            ev = bp.get(stat_key, 0)
-            species_names.append(f"{zh}(#{sid}, {_STAT_ZH[stat_key]}+{ev})")
+        targets, all_species, stat_keys = resolve_target_species(config)
 
         ctx.log(f"地点: {config.location} | 方式: {config.category}")
-        ctx.log(f"目标努力值: {_STAT_ZH[stat_key]}")
-        ctx.log(f"目标宝可梦: {', '.join(species_names)}")
-        ctx.log(f"目标物种ID: {target_ids}")
+        ctx.log(f"目标努力值: [{', '.join(_STAT_ZH[k] for k in stat_keys)}]")
+        ctx.log(f"目标宝可梦: {', '.join(f'{get_name(s)}(#{s}, {format_ev(get_bp(s), stat_keys)})' for s in targets)}")
 
-        preload_sprites(target_ids)
+        preload_sprites(all_species)
 
         battle_count = 0
-        ev_total = 0
+        encounter_count = 0
+        ev_totals = {k: 0 for k in stat_keys}
 
         while ctx.is_running():
-            ctx.log(f"========== 第 {battle_count + 1} 次遇敌 ==========")
+            encounter_count += 1
+            ctx.log(f"========== 第 {encounter_count} 次遇敌 ==========")
 
             if not use_sweet_scent(ctx):
                 ctx.log("甜甜香气使用失败, 重试...")
@@ -314,50 +327,37 @@ def ev_train(config: EVTrainConfig) -> None:
             frame = ctx.get_frame()
             if frame is None:
                 ctx.log("采集卡未就绪")
-                run_away(ctx)
-                dismiss_battle_end(ctx)
-                continue
+                break
 
-            species_id, score, is_shiny, _fx, _fy = identify_pokemon(
-                frame, candidates=target_ids, threshold=0.0
-            )
+            species_id, score, is_shiny, _, _ = identify_pokemon(frame, candidates=all_species, threshold=0.0)
+
+            bp = get_bp(species_id)
+            name = get_name(species_id) if species_id else "?"
+            prefix = f"{name} ({'闪光' if is_shiny else '普通'}, 匹配度={score:.3f}, {format_ev(bp)})"
 
             if is_shiny:
-                ctx.log("★★★ 闪光宝可梦出现! 脚本停止 ★★★")
+                ctx.log(f"{prefix} -> 停止")
                 ctx.press("CAPTURE", 3000)
                 break
 
-            if species_id is not None and score >= 0.95:
-                sid_str = str(species_id)
-                bp = _BASEPOINTS.get(sid_str, {})
-                zh = bp.get("zh_name", f"#{species_id}")
-                ev = bp.get(stat_key, 0)
-                ctx.log(f"目标: {zh} (匹配度={score:.3f}, {_STAT_ZH[stat_key]}+{ev})")
-
+            if species_id is not None and score >= 0.95 and species_id in targets:
+                ctx.log(f"{prefix} -> 击败")
                 if not defeat_pokemon(ctx):
                     ctx.log("击败失败, 脚本停止")
                     break
-
-                dismiss_battle_end(ctx)
-
+                handle_post_battle(ctx)
                 battle_count += 1
-                ev_total += ev
-                ctx.log(
-                    f"已刷 {battle_count} 场, "
-                    f"累计{_STAT_ZH[stat_key]}努力值: {ev_total}"
-                )
-
-                ctx.press("CAPTURE", 1000)
+                for k in stat_keys:
+                    ev_totals[k] += bp.get(k, 0)
+                totals_str = " ".join(f"{_STAT_ZH[k]}:{ev_totals[k]}" for k in stat_keys)
+                ctx.log(f"已刷 {battle_count} 场, 累计: {totals_str}")
             else:
-                sid_str = str(species_id) if species_id else "?"
-                ctx.log(f"非目标 (species={sid_str}, score={score:.3f}), 逃跑")
+                ctx.log(f"{prefix} -> 逃跑")
                 run_away(ctx)
-                dismiss_battle_end(ctx)
+                handle_post_battle(ctx)
 
-        ctx.log(
-            f"脚本结束。共击败 {battle_count} 只目标宝可梦, "
-            f"累计{_STAT_ZH[stat_key]}努力值: {ev_total}"
-        )
+        ctx.log(f"脚本结束。共遇敌 {encounter_count} 次, 击败 {battle_count} 只目标宝可梦, "
+                f"累计: {' '.join(f'{_STAT_ZH[k]}:{ev_totals[k]}' for k in stat_keys)}")
         ctx.press("CAPTURE", 3000)
 
     run_script(main)
@@ -365,8 +365,8 @@ def ev_train(config: EVTrainConfig) -> None:
 
 if __name__ == "__main__":
     cfg = EVTrainConfig(
-        location="Route 1",
+        location="Route 15",
         category="Grass",
-        base_points="speed",
+        base_points=["speed", "sp_atk"],
     )
     ev_train(cfg)

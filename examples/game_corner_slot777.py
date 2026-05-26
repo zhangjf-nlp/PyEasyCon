@@ -21,8 +21,8 @@ def main(ctx):
         while ctx.is_running():
             for _ in range(3):
                 ctx.press("DOWN")
-            if not ctx.search_label("3代老虎机上3", 90):
-                if not ctx.search_label("3代老虎机下3", 90):
+            if not ctx.search_label("FRLG老虎机上3", 90):
+                if not ctx.search_label("FRLG老虎机下3", 90):
                     break
 
         sleep(0.5)
@@ -46,9 +46,9 @@ def main(ctx):
 
         ctx.hold("A")
         while ctx.is_running():
-            if ctx.search_label("3代老虎机入账", 95):
-                if ctx.search_label("3代老虎机上3", 90):
-                    if ctx.search_label("3代老虎机下3", 90):
+            if ctx.search_label("FRLG老虎机入账", 95):
+                if ctx.search_label("FRLG老虎机上3", 90):
+                    if ctx.search_label("FRLG老虎机下3", 90):
                         break
             sleep(0.2)
         ctx.release("A")
