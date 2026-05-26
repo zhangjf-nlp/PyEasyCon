@@ -2,7 +2,7 @@
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from rng.config import GameSettings, RNGConfig, TimingConfig
+from rng.config import GameSettings, RNGConfig, RNGSlot
 from examples.rng import launch
 
 
@@ -17,11 +17,10 @@ cfg = RNGConfig(
     rng_category="Game Corner",
     rng_location="Game Corner",
     rng_method="Static 1",
-    seed_hex="0727",
-    advances=186130,
+    target=RNGSlot(0x0727, 0, 186130),
     seed_bias=-4950,
     advances_bias=-11054,
-    timing=TimingConfig(operation_seconds=12.0),
+    normal_ms_min=12000,
 )
 
 if __name__ == "__main__":

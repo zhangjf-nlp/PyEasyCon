@@ -1,0 +1,3476 @@
+{
+  "1": {
+    "zh_name": "妙蛙种子",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 1,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "2": {
+    "zh_name": "妙蛙草",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 1,
+    "sp_def": 1,
+    "speed": 0
+  },
+  "3": {
+    "zh_name": "妙蛙花",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 2,
+    "sp_def": 1,
+    "speed": 0
+  },
+  "4": {
+    "zh_name": "小火龙",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 1
+  },
+  "5": {
+    "zh_name": "火恐龙",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 1,
+    "sp_def": 0,
+    "speed": 1
+  },
+  "6": {
+    "zh_name": "喷火龙",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 3,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "7": {
+    "zh_name": "杰尼龟",
+    "hp": 0,
+    "attack": 0,
+    "defense": 1,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "8": {
+    "zh_name": "卡咪龟",
+    "hp": 0,
+    "attack": 0,
+    "defense": 1,
+    "sp_atk": 0,
+    "sp_def": 1,
+    "speed": 0
+  },
+  "9": {
+    "zh_name": "水箭龟",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 3,
+    "speed": 0
+  },
+  "10": {
+    "zh_name": "绿毛虫",
+    "hp": 1,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "11": {
+    "zh_name": "铁甲蛹",
+    "hp": 0,
+    "attack": 0,
+    "defense": 2,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "12": {
+    "zh_name": "巴大蝶",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 2,
+    "sp_def": 1,
+    "speed": 0
+  },
+  "13": {
+    "zh_name": "独角虫",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 1
+  },
+  "14": {
+    "zh_name": "铁壳蛹",
+    "hp": 0,
+    "attack": 0,
+    "defense": 2,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "15": {
+    "zh_name": "大针蜂",
+    "hp": 0,
+    "attack": 2,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 1,
+    "speed": 0
+  },
+  "16": {
+    "zh_name": "波波",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 1
+  },
+  "17": {
+    "zh_name": "比比鸟",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 2
+  },
+  "18": {
+    "zh_name": "大比鸟",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 3
+  },
+  "19": {
+    "zh_name": "小拉达",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 1
+  },
+  "20": {
+    "zh_name": "拉达",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 2
+  },
+  "21": {
+    "zh_name": "烈雀",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 1
+  },
+  "22": {
+    "zh_name": "大嘴雀",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 2
+  },
+  "23": {
+    "zh_name": "阿柏蛇",
+    "hp": 0,
+    "attack": 1,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "24": {
+    "zh_name": "阿柏怪",
+    "hp": 0,
+    "attack": 2,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "25": {
+    "zh_name": "皮卡丘",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 2
+  },
+  "26": {
+    "zh_name": "雷丘",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 3
+  },
+  "27": {
+    "zh_name": "穿山鼠",
+    "hp": 0,
+    "attack": 0,
+    "defense": 1,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "28": {
+    "zh_name": "穿山王",
+    "hp": 0,
+    "attack": 0,
+    "defense": 2,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "29": {
+    "zh_name": "尼多兰",
+    "hp": 1,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "30": {
+    "zh_name": "尼多娜",
+    "hp": 2,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "31": {
+    "zh_name": "尼多后",
+    "hp": 3,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "32": {
+    "zh_name": "尼多朗",
+    "hp": 0,
+    "attack": 1,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "33": {
+    "zh_name": "尼多力诺",
+    "hp": 0,
+    "attack": 2,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "34": {
+    "zh_name": "尼多王",
+    "hp": 0,
+    "attack": 3,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "35": {
+    "zh_name": "皮皮",
+    "hp": 2,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "36": {
+    "zh_name": "皮可西",
+    "hp": 3,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "37": {
+    "zh_name": "六尾",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 1
+  },
+  "38": {
+    "zh_name": "九尾",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 1,
+    "speed": 1
+  },
+  "39": {
+    "zh_name": "胖丁",
+    "hp": 2,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "40": {
+    "zh_name": "胖可丁",
+    "hp": 3,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "41": {
+    "zh_name": "超音蝠",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 1
+  },
+  "42": {
+    "zh_name": "大嘴蝠",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 2
+  },
+  "43": {
+    "zh_name": "走路草",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 1,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "44": {
+    "zh_name": "臭臭花",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 2,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "45": {
+    "zh_name": "霸王花",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 3,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "46": {
+    "zh_name": "派拉斯",
+    "hp": 0,
+    "attack": 1,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "47": {
+    "zh_name": "派拉斯特",
+    "hp": 0,
+    "attack": 2,
+    "defense": 1,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "48": {
+    "zh_name": "毛球",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 1,
+    "speed": 0
+  },
+  "49": {
+    "zh_name": "摩鲁蛾",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 1,
+    "sp_def": 0,
+    "speed": 1
+  },
+  "50": {
+    "zh_name": "地鼠",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 1
+  },
+  "51": {
+    "zh_name": "三地鼠",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 2
+  },
+  "52": {
+    "zh_name": "喵喵",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 1
+  },
+  "53": {
+    "zh_name": "猫老大",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 2
+  },
+  "54": {
+    "zh_name": "可达鸭",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 1,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "55": {
+    "zh_name": "哥达鸭",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 2,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "56": {
+    "zh_name": "猴怪",
+    "hp": 0,
+    "attack": 1,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "57": {
+    "zh_name": "火爆猴",
+    "hp": 0,
+    "attack": 2,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "58": {
+    "zh_name": "卡蒂狗",
+    "hp": 0,
+    "attack": 1,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "59": {
+    "zh_name": "风速狗",
+    "hp": 0,
+    "attack": 2,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "60": {
+    "zh_name": "蚊香蝌蚪",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 1
+  },
+  "61": {
+    "zh_name": "蚊香君",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 2
+  },
+  "62": {
+    "zh_name": "蚊香泳士",
+    "hp": 0,
+    "attack": 0,
+    "defense": 3,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "63": {
+    "zh_name": "凯西",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 1,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "64": {
+    "zh_name": "勇基拉",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 2,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "65": {
+    "zh_name": "胡地",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 3,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "66": {
+    "zh_name": "腕力",
+    "hp": 0,
+    "attack": 1,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "67": {
+    "zh_name": "豪力",
+    "hp": 0,
+    "attack": 2,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "68": {
+    "zh_name": "怪力",
+    "hp": 0,
+    "attack": 3,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "69": {
+    "zh_name": "喇叭芽",
+    "hp": 0,
+    "attack": 1,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "70": {
+    "zh_name": "口呆花",
+    "hp": 0,
+    "attack": 2,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "71": {
+    "zh_name": "大食花",
+    "hp": 0,
+    "attack": 3,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "72": {
+    "zh_name": "玛瑙水母",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 1,
+    "speed": 0
+  },
+  "73": {
+    "zh_name": "毒刺水母",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 2,
+    "speed": 0
+  },
+  "74": {
+    "zh_name": "小拳石",
+    "hp": 0,
+    "attack": 0,
+    "defense": 1,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "75": {
+    "zh_name": "隆隆石",
+    "hp": 0,
+    "attack": 0,
+    "defense": 2,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "76": {
+    "zh_name": "隆隆岩",
+    "hp": 0,
+    "attack": 0,
+    "defense": 3,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "77": {
+    "zh_name": "小火马",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 1
+  },
+  "78": {
+    "zh_name": "烈焰马",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 2
+  },
+  "79": {
+    "zh_name": "呆呆兽",
+    "hp": 1,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "80": {
+    "zh_name": "呆壳兽",
+    "hp": 0,
+    "attack": 0,
+    "defense": 2,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "81": {
+    "zh_name": "小磁怪",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 1,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "82": {
+    "zh_name": "三合一磁怪",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 2,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "83": {
+    "zh_name": "大葱鸭",
+    "hp": 0,
+    "attack": 1,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "84": {
+    "zh_name": "嘟嘟",
+    "hp": 0,
+    "attack": 1,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "85": {
+    "zh_name": "嘟嘟利",
+    "hp": 0,
+    "attack": 2,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "86": {
+    "zh_name": "小海狮",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 1,
+    "speed": 0
+  },
+  "87": {
+    "zh_name": "白海狮",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 2,
+    "speed": 0
+  },
+  "88": {
+    "zh_name": "臭泥",
+    "hp": 1,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "89": {
+    "zh_name": "臭臭泥",
+    "hp": 1,
+    "attack": 1,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "90": {
+    "zh_name": "大舌贝",
+    "hp": 0,
+    "attack": 0,
+    "defense": 1,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "91": {
+    "zh_name": "刺甲贝",
+    "hp": 0,
+    "attack": 0,
+    "defense": 2,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "92": {
+    "zh_name": "鬼斯",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 1,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "93": {
+    "zh_name": "鬼斯通",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 2,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "94": {
+    "zh_name": "耿鬼",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 3,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "95": {
+    "zh_name": "大岩蛇",
+    "hp": 0,
+    "attack": 0,
+    "defense": 1,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "96": {
+    "zh_name": "催眠貘",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 1,
+    "speed": 0
+  },
+  "97": {
+    "zh_name": "引梦貘人",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 2,
+    "speed": 0
+  },
+  "98": {
+    "zh_name": "大钳蟹",
+    "hp": 0,
+    "attack": 1,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "99": {
+    "zh_name": "巨钳蟹",
+    "hp": 0,
+    "attack": 2,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "100": {
+    "zh_name": "霹雳电球",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 1
+  },
+  "101": {
+    "zh_name": "顽皮雷弹",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 2
+  },
+  "102": {
+    "zh_name": "蛋蛋",
+    "hp": 0,
+    "attack": 0,
+    "defense": 1,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "103": {
+    "zh_name": "椰蛋树",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 2,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "104": {
+    "zh_name": "卡拉卡拉",
+    "hp": 0,
+    "attack": 0,
+    "defense": 1,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "105": {
+    "zh_name": "嘎啦嘎啦",
+    "hp": 0,
+    "attack": 0,
+    "defense": 2,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "106": {
+    "zh_name": "飞腿郎",
+    "hp": 0,
+    "attack": 2,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "107": {
+    "zh_name": "快拳郎",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 2,
+    "speed": 0
+  },
+  "108": {
+    "zh_name": "大舌头",
+    "hp": 2,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "109": {
+    "zh_name": "瓦斯弹",
+    "hp": 0,
+    "attack": 0,
+    "defense": 1,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "110": {
+    "zh_name": "双弹瓦斯",
+    "hp": 0,
+    "attack": 0,
+    "defense": 2,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "111": {
+    "zh_name": "独角犀牛",
+    "hp": 0,
+    "attack": 0,
+    "defense": 1,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "112": {
+    "zh_name": "钻角犀兽",
+    "hp": 0,
+    "attack": 2,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "113": {
+    "zh_name": "吉利蛋",
+    "hp": 2,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "114": {
+    "zh_name": "蔓藤怪",
+    "hp": 0,
+    "attack": 0,
+    "defense": 1,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "115": {
+    "zh_name": "袋兽",
+    "hp": 2,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "116": {
+    "zh_name": "墨海马",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 1,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "117": {
+    "zh_name": "海刺龙",
+    "hp": 0,
+    "attack": 0,
+    "defense": 1,
+    "sp_atk": 1,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "118": {
+    "zh_name": "角金鱼",
+    "hp": 0,
+    "attack": 1,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "119": {
+    "zh_name": "金鱼王",
+    "hp": 0,
+    "attack": 2,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "120": {
+    "zh_name": "海星星",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 1
+  },
+  "121": {
+    "zh_name": "宝石海星",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 2
+  },
+  "122": {
+    "zh_name": "魔墙人偶",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 2,
+    "speed": 0
+  },
+  "123": {
+    "zh_name": "飞天螳螂",
+    "hp": 0,
+    "attack": 1,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "124": {
+    "zh_name": "迷唇姐",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 2,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "125": {
+    "zh_name": "电击兽",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 2
+  },
+  "126": {
+    "zh_name": "鸭嘴火兽",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 2,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "127": {
+    "zh_name": "凯罗斯",
+    "hp": 0,
+    "attack": 2,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "128": {
+    "zh_name": "肯泰罗",
+    "hp": 0,
+    "attack": 1,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 1
+  },
+  "129": {
+    "zh_name": "鲤鱼王",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 1
+  },
+  "130": {
+    "zh_name": "暴鲤龙",
+    "hp": 0,
+    "attack": 2,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "131": {
+    "zh_name": "拉普拉斯",
+    "hp": 2,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "132": {
+    "zh_name": "百变怪",
+    "hp": 1,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "133": {
+    "zh_name": "伊布",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 1,
+    "speed": 0
+  },
+  "134": {
+    "zh_name": "水伊布",
+    "hp": 2,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "135": {
+    "zh_name": "雷伊布",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 2
+  },
+  "136": {
+    "zh_name": "火伊布",
+    "hp": 0,
+    "attack": 2,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "137": {
+    "zh_name": "多边兽",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 1,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "138": {
+    "zh_name": "菊石兽",
+    "hp": 0,
+    "attack": 0,
+    "defense": 1,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "139": {
+    "zh_name": "多刺菊石兽",
+    "hp": 0,
+    "attack": 0,
+    "defense": 2,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "140": {
+    "zh_name": "化石盔",
+    "hp": 0,
+    "attack": 0,
+    "defense": 1,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "141": {
+    "zh_name": "镰刀盔",
+    "hp": 0,
+    "attack": 2,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "142": {
+    "zh_name": "化石翼龙",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 2
+  },
+  "143": {
+    "zh_name": "卡比兽",
+    "hp": 2,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "144": {
+    "zh_name": "急冻鸟",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 3,
+    "speed": 0
+  },
+  "145": {
+    "zh_name": "闪电鸟",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 3,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "146": {
+    "zh_name": "火焰鸟",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 3,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "147": {
+    "zh_name": "迷你龙",
+    "hp": 0,
+    "attack": 1,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "148": {
+    "zh_name": "哈克龙",
+    "hp": 0,
+    "attack": 2,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "149": {
+    "zh_name": "快龙",
+    "hp": 0,
+    "attack": 3,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "150": {
+    "zh_name": "超梦",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 3,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "151": {
+    "zh_name": "梦幻",
+    "hp": 3,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "152": {
+    "zh_name": "菊草叶",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 1,
+    "speed": 0
+  },
+  "153": {
+    "zh_name": "月桂叶",
+    "hp": 0,
+    "attack": 0,
+    "defense": 1,
+    "sp_atk": 0,
+    "sp_def": 1,
+    "speed": 0
+  },
+  "154": {
+    "zh_name": "大竺葵",
+    "hp": 0,
+    "attack": 0,
+    "defense": 1,
+    "sp_atk": 0,
+    "sp_def": 2,
+    "speed": 0
+  },
+  "155": {
+    "zh_name": "火球鼠",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 1
+  },
+  "156": {
+    "zh_name": "火岩鼠",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 1,
+    "sp_def": 0,
+    "speed": 1
+  },
+  "157": {
+    "zh_name": "火暴兽",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 3,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "158": {
+    "zh_name": "小锯鳄",
+    "hp": 0,
+    "attack": 1,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "159": {
+    "zh_name": "蓝鳄",
+    "hp": 0,
+    "attack": 1,
+    "defense": 1,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "160": {
+    "zh_name": "大力鳄",
+    "hp": 0,
+    "attack": 2,
+    "defense": 1,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "161": {
+    "zh_name": "尾立",
+    "hp": 0,
+    "attack": 1,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "162": {
+    "zh_name": "大尾立",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 2
+  },
+  "163": {
+    "zh_name": "咕咕",
+    "hp": 1,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "164": {
+    "zh_name": "猫头夜鹰",
+    "hp": 2,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "165": {
+    "zh_name": "芭瓢虫",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 1,
+    "speed": 0
+  },
+  "166": {
+    "zh_name": "安瓢虫",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 2,
+    "speed": 0
+  },
+  "167": {
+    "zh_name": "圆丝蛛",
+    "hp": 0,
+    "attack": 1,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "168": {
+    "zh_name": "阿利多斯",
+    "hp": 0,
+    "attack": 2,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "169": {
+    "zh_name": "叉字蝠",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 3
+  },
+  "170": {
+    "zh_name": "灯笼鱼",
+    "hp": 1,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "171": {
+    "zh_name": "电灯怪",
+    "hp": 2,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "172": {
+    "zh_name": "皮丘",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 1
+  },
+  "173": {
+    "zh_name": "皮宝宝",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 1,
+    "speed": 0
+  },
+  "174": {
+    "zh_name": "宝宝丁",
+    "hp": 1,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "175": {
+    "zh_name": "波克比",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 1,
+    "speed": 0
+  },
+  "176": {
+    "zh_name": "波克基古",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 2,
+    "speed": 0
+  },
+  "177": {
+    "zh_name": "天然雀",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 1,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "178": {
+    "zh_name": "天然鸟",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 1,
+    "sp_def": 0,
+    "speed": 1
+  },
+  "179": {
+    "zh_name": "咩利羊",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 1,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "180": {
+    "zh_name": "茸茸羊",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 2,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "181": {
+    "zh_name": "电龙",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 3,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "182": {
+    "zh_name": "美丽花",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 3,
+    "speed": 0
+  },
+  "183": {
+    "zh_name": "玛力露",
+    "hp": 2,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "184": {
+    "zh_name": "玛力露丽",
+    "hp": 3,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "185": {
+    "zh_name": "树才怪",
+    "hp": 0,
+    "attack": 0,
+    "defense": 2,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "186": {
+    "zh_name": "蚊香蛙皇",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 3,
+    "speed": 0
+  },
+  "187": {
+    "zh_name": "毽子草",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 1,
+    "speed": 0
+  },
+  "188": {
+    "zh_name": "毽子花",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 2
+  },
+  "189": {
+    "zh_name": "毽子棉",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 3
+  },
+  "190": {
+    "zh_name": "长尾怪手",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 1
+  },
+  "191": {
+    "zh_name": "向日种子",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 1,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "192": {
+    "zh_name": "向日花怪",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 2,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "193": {
+    "zh_name": "蜻蜻蜓",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 1
+  },
+  "194": {
+    "zh_name": "乌波",
+    "hp": 1,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "195": {
+    "zh_name": "沼王",
+    "hp": 2,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "196": {
+    "zh_name": "太阳伊布",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 2,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "197": {
+    "zh_name": "月亮伊布",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 2,
+    "speed": 0
+  },
+  "198": {
+    "zh_name": "黑暗鸦",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 1
+  },
+  "199": {
+    "zh_name": "呆呆王",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 3,
+    "speed": 0
+  },
+  "200": {
+    "zh_name": "梦妖",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 1,
+    "sp_def": 1,
+    "speed": 0
+  },
+  "201": {
+    "zh_name": "未知图腾",
+    "hp": 0,
+    "attack": 1,
+    "defense": 0,
+    "sp_atk": 1,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "202": {
+    "zh_name": "果然翁",
+    "hp": 2,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "203": {
+    "zh_name": "麒麟奇",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 2,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "204": {
+    "zh_name": "榛果球",
+    "hp": 0,
+    "attack": 0,
+    "defense": 1,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "205": {
+    "zh_name": "佛烈托斯",
+    "hp": 0,
+    "attack": 0,
+    "defense": 2,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "206": {
+    "zh_name": "土龙弟弟",
+    "hp": 1,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "207": {
+    "zh_name": "天蝎",
+    "hp": 0,
+    "attack": 0,
+    "defense": 1,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "208": {
+    "zh_name": "大钢蛇",
+    "hp": 0,
+    "attack": 0,
+    "defense": 2,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "209": {
+    "zh_name": "布鲁",
+    "hp": 0,
+    "attack": 1,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "210": {
+    "zh_name": "布鲁皇",
+    "hp": 0,
+    "attack": 2,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "211": {
+    "zh_name": "千针鱼",
+    "hp": 0,
+    "attack": 1,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "212": {
+    "zh_name": "巨钳螳螂",
+    "hp": 0,
+    "attack": 2,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "213": {
+    "zh_name": "壶壶",
+    "hp": 0,
+    "attack": 0,
+    "defense": 1,
+    "sp_atk": 0,
+    "sp_def": 1,
+    "speed": 0
+  },
+  "214": {
+    "zh_name": "赫拉克罗斯",
+    "hp": 0,
+    "attack": 2,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "215": {
+    "zh_name": "狃拉",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 1
+  },
+  "216": {
+    "zh_name": "熊宝宝",
+    "hp": 0,
+    "attack": 1,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "217": {
+    "zh_name": "圈圈熊",
+    "hp": 0,
+    "attack": 2,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "218": {
+    "zh_name": "熔岩虫",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 1,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "219": {
+    "zh_name": "熔岩蜗牛",
+    "hp": 0,
+    "attack": 0,
+    "defense": 2,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "220": {
+    "zh_name": "小山猪",
+    "hp": 0,
+    "attack": 1,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "221": {
+    "zh_name": "长毛猪",
+    "hp": 1,
+    "attack": 1,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "222": {
+    "zh_name": "太阳珊瑚",
+    "hp": 0,
+    "attack": 0,
+    "defense": 1,
+    "sp_atk": 0,
+    "sp_def": 1,
+    "speed": 0
+  },
+  "223": {
+    "zh_name": "铁炮鱼",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 1,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "224": {
+    "zh_name": "章鱼桶",
+    "hp": 0,
+    "attack": 1,
+    "defense": 0,
+    "sp_atk": 1,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "225": {
+    "zh_name": "信使鸟",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 1
+  },
+  "226": {
+    "zh_name": "巨翅飞鱼",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 2,
+    "speed": 0
+  },
+  "227": {
+    "zh_name": "盔甲鸟",
+    "hp": 0,
+    "attack": 0,
+    "defense": 2,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "228": {
+    "zh_name": "戴鲁比",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 1,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "229": {
+    "zh_name": "黑鲁加",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 2,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "230": {
+    "zh_name": "刺龙王",
+    "hp": 0,
+    "attack": 1,
+    "defense": 0,
+    "sp_atk": 1,
+    "sp_def": 1,
+    "speed": 0
+  },
+  "231": {
+    "zh_name": "小小象",
+    "hp": 1,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "232": {
+    "zh_name": "顿甲",
+    "hp": 0,
+    "attack": 1,
+    "defense": 1,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "233": {
+    "zh_name": "多边兽Ⅱ",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 2,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "234": {
+    "zh_name": "惊角鹿",
+    "hp": 0,
+    "attack": 1,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "235": {
+    "zh_name": "图图犬",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 1
+  },
+  "236": {
+    "zh_name": "无畏小子",
+    "hp": 0,
+    "attack": 1,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "237": {
+    "zh_name": "战舞郎",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 2,
+    "speed": 0
+  },
+  "238": {
+    "zh_name": "迷唇娃",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 1,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "239": {
+    "zh_name": "电击怪",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 1
+  },
+  "240": {
+    "zh_name": "鸭嘴宝宝",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 1
+  },
+  "241": {
+    "zh_name": "大奶罐",
+    "hp": 0,
+    "attack": 0,
+    "defense": 2,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "242": {
+    "zh_name": "幸福蛋",
+    "hp": 3,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "243": {
+    "zh_name": "雷公",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 1,
+    "sp_def": 0,
+    "speed": 2
+  },
+  "244": {
+    "zh_name": "炎帝",
+    "hp": 1,
+    "attack": 2,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "245": {
+    "zh_name": "水君",
+    "hp": 0,
+    "attack": 0,
+    "defense": 1,
+    "sp_atk": 0,
+    "sp_def": 2,
+    "speed": 0
+  },
+  "246": {
+    "zh_name": "幼基拉斯",
+    "hp": 0,
+    "attack": 1,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "247": {
+    "zh_name": "沙基拉斯",
+    "hp": 0,
+    "attack": 2,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "248": {
+    "zh_name": "班基拉斯",
+    "hp": 0,
+    "attack": 3,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "249": {
+    "zh_name": "洛奇亚",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 3,
+    "speed": 0
+  },
+  "250": {
+    "zh_name": "凤王",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 3,
+    "speed": 0
+  },
+  "251": {
+    "zh_name": "时拉比",
+    "hp": 3,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "252": {
+    "zh_name": "木守宫",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 1
+  },
+  "253": {
+    "zh_name": "森林蜥蜴",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 2
+  },
+  "254": {
+    "zh_name": "蜥蜴王",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 3
+  },
+  "255": {
+    "zh_name": "火稚鸡",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 1,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "256": {
+    "zh_name": "力壮鸡",
+    "hp": 0,
+    "attack": 1,
+    "defense": 0,
+    "sp_atk": 1,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "257": {
+    "zh_name": "火焰鸡",
+    "hp": 0,
+    "attack": 3,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "258": {
+    "zh_name": "水跃鱼",
+    "hp": 0,
+    "attack": 1,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "259": {
+    "zh_name": "沼跃鱼",
+    "hp": 0,
+    "attack": 2,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "260": {
+    "zh_name": "巨沼怪",
+    "hp": 0,
+    "attack": 3,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "261": {
+    "zh_name": "土狼犬",
+    "hp": 0,
+    "attack": 1,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "262": {
+    "zh_name": "大狼犬",
+    "hp": 0,
+    "attack": 2,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "263": {
+    "zh_name": "蛇纹熊",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 1
+  },
+  "264": {
+    "zh_name": "直冲熊",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 2
+  },
+  "265": {
+    "zh_name": "刺尾虫",
+    "hp": 1,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "266": {
+    "zh_name": "甲壳茧",
+    "hp": 0,
+    "attack": 0,
+    "defense": 2,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "267": {
+    "zh_name": "狩猎凤蝶",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 3,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "268": {
+    "zh_name": "盾甲茧",
+    "hp": 0,
+    "attack": 0,
+    "defense": 2,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "269": {
+    "zh_name": "毒粉蛾",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 3,
+    "speed": 0
+  },
+  "270": {
+    "zh_name": "莲叶童子",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 1,
+    "speed": 0
+  },
+  "271": {
+    "zh_name": "莲帽小童",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 2,
+    "speed": 0
+  },
+  "272": {
+    "zh_name": "乐天河童",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 3,
+    "speed": 0
+  },
+  "273": {
+    "zh_name": "橡实果",
+    "hp": 0,
+    "attack": 0,
+    "defense": 1,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "274": {
+    "zh_name": "长鼻叶",
+    "hp": 0,
+    "attack": 2,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "275": {
+    "zh_name": "狡猾天狗",
+    "hp": 0,
+    "attack": 3,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "276": {
+    "zh_name": "傲骨燕",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 1
+  },
+  "277": {
+    "zh_name": "大王燕",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 2
+  },
+  "278": {
+    "zh_name": "长翅鸥",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 1
+  },
+  "279": {
+    "zh_name": "大嘴鸥",
+    "hp": 0,
+    "attack": 0,
+    "defense": 2,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "280": {
+    "zh_name": "拉鲁拉丝",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 1,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "281": {
+    "zh_name": "奇鲁莉安",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 2,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "282": {
+    "zh_name": "沙奈朵",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 3,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "283": {
+    "zh_name": "溜溜糖球",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 1
+  },
+  "284": {
+    "zh_name": "雨翅蛾",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 1,
+    "sp_def": 1,
+    "speed": 0
+  },
+  "285": {
+    "zh_name": "蘑蘑菇",
+    "hp": 1,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "286": {
+    "zh_name": "斗笠菇",
+    "hp": 0,
+    "attack": 2,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "287": {
+    "zh_name": "懒人獭",
+    "hp": 1,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "288": {
+    "zh_name": "过动猿",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 2
+  },
+  "289": {
+    "zh_name": "请假王",
+    "hp": 3,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "290": {
+    "zh_name": "土居忍士",
+    "hp": 0,
+    "attack": 0,
+    "defense": 1,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "291": {
+    "zh_name": "铁面忍者",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 2
+  },
+  "292": {
+    "zh_name": "脱壳忍者",
+    "hp": 2,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "293": {
+    "zh_name": "咕妞妞",
+    "hp": 1,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "294": {
+    "zh_name": "吼爆弹",
+    "hp": 2,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "295": {
+    "zh_name": "爆音怪",
+    "hp": 3,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "296": {
+    "zh_name": "幕下力士",
+    "hp": 1,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "297": {
+    "zh_name": "铁掌力士",
+    "hp": 2,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "298": {
+    "zh_name": "露力丽",
+    "hp": 1,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "299": {
+    "zh_name": "朝北鼻",
+    "hp": 0,
+    "attack": 0,
+    "defense": 1,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "300": {
+    "zh_name": "向尾喵",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 1
+  },
+  "301": {
+    "zh_name": "优雅猫",
+    "hp": 1,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 1
+  },
+  "302": {
+    "zh_name": "勾魂眼",
+    "hp": 0,
+    "attack": 1,
+    "defense": 1,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "303": {
+    "zh_name": "大嘴娃",
+    "hp": 0,
+    "attack": 1,
+    "defense": 1,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "304": {
+    "zh_name": "可可多拉",
+    "hp": 0,
+    "attack": 0,
+    "defense": 1,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "305": {
+    "zh_name": "可多拉",
+    "hp": 0,
+    "attack": 0,
+    "defense": 2,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "306": {
+    "zh_name": "波士可多拉",
+    "hp": 0,
+    "attack": 0,
+    "defense": 3,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "307": {
+    "zh_name": "玛沙那",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 1
+  },
+  "308": {
+    "zh_name": "恰雷姆",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 2
+  },
+  "309": {
+    "zh_name": "落雷兽",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 1
+  },
+  "310": {
+    "zh_name": "雷电兽",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 2
+  },
+  "311": {
+    "zh_name": "正电拍拍",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 1
+  },
+  "312": {
+    "zh_name": "负电拍拍",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 1
+  },
+  "313": {
+    "zh_name": "电萤虫",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 1
+  },
+  "314": {
+    "zh_name": "甜甜萤",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 1
+  },
+  "315": {
+    "zh_name": "毒蔷薇",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 1,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "316": {
+    "zh_name": "溶食兽",
+    "hp": 1,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "317": {
+    "zh_name": "吞食兽",
+    "hp": 2,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "318": {
+    "zh_name": "利牙鱼",
+    "hp": 0,
+    "attack": 1,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "319": {
+    "zh_name": "巨牙鲨",
+    "hp": 0,
+    "attack": 2,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "320": {
+    "zh_name": "吼吼鲸",
+    "hp": 1,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "321": {
+    "zh_name": "吼鲸王",
+    "hp": 2,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "322": {
+    "zh_name": "呆火驼",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 1,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "323": {
+    "zh_name": "喷火驼",
+    "hp": 0,
+    "attack": 1,
+    "defense": 0,
+    "sp_atk": 1,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "324": {
+    "zh_name": "煤炭龟",
+    "hp": 0,
+    "attack": 0,
+    "defense": 2,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "325": {
+    "zh_name": "跳跳猪",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 1,
+    "speed": 0
+  },
+  "326": {
+    "zh_name": "噗噗猪",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 2,
+    "speed": 0
+  },
+  "327": {
+    "zh_name": "晃晃斑",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 1,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "328": {
+    "zh_name": "大颚蚁",
+    "hp": 0,
+    "attack": 1,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "329": {
+    "zh_name": "超音波幼虫",
+    "hp": 0,
+    "attack": 1,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 1
+  },
+  "330": {
+    "zh_name": "沙漠蜻蜓",
+    "hp": 0,
+    "attack": 1,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 2
+  },
+  "331": {
+    "zh_name": "刺球仙人掌",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 1,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "332": {
+    "zh_name": "梦歌仙人掌",
+    "hp": 0,
+    "attack": 1,
+    "defense": 0,
+    "sp_atk": 1,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "333": {
+    "zh_name": "青绵鸟",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 1,
+    "speed": 0
+  },
+  "334": {
+    "zh_name": "七夕青鸟",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 2,
+    "speed": 0
+  },
+  "335": {
+    "zh_name": "猫鼬斩",
+    "hp": 0,
+    "attack": 2,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "336": {
+    "zh_name": "饭匙蛇",
+    "hp": 0,
+    "attack": 1,
+    "defense": 0,
+    "sp_atk": 1,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "337": {
+    "zh_name": "月石",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 2,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "338": {
+    "zh_name": "太阳岩",
+    "hp": 0,
+    "attack": 2,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "339": {
+    "zh_name": "泥泥鳅",
+    "hp": 1,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "340": {
+    "zh_name": "鲶鱼王",
+    "hp": 2,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "341": {
+    "zh_name": "龙虾小兵",
+    "hp": 0,
+    "attack": 1,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "342": {
+    "zh_name": "铁螯龙虾",
+    "hp": 0,
+    "attack": 2,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "343": {
+    "zh_name": "天秤偶",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 1,
+    "speed": 0
+  },
+  "344": {
+    "zh_name": "念力土偶",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 2,
+    "speed": 0
+  },
+  "345": {
+    "zh_name": "触手百合",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 1,
+    "speed": 0
+  },
+  "346": {
+    "zh_name": "摇篮百合",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 2,
+    "speed": 0
+  },
+  "347": {
+    "zh_name": "太古羽虫",
+    "hp": 0,
+    "attack": 1,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "348": {
+    "zh_name": "太古盔甲",
+    "hp": 0,
+    "attack": 2,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "349": {
+    "zh_name": "丑丑鱼",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 1
+  },
+  "350": {
+    "zh_name": "美纳斯",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 2,
+    "speed": 0
+  },
+  "351": {
+    "zh_name": "飘浮泡泡",
+    "hp": 1,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "352": {
+    "zh_name": "变隐龙",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 1,
+    "speed": 0
+  },
+  "353": {
+    "zh_name": "怨影娃娃",
+    "hp": 0,
+    "attack": 1,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "354": {
+    "zh_name": "诅咒娃娃",
+    "hp": 0,
+    "attack": 2,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "355": {
+    "zh_name": "夜巡灵",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 1,
+    "speed": 0
+  },
+  "356": {
+    "zh_name": "彷徨夜灵",
+    "hp": 0,
+    "attack": 0,
+    "defense": 1,
+    "sp_atk": 0,
+    "sp_def": 1,
+    "speed": 0
+  },
+  "357": {
+    "zh_name": "热带龙",
+    "hp": 2,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "358": {
+    "zh_name": "风铃铃",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 1,
+    "sp_def": 1,
+    "speed": 0
+  },
+  "359": {
+    "zh_name": "阿勃梭鲁",
+    "hp": 0,
+    "attack": 2,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "360": {
+    "zh_name": "小果然",
+    "hp": 1,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "361": {
+    "zh_name": "雪童子",
+    "hp": 1,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "362": {
+    "zh_name": "冰鬼护",
+    "hp": 2,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "363": {
+    "zh_name": "海豹球",
+    "hp": 1,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "364": {
+    "zh_name": "海魔狮",
+    "hp": 2,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "365": {
+    "zh_name": "帝牙海狮",
+    "hp": 3,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "366": {
+    "zh_name": "珍珠贝",
+    "hp": 0,
+    "attack": 0,
+    "defense": 1,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "367": {
+    "zh_name": "猎斑鱼",
+    "hp": 0,
+    "attack": 1,
+    "defense": 1,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "368": {
+    "zh_name": "樱花鱼",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 2,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "369": {
+    "zh_name": "古空棘鱼",
+    "hp": 1,
+    "attack": 0,
+    "defense": 1,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "370": {
+    "zh_name": "爱心鱼",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 1
+  },
+  "371": {
+    "zh_name": "宝贝龙",
+    "hp": 0,
+    "attack": 1,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "372": {
+    "zh_name": "甲壳龙",
+    "hp": 0,
+    "attack": 0,
+    "defense": 2,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "373": {
+    "zh_name": "暴飞龙",
+    "hp": 0,
+    "attack": 3,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "374": {
+    "zh_name": "铁哑铃",
+    "hp": 0,
+    "attack": 0,
+    "defense": 1,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "375": {
+    "zh_name": "金属怪",
+    "hp": 0,
+    "attack": 0,
+    "defense": 2,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "376": {
+    "zh_name": "巨金怪",
+    "hp": 0,
+    "attack": 0,
+    "defense": 3,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "377": {
+    "zh_name": "雷吉洛克",
+    "hp": 0,
+    "attack": 0,
+    "defense": 3,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "378": {
+    "zh_name": "雷吉艾斯",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 3,
+    "speed": 0
+  },
+  "379": {
+    "zh_name": "雷吉斯奇鲁",
+    "hp": 0,
+    "attack": 0,
+    "defense": 2,
+    "sp_atk": 0,
+    "sp_def": 1,
+    "speed": 0
+  },
+  "380": {
+    "zh_name": "拉帝亚斯",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 3,
+    "speed": 0
+  },
+  "381": {
+    "zh_name": "拉帝欧斯",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 3,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "382": {
+    "zh_name": "盖欧卡",
+    "hp": 0,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 3,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "383": {
+    "zh_name": "固拉多",
+    "hp": 0,
+    "attack": 3,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "384": {
+    "zh_name": "烈空坐",
+    "hp": 0,
+    "attack": 2,
+    "defense": 0,
+    "sp_atk": 1,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "385": {
+    "zh_name": "基拉祈",
+    "hp": 3,
+    "attack": 0,
+    "defense": 0,
+    "sp_atk": 0,
+    "sp_def": 0,
+    "speed": 0
+  },
+  "386": {
+    "zh_name": "代欧奇希斯",
+    "hp": 0,
+    "attack": 1,
+    "defense": 0,
+    "sp_atk": 1,
+    "sp_def": 0,
+    "speed": 1
+  }
+}

@@ -27,7 +27,7 @@ def hit_init_seed(ctx: ScriptContext, cfg: RNGConfig) -> None:
     if eb in ["blackout_r", "blackout_l"]:
         ctx.log(f"hold {eb[-1].upper()}")
         ctx.hold(eb[-1].upper())
-    sleep(cfg.seed_ms / 1000.0)
+    sleep(cfg.schedule.seed_ms / 1000.0)
     if eb in ["blackout_r", "blackout_l"]:
         ctx.log(f"release {eb[-1].upper()}")
         ctx.release(eb[-1].upper())
@@ -49,14 +49,14 @@ def hit_init_seed(ctx: ScriptContext, cfg: RNGConfig) -> None:
 
 def hit_tv_frame(ctx: ScriptContext, cfg: RNGConfig) -> None:
     ctx.press("Y")
-    sleep(cfg.advances_ms_tv / 1000.0)
+    sleep(cfg.schedule.advances_ms_tv / 1000.0)
     ctx.press("B")
     sleep(1.0)
 
 
 def hit_sweet_scent(ctx: ScriptContext, cfg: RNGConfig) -> None:
     start = time.time()
-    end = start + cfg.advances_ms_normal / 1000.0
+    end = start + cfg.schedule.advances_ms_normal / 1000.0
     ctx.press("X")
     sleep(1.0)
     ctx.press("DOWN")
@@ -72,7 +72,7 @@ def hit_sweet_scent(ctx: ScriptContext, cfg: RNGConfig) -> None:
 
 def hit_super_rod(ctx: ScriptContext, cfg: RNGConfig) -> None:
     start = time.time()
-    end = start + cfg.advances_ms_normal / 1000.0
+    end = start + cfg.schedule.advances_ms_normal / 1000.0
     ctx.press("X")
     sleep(1.0)
     ctx.press("DOWN")
@@ -87,7 +87,7 @@ def hit_super_rod(ctx: ScriptContext, cfg: RNGConfig) -> None:
         if ctx.search_label("3代关键词SuperRod选中", 99):
             break
         ctx.press("DOWN")
-        sleep(0.5)
+        sleep(0.3)
     else:
         ctx.log('未找到超级钓竿')
         return
@@ -100,7 +100,7 @@ def hit_super_rod(ctx: ScriptContext, cfg: RNGConfig) -> None:
 
 def hit_game_corner(ctx: ScriptContext, cfg: RNGConfig) -> None:
     start = time.time()
-    end = start + cfg.advances_ms_normal / 1000.0
+    end = start + cfg.schedule.advances_ms_normal / 1000.0
     ctx.press("A")
     sleep(1.5)
     ctx.press("A")
@@ -127,7 +127,7 @@ def hit_game_corner(ctx: ScriptContext, cfg: RNGConfig) -> None:
 
 def hit_gift(ctx: ScriptContext, cfg: RNGConfig) -> None:
     start = time.time()
-    end = start + cfg.advances_ms_normal / 1000.0
+    end = start + cfg.schedule.advances_ms_normal / 1000.0
     sleep(0.0, end)
     ctx.press("A")
     sleep(3.0)
@@ -137,7 +137,7 @@ def hit_gift(ctx: ScriptContext, cfg: RNGConfig) -> None:
 def hit(ctx: ScriptContext, cfg: RNGConfig) -> bool:
     ctx.log("--- RNG 流程启动 ---")
     hit_init_seed(ctx, cfg)
-    if cfg.advances_ms_tv > 0:
+    if cfg.schedule.advances_ms_tv > 0:
         hit_tv_frame(ctx, cfg)
     if cfg.rng_category in ["Grass", "Surfing"]:
         hit_sweet_scent(ctx, cfg)

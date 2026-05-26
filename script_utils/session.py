@@ -1,13 +1,12 @@
 import json
 import os
 import time
-from dataclasses import asdict
 from typing import Any, Dict, List, Optional
 
 from easycon.config import get
 from easycon.context import ScriptContext
-from rng.calibration import calibrate, n_combos, _obs_to_iv_range, RNGAttempt, RNGSlot
-from rng.config import RNGConfig, SessionState
+from rng.calibration import calibrate, n_combos, _obs_to_iv_range, RNGAttempt
+from rng.config import RNGConfig, SessionState, RNGSlot, RNGDisplacement
 from rng.tenlines_utils import IVsObservation, get_species_id, get_personal
 from script_utils.hit import sleep
 
@@ -29,19 +28,16 @@ def init_log_dir(ctx: ScriptContext, state: SessionState, cfg: RNGConfig) -> str
         "rng_method": cfg.rng_method,
         "game_version": cfg.game_version,
         "game_settings": vars(cfg.game_settings) if hasattr(cfg.game_settings, "__dict__") else {},
-        "seed_hex": cfg.seed_hex,
-        "advances": cfg.advances,
+        "seed_hex": f"{cfg.target.seed_hex:04X}",
+        "advances": cfg.target.advances,
         "seed_bias": cfg.seed_bias,
         "advances_bias": cfg.advances_bias,
-        "timing": asdict(cfg.timing),
+        "seed_time": cfg.target.seed_time,
+        "seed_ms": cfg.schedule.seed_ms,
+        "advances_ms_tv": cfg.schedule.advances_ms_tv,
+        "advances_ms_normal": cfg.schedule.advances_ms_normal,
         "precicase_combos": cfg.precicase_combos,
         "max_candies": cfg.max_candies,
-        "seed_time": cfg.seed_time,
-        "seed_time_unbiased": cfg.seed_time_unbiased,
-        "seed_ms": cfg.seed_ms,
-        "advances_unbiased": cfg.advances_unbiased,
-        "advances_ms_tv": cfg.advances_ms_tv,
-        "advances_ms_normal": cfg.advances_ms_normal,
     }
     with open(f"{d}/settings.json", "w", encoding="utf-8") as f:
         json.dump(cfg_dict, f, ensure_ascii=False, indent=2)
@@ -85,42 +81,45 @@ def run_calibration(ctx: ScriptContext, state: SessionState, cfg: RNGConfig) -> 
 
     result = calibrate(cfg, state)
 
-    t = cfg.timing
-    new_seed_bias = cfg.seed_bias + result["seed_bias"]
-    new_seed_time_unbiased = cfg.seed_time - new_seed_bias
-    new_seed_ms = int(new_seed_time_unbiased / t.fps_seed * 1000)
+    ds = result["ds"]
+    dt = result["dt"]
+    dn = result["dn"]
 
-    new_adv_unbiased = cfg.advances - (cfg.advances_bias + result["adv_bias"])
-    if cfg.advances < 10000:
-        new_adv_ms_tv = 0
-    else:
-        advances_operation = int(t.operation_seconds * t.fps_normal)
-        raw_tv_ms = (new_adv_unbiased - advances_operation) * 1000 // t.fps_tv
-        new_adv_ms_tv = (raw_tv_ms // 16) * 16
+    predicted_seed_ms = cfg.schedule.seed_ms - ds * 16
+    predicted_tv_ms = cfg.schedule.advances_ms_tv - dt * 16
 
     seed_ms_min = get("rng.calibration.seed_ms_min", 35000)
     seed_ms_max = get("rng.calibration.seed_ms_max", 60000)
     tv_ms_min = get("rng.calibration.tv_ms_min", 3000)
 
-    if new_seed_ms < seed_ms_min:
-        ctx.log(f"[reject] Seed takes {new_seed_ms}ms < {seed_ms_min}ms，拒绝校准")
+    if predicted_seed_ms < seed_ms_min:
+        ctx.log(f"[reject] Seed takes {predicted_seed_ms}ms < {seed_ms_min}ms")
         return
-    if new_seed_ms > seed_ms_max:
-        ctx.log(f"[reject] Seed takes {new_seed_ms}ms > {seed_ms_max}ms，拒绝校准")
+    if predicted_seed_ms > seed_ms_max:
+        ctx.log(f"[reject] Seed takes {predicted_seed_ms}ms > {seed_ms_max}ms")
         return
-    if new_adv_ms_tv < tv_ms_min:
-        ctx.log(f"[reject] TV takes {new_adv_ms_tv}ms < {tv_ms_min}ms，拒绝校准")
+    if predicted_tv_ms < tv_ms_min and cfg.target.advances >= 10000:
+        ctx.log(f"[reject] TV takes {predicted_tv_ms}ms < {tv_ms_min}ms")
         return
 
-    cfg.apply_calibration(result["seed_bias"], result["adv_bias"])
-    ctx.log(f"SeedTime={cfg.seed_time}ms Advances={cfg.advances}")
+    cfg.schedule.apply_calibration(RNGDisplacement(ds=ds, dt=dt, dn=dn))
+    cfg.seed_bias += result["seed_bias"]
+    cfg.advances_bias += result["adv_bias"]
+
+    ctx.log(f"SeedTime={cfg.target.seed_time}ms Advances={cfg.target.advances}")
     ctx.log(f"SeedBias={cfg.seed_bias} AdvancesBias={cfg.advances_bias}")
     ctx.log(
-        f"Seed takes {cfg.seed_ms}ms | TV takes {cfg.advances_ms_tv}ms "
-        f"| Normal takes {cfg.advances_ms_normal}ms"
+        f"Seed takes {cfg.schedule.seed_ms}ms | TV takes {cfg.schedule.advances_ms_tv}ms "
+        f"| Normal takes {cfg.schedule.advances_ms_normal}ms"
     )
 
-    if result["seed_converged"] and result["advances_converged"]:
+    converged = (
+        state.coldstart_done
+        and result["major_l1_converged"]
+        and result["median_l2_converged"]
+    )
+
+    if converged:
         state.fast_attempts = cfg.max_fast_attempts
         ctx.log(f"[convergence] fast_attempts={cfg.max_fast_attempts}")
     else:
@@ -247,8 +246,7 @@ def observe_pokemon(ctx: ScriptContext, state: SessionState, cfg: RNGConfig, att
         else:
             break
 
-    target = RNGSlot(0, cfg.seed_time, cfg.advances)
-    rng_attempt = RNGAttempt(attempt, state.attempts_ocr_data.get(attempt, []), target, cfg)
+    rng_attempt = RNGAttempt(attempt, state.attempts_ocr_data.get(attempt, []), cfg.target, cfg)
 
     if not rng_attempt.is_valid:
         ctx.log(f"[invalid] #{attempt} -> no result")

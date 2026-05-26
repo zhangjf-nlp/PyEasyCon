@@ -117,3 +117,4 @@ rng:
     seed_ms_min: 33000
     seed_ms_max: 72000
     tv_ms_min: 3000
+    normal_ms_min: 10000

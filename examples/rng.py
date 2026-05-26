@@ -20,17 +20,17 @@ def launch(cfg: RNGConfig, state: SessionState = None) -> None:
         init_log_dir(ctx, state, cfg)
 
         ctx.log(f"GameSettings: {cfg.game_settings}")
-        ctx.log(f"SeedTime={cfg.seed_time}ms Advances={cfg.advances}")
+        ctx.log(f"SeedTime={cfg.target.seed_time}ms Advances={cfg.target.advances}")
         ctx.log(f"SeedBias={cfg.seed_bias} AdvancesBias={cfg.advances_bias}")
         ctx.log(
-            f"Seed takes {cfg.seed_ms}ms | TV takes {cfg.advances_ms_tv}ms "
-            f"| Normal takes {cfg.advances_ms_normal}ms"
+            f"Seed takes {cfg.schedule.seed_ms}ms | TV takes {cfg.schedule.advances_ms_tv}ms "
+            f"| Normal takes {cfg.schedule.advances_ms_normal}ms"
         )
 
-        if cfg.seed_ms < 35000:
-            ctx.log(f'[Warning] Too low seed time: {cfg.seed_ms}ms')
-        if cfg.advances_ms_tv < 1000:
-            ctx.log(f'[Warning] Too low TV time: {cfg.advances_ms_tv}ms')
+        if cfg.schedule.seed_ms < 35000:
+            ctx.log(f'[Warning] Too low seed time: {cfg.schedule.seed_ms}ms')
+        if cfg.schedule.advances_ms_tv < 1000:
+            ctx.log(f'[Warning] Too low TV time: {cfg.schedule.advances_ms_tv}ms')
 
         state.attempt_index = 0
         while ctx.is_running():

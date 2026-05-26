@@ -1,4 +1,3 @@
-import math
 from typing import Dict, List, Optional, Tuple
 
 import numpy as np
@@ -9,56 +8,12 @@ from rng.tenlines_utils import (
     GameSettings, IVsObservation, NATURES,
     get_species_id, get_personal,
 )
-from rng.config import RNGConfig, SessionState
+from rng.config import RNGConfig, SessionState, RNGSlot, SEED_PERIOD, ADV_PERIOD
 
 WIDE_SEED_BIAS = 5000
 WIDE_ADV_BIAS = 50000
 
-SEED_PERIOD = 16
-ADV_PERIOD = 314
-
 _NATURES_LOWER = {n.lower(): n for n in NATURES}
-
-
-class RNGDisplacement:
-    __slots__ = ("ds", "dt", "dn")
-
-    def __init__(self, ds: int, dt: int, dn: int) -> None:
-        self.ds = ds
-        self.dt = dt
-        self.dn = dn
-
-    @property
-    def l1(self) -> int:
-        return abs(self.ds) + abs(self.dt) + abs(self.dn)
-
-    @property
-    def l2(self) -> float:
-        return math.sqrt(self.ds ** 2 + self.dt ** 2 + self.dn ** 2)
-
-    def to_array(self) -> np.ndarray:
-        return np.array([self.ds, self.dt, self.dn], dtype=float)
-
-    def __repr__(self) -> str:
-        return f"RNGDisplacement(ds={self.ds:+d}, dt={self.dt:+d}, dn={self.dn:+d})"
-
-
-class RNGSlot:
-    __slots__ = ("seed_hex", "seed_time", "advances")
-
-    def __init__(self, seed_hex: int, seed_time: int, advances: int) -> None:
-        self.seed_hex = seed_hex
-        self.seed_time = seed_time
-        self.advances = advances
-
-    def __sub__(self, other: "RNGSlot") -> RNGDisplacement:
-        delta_s = round((self.seed_time - other.seed_time) / SEED_PERIOD)
-        delta_t = round((self.advances - other.advances) / ADV_PERIOD)
-        delta_n = self.advances - delta_t * ADV_PERIOD - other.advances
-        return RNGDisplacement(delta_s, delta_t, delta_n)
-
-    def __repr__(self) -> str:
-        return f"RNGSlot(0x{self.seed_hex:04X}, {self.seed_time}ms, {self.advances})"
 
 
 def _slot_dist_key(a: RNGSlot, b: RNGSlot) -> Tuple[int, float]:
@@ -91,7 +46,7 @@ def n_combos(lo: List[int], hi: List[int]) -> int:
     return result
 
 
-def _parse_attempt(
+def parse_entries(
     entries: List[dict],
 ) -> Tuple[List[IVsObservation], str, Optional[str], Optional[str], Optional[int], Optional[str]]:
     obs_list: List[IVsObservation] = []
@@ -135,7 +90,7 @@ def _search(
     ability: Optional[str],
     caught_level: Optional[int],
     pokemon: str,
-    seed_hex: str,
+    seed_hex_str: str,
     advances: int,
     trainer_id: int,
     secret_id: int,
@@ -149,7 +104,7 @@ def _search(
 ) -> List:
     return _api(
         game=game, console="NX", tid=trainer_id, sid=secret_id,
-        method=method, seed=seed_hex, advances=advances,
+        method=method, seed=seed_hex_str, advances=advances,
         settings=game_settings,
         seed_bias=seed_bias, advances_bias=adv_bias,
         nature=nature, gender=gender, ability=ability,
@@ -166,7 +121,7 @@ class RNGAttempt:
         self.cfg = cfg
 
         self.obs_list, self.nature, self.gender, self.ability, self.caught_level, self.pokemon = \
-            _parse_attempt(self.entries)
+            parse_entries(self.entries)
         if not self.obs_list or self.pokemon is None:
             return
         base_stats = get_personal(get_species_id(self.pokemon))["stats"]
@@ -176,7 +131,7 @@ class RNGAttempt:
         results = _search(
             self.obs_list, self.nature, self.gender, self.ability,
             self.caught_level, self.pokemon,
-            self.cfg.seed_hex, self.cfg.advances,
+            f"{self.cfg.target.seed_hex:04X}", self.cfg.target.advances,
             self.cfg.trainer_id, self.cfg.secret_id, self.cfg.game_settings,
             WIDE_SEED_BIAS, WIDE_ADV_BIAS,
             self.cfg.game_version, self.cfg.rng_method,
@@ -220,7 +175,7 @@ def calibrate(cfg: RNGConfig, state: SessionState) -> dict:
     if not attempts:
         raise ValueError("无有效观测数据")
 
-    target = RNGSlot(cfg.seed_hex, cfg.seed_time, cfg.advances)
+    target = cfg.target
 
     print(f"[calibrate] {len(attempts)} valid attempts "
           f"({sum(1 for a in attempts if a.is_precise)} precise, "
@@ -271,39 +226,32 @@ def calibrate(cfg: RNGConfig, state: SessionState) -> dict:
     deltas = np.array([(obs - target).to_array() for obs in observed_slots])
     median_deltas = np.median(deltas, axis=0)
 
-    ds = int(round(median_deltas[0]))
-    dt = int(round(median_deltas[1]))
-    dn = int(round(median_deltas[2]))
+    ds = int(median_deltas[0])
+    dt = int(median_deltas[1])
+    dn = int(median_deltas[2])
 
     seed_bias_delta = ds * SEED_PERIOD
     adv_bias_delta = dt * ADV_PERIOD + dn
 
-    m0 = np.mean(deltas ** 2, axis=0)
-    m_p1 = np.mean((deltas - 1) ** 2, axis=0)
-    m_m1 = np.mean((deltas + 1) ** 2, axis=0)
-    is_median_zero = np.round(np.median(deltas, axis=0)) == 0
-    is_frequent_zero = (deltas == 0).mean(axis=0) * 3 >= 1
-    is_mse_lowest = (m0 <= m_p1) & (m0 <= m_m1)
-    conv = np.sum([is_median_zero, is_frequent_zero, is_mse_lowest], axis=0) >= 2
-
-    seed_conv = bool(conv[0])
-    period_conv = bool(conv[1])
-    phase_conv = bool(conv[2])
-    adv_conv = period_conv and phase_conv
+    major_l1 = int((np.abs(deltas).sum(axis=1) <= 4).sum())
+    median_l2 = float(ds ** 2 + dt ** 2 + dn ** 2)
+    major_l1_converged = major_l1 > len(attempts) // 2
+    median_l2_converged = median_l2 <= 4
 
     print(
-        f"[calibrate] median ds={ds} dt={dt} dn={dn} | "
+        f"[calibrate] median ds={ds:+d} dt={dt:+d} dn={dn:+d} | "
         f"seed_bias_delta={seed_bias_delta:+d}ms adv_bias_delta={adv_bias_delta:+d}"
     )
     print(
-        f"[calibrate] conv: seed={seed_conv} period={period_conv} phase={phase_conv}"
+        f"[calibrate] conv: major_l1={major_l1}/{len(attempts)} median_l2={median_l2:.2f} => "
+        f"major_l1={major_l1_converged} median_l2={median_l2_converged}"
     )
 
     return {
         "seed_bias": seed_bias_delta,
         "adv_bias": adv_bias_delta,
-        "seed_converged": seed_conv,
-        "advances_converged": adv_conv,
+        "major_l1_converged": major_l1_converged,
+        "median_l2_converged": median_l2_converged,
         "anchor": anchor,
         "ds": ds,
         "dt": dt,
