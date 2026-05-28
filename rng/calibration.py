@@ -103,7 +103,7 @@ def _search(
     category: str = "Surfing",
 ) -> List:
     return _api(
-        game=game, console="NX", tid=trainer_id, sid=secret_id,
+        game=game, console="NX2" if game.endswith("nx2") else "NX", tid=trainer_id, sid=secret_id,
         method=method, seed=seed_hex_str, advances=advances,
         settings=game_settings,
         seed_bias=seed_bias, advances_bias=adv_bias,

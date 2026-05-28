@@ -582,7 +582,7 @@ def _make_calibration_result(g, seed):
 # ============================================================
 def searcher(
     game: str = "fr_nx",
-    console: str = "NX",
+    console: str = None,
     tid: int = 58888,
     sid: int = 12232,
     method: str = None,
@@ -596,6 +596,8 @@ def searcher(
     ivs_range: IVsRange = None,
     max_time_seconds: float = 180.0,
 ) -> List[SearcherResult]:
+    if console is None:
+        console = "NX2" if game.endswith("nx2") else "NX"
     tsv = tid ^ sid
     max_time_ms = max_time_seconds * 1000
     is_frlg = not game.endswith("painting")
@@ -650,11 +652,13 @@ def searcher(
 # ============================================================
 def initial_seed(
     game: str = "fr_nx",
-    console: str = "NX",
+    console: str = None,
     target_seed: str = None,
     result_count: int = 10,
     offset: int = 0,
 ) -> List[InitialSeedResult]:
+    if console is None:
+        console = "NX2" if game.endswith("nx2") else "NX"
     if target_seed is None:
         raise ValueError("target_seed is required")
     target = int(target_seed, 16)
@@ -776,7 +780,7 @@ def iv_calculator(
 # ============================================================
 def calibration(
     game: str = "fr_nx",
-    console: str = "NX",
+    console: str = None,
     tid: int = 58888,
     sid: int = 12232,
     method: str = None,
@@ -800,6 +804,8 @@ def calibration(
     ivs_range: IVsRange = None,
     level: int = None,
 ) -> List[CalibrationResult]:
+    if console is None:
+        console = "NX2" if game.endswith("nx2") else "NX"
     if seed is None:
         raise ValueError("seed is required")
     if pokemon is None:
