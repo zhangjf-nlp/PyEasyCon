@@ -423,6 +423,9 @@ class EasyConGUI:
             if not EasyConGUI._frame_size_logged:
                 EasyConGUI._frame_size_logged = True
                 self.output_panel.log(f"[诊断] 采集卡原始分辨率: {frame.shape[1]}x{frame.shape[0]}")
+                os.makedirs("debug_label", exist_ok=True)
+                cv2.imencode(".png", frame)[1].tofile("debug_label/raw_frame_first.png")
+                self.output_panel.log("[诊断] 已保存首帧到 debug_label/raw_frame_first.png")
             if frame.shape[1] != 1920 or frame.shape[0] != 1080:
                 frame = cv2.resize(frame, (1920, 1080), interpolation=cv2.INTER_LINEAR)
         return frame
