@@ -253,6 +253,12 @@ class EasyConGUI:
         self._text_editor.is_running = is_running
     
     def _run_script(self):
+        frame = self.video_module.get_raw_frame()
+        if frame is not None:
+            self.output_panel.log(f"[诊断] 采集卡原始分辨率: {frame.shape[1]}x{frame.shape[0]}")
+            os.makedirs("debug_label", exist_ok=True)
+            cv2.imencode(".png", frame)[1].tofile("debug_label/raw_frame_first.png")
+            self.output_panel.log("[诊断] 已保存首帧到 debug_label/raw_frame_first.png")
         self.script_engine.run(self.ctx)
     
     def _stop_script(self):
@@ -414,20 +420,11 @@ class EasyConGUI:
             if debug: self.output_panel.log(f"  [label] {label_name} -> 错误: {e}")
             return 0 if threshold == -1 else False
     
-    _frame_size_logged = False
-
     def _get_video_frame(self):
         """获取采集卡当前帧，统一规范化为 1920×1080"""
         frame = self.video_module.get_raw_frame()
-        if frame is not None:
-            if not EasyConGUI._frame_size_logged:
-                EasyConGUI._frame_size_logged = True
-                self.output_panel.log(f"[诊断] 采集卡原始分辨率: {frame.shape[1]}x{frame.shape[0]}")
-                os.makedirs("debug_label", exist_ok=True)
-                cv2.imencode(".png", frame)[1].tofile("debug_label/raw_frame_first.png")
-                self.output_panel.log("[诊断] 已保存首帧到 debug_label/raw_frame_first.png")
-            if frame.shape[1] != 1920 or frame.shape[0] != 1080:
-                frame = cv2.resize(frame, (1920, 1080), interpolation=cv2.INTER_LINEAR)
+        if frame is not None and (frame.shape[1] != 1920 or frame.shape[0] != 1080):
+            frame = cv2.resize(frame, (1920, 1080), interpolation=cv2.INTER_LINEAR)
         return frame
     
     def _identify_pokemon(self, candidates=None, threshold=0.0):
