@@ -9,8 +9,17 @@ EasyCon GUI - 模块化版本
 
 import inspect
 import os
+import ctypes
 import time
 os.environ['SDL_VIDEO_CENTERED'] = '1'
+
+try:
+    ctypes.windll.shcore.SetProcessDpiAwareness(2)
+except Exception:
+    try:
+        ctypes.windll.user32.SetProcessDPIAware()
+    except Exception:
+        pass
 
 import pygame
 import cv2
@@ -69,7 +78,7 @@ class EasyConGUI:
         self.window_height = 790
         self.screen = pygame.display.set_mode(
             (self.window_width, self.window_height),
-            pygame.DOUBLEBUF
+            pygame.DOUBLEBUF | pygame.SCALED
         )
         pygame.display.set_caption("PyEasyCon")
 
