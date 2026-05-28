@@ -555,15 +555,13 @@ class EasyConGUI:
             self.output_panel.log(f"VL模型: {GLM_MODEL} (在线)")
     
     def _capture_for_label(self):
-        """为标签制作模块截图 - 从视频模块获取当前帧"""
-        # 从视频模块获取当前帧
-        if self.video_module.cap and self.video_module.cap.isOpened():
-            ret, frame = self.video_module.cap.read()
-            if ret:
-                result = self.label_maker.capture_frame(frame)
-                if result:
-                    self.output_panel.log("已截图到标签制作区")
-                return
+        """为标签制作模块截图 - 使用规范化后的 1920×1080 帧，确保跨分辨率兼容"""
+        frame = self._get_video_frame()
+        if frame is not None:
+            result = self.label_maker.capture_frame(frame)
+            if result:
+                self.output_panel.log("已截图到标签制作区")
+            return
         self.output_panel.log("截图失败")
     
     # ============== 主循环 ==============
