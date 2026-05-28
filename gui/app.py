@@ -9,17 +9,8 @@ EasyCon GUI - 模块化版本
 
 import inspect
 import os
-import ctypes
 import time
 os.environ['SDL_VIDEO_CENTERED'] = '1'
-
-try:
-    ctypes.windll.shcore.SetProcessDpiAwareness(2)
-except Exception:
-    try:
-        ctypes.windll.user32.SetProcessDPIAware()
-    except Exception:
-        pass
 
 import pygame
 import cv2
@@ -78,7 +69,7 @@ class EasyConGUI:
         self.window_height = 790
         self.screen = pygame.display.set_mode(
             (self.window_width, self.window_height),
-            pygame.DOUBLEBUF | pygame.SCALED
+            pygame.DOUBLEBUF
         )
         pygame.display.set_caption("PyEasyCon")
 
@@ -423,9 +414,18 @@ class EasyConGUI:
             if debug: self.output_panel.log(f"  [label] {label_name} -> 错误: {e}")
             return 0 if threshold == -1 else False
     
+    _frame_size_logged = False
+
     def _get_video_frame(self):
-        """获取采集卡当前帧 (1920×1080 BGR)"""
-        return self.video_module.get_raw_frame()
+        """获取采集卡当前帧，统一规范化为 1920×1080"""
+        frame = self.video_module.get_raw_frame()
+        if frame is not None:
+            if not EasyConGUI._frame_size_logged:
+                EasyConGUI._frame_size_logged = True
+                self.output_panel.log(f"[诊断] 采集卡原始分辨率: {frame.shape[1]}x{frame.shape[0]}")
+            if frame.shape[1] != 1920 or frame.shape[0] != 1080:
+                frame = cv2.resize(frame, (1920, 1080), interpolation=cv2.INTER_LINEAR)
+        return frame
     
     def _identify_pokemon(self, candidates=None, threshold=0.0):
         """识别画面中的宝可梦。返回 (species_id, score, is_shiny)。"""
