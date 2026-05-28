@@ -8,16 +8,16 @@ from examples.rng import launch
 
 cfg = RNGConfig(
     game_version="fr_nx",
-    trainer_id=58888,
-    secret_id=12232,
+    trainer_id=39349,
+    secret_id=19772,
     game_settings = GameSettings.from_string(
-        "Stereo | Help | Seed Button: A | Extra Button: None"
+        "Mono | Help | Seed Button: Start | Extra Button: None"
     ),
-    pokemon_species="Oddish",
-    rng_category="Grass",
-    rng_location="Route 24",
-    rng_method="All Wild Methods",
-    target=RNGSlot(0xF0C2, 0, 2349339),
+    pokemon_species="Eevee",
+    rng_category="Gift",
+    rng_location="Gift",
+    rng_method="Static 1",
+    target=RNGSlot(0x4C88, 0, 371024),
     seed_bias=-4790,
     advances_bias=-11249,
     normal_ms_min=10000,

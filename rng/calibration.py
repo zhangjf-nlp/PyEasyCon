@@ -10,8 +10,8 @@ from rng.tenlines_utils import (
 )
 from rng.config import RNGConfig, SessionState, RNGSlot, SEED_PERIOD, ADV_PERIOD
 
-WIDE_SEED_BIAS = 5000
-WIDE_ADV_BIAS = 50000
+WIDE_SEED_BIAS = 1000
+WIDE_ADV_BIAS = 10000
 
 _NATURES_LOWER = {n.lower(): n for n in NATURES}
 
@@ -233,10 +233,10 @@ def calibrate(cfg: RNGConfig, state: SessionState) -> dict:
     seed_bias_delta = ds * SEED_PERIOD
     adv_bias_delta = dt * ADV_PERIOD + dn
 
-    major_l1 = int((np.abs(deltas).sum(axis=1) <= 4).sum())
+    major_l1 = int((np.abs(deltas).sum(axis=1) <= 3).sum())
     median_l2 = float(ds ** 2 + dt ** 2 + dn ** 2)
-    major_l1_converged = major_l1 > len(attempts) // 2
-    median_l2_converged = median_l2 <= 4
+    major_l1_converged = major_l1 >= len(attempts) / 2
+    median_l2_converged = median_l2 <= 1
 
     print(
         f"[calibrate] median ds={ds:+d} dt={dt:+d} dn={dn:+d} | "

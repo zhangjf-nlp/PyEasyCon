@@ -153,7 +153,7 @@ def navigate_to_sweet_scent(ctx: ScriptContext) -> bool:
         if ctx.search_label("FRLG关键词POKeMON选中", 98):
             break
         ctx.press("DOWN")
-        sleep(0.5)
+        sleep(0.8)
     else:
         ctx.log("无法定位到POKeMON菜单")
         return False
@@ -290,6 +290,17 @@ def defeat_pokemon(ctx: ScriptContext) -> bool:
             else:
                 ctx.log("所有技能PP耗尽!")
                 return False
+        
+        if ctx.search_label("FRLG首发晕厥", 95):
+            for _ in range(5):
+                ctx.press("B")
+                sleep(0.5)
+            ctx.press("DOWN")
+            sleep(0.8)
+            ctx.press("A")
+            sleep(0.8)
+            ctx.press("A")
+            sleep(0.8)
 
         ctx.press("A")
         sleep(0.5)

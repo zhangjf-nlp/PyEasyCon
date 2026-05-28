@@ -93,11 +93,11 @@ class RNGConfig:
     fps_tv: int = 18840
     normal_ms_min: int = 10000
 
-    precicase_combos: int = 64
+    precicase_combos: int = 512
     coldstart_credits: int = 3
     calibration_credits: int = 10
-    max_candies: int = 10
-    max_fast_attempts: int = 30
+    max_candies: int = 12
+    max_fast_attempts: int = 10
 
     schedule: RNGSchedule = field(init=False)
 
