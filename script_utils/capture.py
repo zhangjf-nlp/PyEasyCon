@@ -164,7 +164,7 @@ def check_last_pokemon(ctx: ScriptContext) -> None:
         ctx.press("UP")
         sleep(0.5)
     for _ in range(20):
-        if ctx.search_label("FRLG关键词POKeMON选中", 97):
+        if ctx.search_label("FRLG关键词POKeMON选中", 90):
             break
         ctx.press("DOWN")
         sleep(0.5)
