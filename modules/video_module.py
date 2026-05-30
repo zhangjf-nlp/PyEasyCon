@@ -164,12 +164,14 @@ class VideoModule:
                         
                         # 更新模型类型显示
                         try:
-                            from vision.ocr import get_current_model_type
+                            from vision.ocr import get_current_model_type, GLM_MODEL
                             model_type = get_current_model_type()
                             if model_type == "vllm":
                                 self.model_type = "vLLM(本地)"
                             elif model_type == "glm":
-                                self.model_type = "GLM-4.6v(在线)"
+                                self.model_type = f"{GLM_MODEL}(在线)"
+                            elif model_type == "minicpm":
+                                self.model_type = "MiniCPM-V-4.6(在线)"
                             else:
                                 self.model_type = "未知"
                         except Exception:

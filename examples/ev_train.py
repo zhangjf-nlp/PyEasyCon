@@ -113,11 +113,19 @@ def resolve_target_species(config: EVTrainConfig):
     return targets, sorted(encounter_species), stat_keys
 
 
-def search_and_take_meowth_items(ctx: ScriptContext) -> None:
+def _log_item_summary(ctx: ScriptContext, item_counts: dict) -> None:
+    sorted_items = sorted(item_counts.items(), key=lambda x: x[1])
+    lines = ["喵喵累计拾取:"]
+    for name, cnt in sorted_items:
+        lines.append(f"  {name}: {cnt}")
+    ctx.log("\n".join(lines))
+
+
+def search_and_take_meowth_items(ctx: ScriptContext, item_counts: dict) -> None:
+    pickup_total = sum(item_counts.values())
     for _ in range(3):
         if not ctx.search_label("FRLG喵喵携带物", 95):
             continue
-        ctx.log("检测到喵喵携带物")
         for __ in range(7):
             ctx.press("DOWN")
             sleep(0.5)
@@ -139,13 +147,21 @@ def search_and_take_meowth_items(ctx: ScriptContext) -> None:
             ctx.press("A")
             sleep(1.5)
             text = ctx.ocr_taken_item(ctx.get_frame())
-            ctx.log(f"拾取道具: {text}" if text else "拾取道具: (识别失败)")
+            if text:
+                item_name = text.strip()
+                item_counts[item_name] = item_counts.get(item_name, 0) + 1
+                pickup_total += 1
+                ctx.log(f"拾取道具: {item_name}")
+                if pickup_total % 5 == 0:
+                    _log_item_summary(ctx, item_counts)
+            else:
+                ctx.log("拾取道具: (识别失败)")
             sleep(0.5)
             ctx.press("B")
             sleep(1.0)
 
 
-def navigate_to_sweet_scent(ctx: ScriptContext) -> bool:
+def navigate_to_sweet_scent(ctx: ScriptContext, item_counts: dict) -> bool:
     ctx.press("X")
     sleep(1.0)
 
@@ -162,7 +178,7 @@ def navigate_to_sweet_scent(ctx: ScriptContext) -> bool:
     sleep(2.0)
 
     # 判断是否有喵喵携带物品
-    search_and_take_meowth_items(ctx)
+    search_and_take_meowth_items(ctx, item_counts)
 
     ctx.press("UP")
     sleep(0.5)
@@ -190,9 +206,8 @@ def navigate_to_sweet_scent(ctx: ScriptContext) -> bool:
     return True
 
 
-def use_sweet_scent(ctx: ScriptContext) -> bool:
-    ctx.log("使用甜甜香气...")
-    if not navigate_to_sweet_scent(ctx):
+def use_sweet_scent(ctx: ScriptContext, item_counts: dict) -> bool:
+    if not navigate_to_sweet_scent(ctx, item_counts):
         return False
     for _ in range(10):
         sleep(0.5)
@@ -203,7 +218,6 @@ def use_sweet_scent(ctx: ScriptContext) -> bool:
 
 
 def run_away(ctx: ScriptContext) -> None:
-    ctx.log("逃跑...")
     for _ in range(15):
         ctx.press("B")
         sleep(0.3)
@@ -224,7 +238,6 @@ def run_away(ctx: ScriptContext) -> None:
 
 
 def handle_post_battle(ctx: ScriptContext) -> None:
-    ctx.log("等待战斗后事件...")
     for i in range(100):
         if ctx.search_label("FRLG技能替换", 95) or ctx.search_label("FRLG技能替换v2", 95):
             ctx.press("B")
@@ -259,7 +272,6 @@ def handle_post_battle(ctx: ScriptContext) -> None:
 
 
 def defeat_pokemon(ctx: ScriptContext) -> bool:
-    ctx.log("击败宝可梦...")
     pp_switches = 0
 
     for _ in range(10):
@@ -282,25 +294,16 @@ def defeat_pokemon(ctx: ScriptContext) -> bool:
                 pp_switches += 1
                 continue
             elif pp_switches == 2:
-                ctx.log(f"四技能PP耗尽, 切换二技能")
-                ctx.press("UP")
-                sleep(1.0)
-                pp_switches += 1
-                continue
+                ctx.log(f"四技能PP耗尽, 脚本停止")
+                return False
             else:
                 ctx.log("所有技能PP耗尽!")
                 return False
         
         if ctx.search_label("FRLG首发晕厥", 95):
-            for _ in range(5):
-                ctx.press("B")
-                sleep(0.5)
-            ctx.press("DOWN")
-            sleep(0.8)
-            ctx.press("A")
-            sleep(0.8)
-            ctx.press("A")
-            sleep(0.8)
+            ctx.log("首发宝可梦昏厥, 脚本停止")
+            sleep(0.5)
+            return False
 
         ctx.press("A")
         sleep(0.5)
@@ -325,51 +328,54 @@ def ev_train(config: EVTrainConfig) -> None:
         battle_count = 0
         encounter_count = 0
         ev_totals = {k: 0 for k in stat_keys}
+        item_counts = {}
 
-        while ctx.is_running():
-            encounter_count += 1
-            ctx.log(f"========== 第 {encounter_count} 次遇敌 ==========")
+        try:
+            while ctx.is_running():
+                encounter_count += 1
+                ctx.log(f"========== 第 {encounter_count} 次遇敌 ==========")
 
-            if not use_sweet_scent(ctx):
-                ctx.log("甜甜香气使用失败, 重试...")
-                sleep(2.0)
-                continue
+                if not use_sweet_scent(ctx, item_counts):
+                    ctx.log("甜甜香气使用失败, 重试...")
+                    sleep(2.0)
+                    continue
 
-            frame = ctx.get_frame()
-            if frame is None:
-                ctx.log("采集卡未就绪")
-                break
-
-            species_id, score, is_shiny, _, _ = identify_pokemon(frame, candidates=all_species, threshold=0.0)
-
-            bp = get_bp(species_id)
-            name = get_name(species_id) if species_id else "?"
-            prefix = f"{name} ({'闪光' if is_shiny else '普通'}, 匹配度={score:.3f}, {format_ev(bp)})"
-
-            if is_shiny:
-                ctx.log(f"{prefix} -> 停止")
-                ctx.press("CAPTURE", 3000)
-                break
-
-            if species_id is not None and score >= 0.95 and species_id in targets:
-                ctx.log(f"{prefix} -> 击败")
-                if not defeat_pokemon(ctx):
-                    ctx.log("击败失败, 脚本停止")
+                frame = ctx.get_frame()
+                if frame is None:
+                    ctx.log("采集卡未就绪")
                     break
-                handle_post_battle(ctx)
-                battle_count += 1
-                for k in stat_keys:
-                    ev_totals[k] += bp.get(k, 0)
-                totals_str = " ".join(f"{_STAT_ZH[k]}:{ev_totals[k]}" for k in stat_keys)
-                ctx.log(f"已刷 {battle_count} 场, 累计: {totals_str}")
-            else:
-                ctx.log(f"{prefix} -> 逃跑")
-                run_away(ctx)
-                handle_post_battle(ctx)
 
-        ctx.log(f"脚本结束。共遇敌 {encounter_count} 次, 击败 {battle_count} 只目标宝可梦, "
-                f"累计: {' '.join(f'{_STAT_ZH[k]}:{ev_totals[k]}' for k in stat_keys)}")
-        ctx.press("CAPTURE", 3000)
+                species_id, score, is_shiny, _, _ = identify_pokemon(frame, candidates=all_species, threshold=0.0)
+
+                bp = get_bp(species_id)
+                name = get_name(species_id) if species_id else "?"
+                prefix = f"{name} ({'闪光' if is_shiny else '普通'}, 匹配度={score:.3f}, {format_ev(bp)})"
+
+                if is_shiny:
+                    ctx.log(f"{prefix} -> 停止")
+                    ctx.press("CAPTURE", 3000)
+                    break
+
+                if species_id is not None and score >= 0.95 and species_id in targets:
+                    ctx.log(f"{prefix} -> 击败")
+                    if not defeat_pokemon(ctx):
+                        ctx.log("击败失败, 脚本停止")
+                        break
+                    handle_post_battle(ctx)
+                    battle_count += 1
+                    for k in stat_keys:
+                        ev_totals[k] += bp.get(k, 0)
+                    totals_str = " ".join(f"{_STAT_ZH[k]}:{ev_totals[k]}" for k in stat_keys)
+                    ctx.log(f"已刷 {battle_count} 场, 累计: {totals_str}")
+                else:
+                    ctx.log(f"{prefix} -> 逃跑")
+                    run_away(ctx)
+                    handle_post_battle(ctx)
+        finally:
+            ctx.log(f"脚本结束。共遇敌 {encounter_count} 次, 击败 {battle_count} 只目标宝可梦, "
+                    f"累计: {' '.join(f'{_STAT_ZH[k]}:{ev_totals[k]}' for k in stat_keys)}")
+            if item_counts:
+                _log_item_summary(ctx, item_counts)
 
     run_script(main)
 

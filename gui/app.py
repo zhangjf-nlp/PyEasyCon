@@ -28,6 +28,7 @@ from modules.script_editor import PatchedTextEditor
 _current_gui = None
 
 from easycon import EasyConController, GamePadKey, ScriptContext
+from easycon.config import get
 
 from .script_engine import ScriptEngine
 
@@ -44,6 +45,7 @@ from vision import (
     check_service as _check_service,
     check_vllm_service as _check_vllm_service,
     check_glm_service as _check_glm_service,
+    check_minicpm_service as _check_minicpm_service,
     set_model_type as _set_model_type,
     get_current_model_type as _get_current_model_type,
     get_available_model_types as _get_available_model_types,
@@ -52,7 +54,7 @@ from vision import (
     preload_sprites as _preload_sprites,
 )
 
-from vision.ocr import MODEL_TYPE_VLLM, MODEL_TYPE_GLM, GLM_MODEL
+from vision.ocr import MODEL_TYPE_VLLM, MODEL_TYPE_GLM, MODEL_TYPE_MINICPM, GLM_MODEL, MINICPM_MODEL, VLLM_MODEL_NAME
 
 
 class EasyConGUI:
@@ -218,30 +220,37 @@ class EasyConGUI:
         def check_worker():
             vllm_ok = _check_vllm_service()
             glm_ok = _check_glm_service()
+            minicpm_ok = _check_minicpm_service()
+
+            vllm_short = VLLM_MODEL_NAME.replace('\\', '/').split('/')[-1]
+            glm_short = GLM_MODEL
+            minicpm_short = MINICPM_MODEL
 
             if vllm_ok:
-                try:
-                    model = _get_vllm_model()
-                    parts = model.replace('\\', '/').split('/')
-                    short = '.../' + '/'.join(parts[-2:])
-                    self.output_panel.log(f"vLLM 可用 ({short})")
-                except Exception:
-                    self.output_panel.log("vLLM 可用")
+                self.output_panel.log(f"vLLM ({vllm_short}) 可用")
             else:
-                self.output_panel.log("vLLM 未运行")
+                self.output_panel.log(f"vLLM (无) 不可用")
 
             if glm_ok:
-                self.output_panel.log(f"{GLM_MODEL} 可用")
+                self.output_panel.log(f"GLM ({glm_short}) 可用")
             else:
-                self.output_panel.log(f"{GLM_MODEL} 不可用")
+                self.output_panel.log(f"GLM ({glm_short}) 不可用")
+
+            if minicpm_ok:
+                self.output_panel.log(f"MiniCPM ({minicpm_short}) 可用")
+            else:
+                self.output_panel.log(f"MiniCPM ({minicpm_short}) 不可用")
 
             available = _get_available_model_types()
             if MODEL_TYPE_VLLM in available:
                 _set_model_type(MODEL_TYPE_VLLM)
-                self.output_panel.log(f"VL模型: vLLM (本地)")
+                self.output_panel.log(f"VL模型: vLLM ({vllm_short})")
+            elif MODEL_TYPE_MINICPM in available:
+                _set_model_type(MODEL_TYPE_MINICPM)
+                self.output_panel.log(f"VL模型: MiniCPM ({minicpm_short})")
             elif MODEL_TYPE_GLM in available:
                 _set_model_type(MODEL_TYPE_GLM)
-                self.output_panel.log(f"VL模型: {GLM_MODEL} (在线)")
+                self.output_panel.log(f"VL模型: GLM ({glm_short})")
             else:
                 self.output_panel.log("VL模型: 无可用")
 
@@ -255,10 +264,12 @@ class EasyConGUI:
     def _run_script(self):
         frame = self.video_module.get_raw_frame()
         if frame is not None:
-            self.output_panel.log(f"[诊断] 采集卡原始分辨率: {frame.shape[1]}x{frame.shape[0]}")
-            os.makedirs("debug_label", exist_ok=True)
-            cv2.imencode(".png", frame)[1].tofile("debug_label/raw_frame_first.png")
-            self.output_panel.log("[诊断] 已保存首帧到 debug_label/raw_frame_first.png")
+            cap_w = get("capture", {}).get("width", 1920)
+            cap_h = get("capture", {}).get("height", 1080)
+            self.output_panel.log(f"采集卡原始分辨率: {frame.shape[1]}x{frame.shape[0]}")
+            if (frame.shape[1], frame.shape[0]) != (cap_w, cap_h):
+                self.ctx.log(f"自动缩放画面至: {cap_w}x{cap_h}")
+                self.ctx.log(f"若脚本出错请检查标签匹配度")
         self.script_engine.run(self.ctx)
     
     def _stop_script(self):
@@ -549,10 +560,13 @@ class EasyConGUI:
         next_model = available[next_index]
 
         _set_model_type(next_model)
+        vllm_short = VLLM_MODEL_NAME.replace('\\', '/').split('/')[-1]
         if next_model == MODEL_TYPE_VLLM:
-            self.output_panel.log("VL模型: vLLM (本地)")
+            self.output_panel.log(f"VL模型: vLLM ({vllm_short})")
+        elif next_model == MODEL_TYPE_MINICPM:
+            self.output_panel.log(f"VL模型: MiniCPM ({MINICPM_MODEL})")
         elif next_model == MODEL_TYPE_GLM:
-            self.output_panel.log(f"VL模型: {GLM_MODEL} (在线)")
+            self.output_panel.log(f"VL模型: GLM ({GLM_MODEL})")
     
     def _capture_for_label(self):
         """为标签制作模块截图 - 使用规范化后的 1920×1080 帧，确保跨分辨率兼容"""

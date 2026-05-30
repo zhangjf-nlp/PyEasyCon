@@ -189,30 +189,13 @@ if !ERRORLEVEL! neq 0 (
 
 echo   √ Dependencies installed
 
-:: ── Step 6/6: GLM API-KEY ────────────────────────────
+:: ── Step 6/6: MiniCPM OCR (已内置免费 Key) ────────
 echo.
-echo [6/6] GLM API-KEY for free image recognition
-echo   Please register at: https://bigmodel.cn/apikey/platform
-echo   Then create an API-KEY and enter it below.
-echo.
-
-set "YAML_FILE=%ROOT_DIR%\config\default.yaml"
-set "GLM_SCRIPT=%ROOT_DIR%\setup_glm.py"
-
-:glk_input
-set /p APIKEY="API-KEY: "
-if "%APIKEY%"=="" (
-    echo   API-KEY cannot be empty.
-    goto :glk_input
-)
-
-echo   Validating...
-"%PYTHON_EXE%" -u "%GLM_SCRIPT%" "%YAML_FILE%" "%APIKEY%"
-if !ERRORLEVEL! neq 0 (
-    echo   ! Validation failed. Please check your API-KEY.
-    goto :glk_input
-)
-echo   √ API-KEY verified and saved
+echo [6/6] VL Model OCR - MiniCPM-V-4.6 configured
+echo   MiniCPM-V-4.6 is pre-configured with a free API key.
+echo   No additional setup needed for image recognition.
+echo   vLLM (local GPU) -^> MiniCPM (free online) -^> GLM (online)
+echo   √ MiniCPM OCR ready
 
 :: ── Cleanup ─────────────────────────────────────────
 :setup_done

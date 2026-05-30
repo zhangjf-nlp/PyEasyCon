@@ -19,21 +19,17 @@ python script_rattata.py    # 1号道路 - 草丛 - 小拉达
 
 ## VL 模型配置
 
-OCR 识别个体值需要 VL 视觉语言模型，编辑 `config/default.yaml` 的 `vl_model` 段，二选一：
+OCR 识别个体值需要 VL 视觉语言模型，支持三种模型自动回退：
 
-### 方案 A：免费云端 GLM-4.6V-Flash（无需 GPU，需联网）
+| 优先级 | 模型 | 类型 | 说明 |
+|--------|------|------|------|
+| 1 | vLLM + Qwen3-VL-2B | 本地 GPU | 需 WSL 部署，最快 |
+| 2 | MiniCPM-V-4.6 | 免费在线 | 已内置免费 Key，开箱即用 |
+| 3 | GLM-4.6V-Flash | 在线 | 需注册智谱 API Key |
 
-1. 注册 [智谱 AI 开放平台](https://bigmodel.cn/apikey/platform)，创建 API Key
-2. 编辑 `config/default.yaml`：
+### 方案 A：免费在线 MiniCPM-V-4.6（已内置 Key，开箱即用）
 
-```yaml
-# config/default.yaml
-vl_model:
-  type: glm
-  glm:
-    model: "glm-4.6v-flash"
-    api_key: "你的APIKey"
-```
+无需任何配置，`setup.bat` 运行后自动可用。双击 `run.bat` 即可启动。
 
 ### 方案 B：本地 vLLM + Qwen3-VL-2B（建议 NVIDIA GPU ≥ 6 GB，无需联网）
 

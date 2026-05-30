@@ -48,7 +48,10 @@ class EasyConController:
         self._lock = threading.Lock()
         self._debug = False
         self._report = SwitchReport()
-        self._last_send_time = 0.0
+        self._report_dirty = False
+        self._io_cond = threading.Condition()
+        self._io_thread: Optional[threading.Thread] = None
+        self._io_running = False
 
     @property
     def is_connected(self) -> bool:
@@ -96,6 +99,7 @@ class EasyConController:
                 self._serial = ser
                 self._port_name = port
                 self._connected = True
+                self._start_io_thread()
                 if self._debug:
                     print(f"Connected to {port}")
                 return True
@@ -110,24 +114,58 @@ class EasyConController:
 
     def disconnect(self):
         self._connected = False
+        self._io_running = False
+        with self._io_cond:
+            self._io_cond.notify()
+        if self._io_thread and self._io_thread.is_alive():
+            self._io_thread.join(timeout=2.0)
         if self._serial:
             self._serial.close()
             self._serial = None
 
+    def _start_io_thread(self):
+        if self._io_thread and self._io_thread.is_alive():
+            return
+        self._io_running = True
+        self._io_thread = threading.Thread(target=self._io_loop, daemon=True)
+        self._io_thread.start()
+
+    def _io_loop(self):
+        last_send = 0.0
+        while self._io_running:
+            with self._io_cond:
+                while self._io_running and not self._report_dirty:
+                    self._io_cond.wait(timeout=0.1)
+                if not self._io_running:
+                    return
+
+                now = time.time() * 1000
+                dt = now - last_send
+                if dt < self.MINIMAL_INTERVAL:
+                    self._io_cond.wait(timeout=(self.MINIMAL_INTERVAL - dt) / 1000.0)
+                    if not self._io_running:
+                        return
+                    continue
+
+                report_bytes = self._report.get_bytes()
+                self._report_dirty = False
+
+            if self.is_connected:
+                with self._lock:
+                    try:
+                        if self._debug:
+                            print(f"[{self._port_name}] >> {' '.join(f'{b:02X}' for b in report_bytes)} | {self._report_to_str()}")
+                        self._serial.write(report_bytes)
+                        last_send = time.time() * 1000
+                    except Exception:
+                        self._connected = False
+
     def _send_report(self):
-        if not self.is_connected:
-            raise ConnectionError("Not connected to device")
-
-        now = time.time() * 1000
-        if now < self._last_send_time + self.MINIMAL_INTERVAL:
-            time.sleep((self._last_send_time + self.MINIMAL_INTERVAL - now) / 1000.0)
-
-        data = self._report.get_bytes()
-        with self._lock:
-            if self._debug:
-                print(f"[{self._port_name}] >> {' '.join(f'{b:02X}' for b in data)} | {self._report_to_str()}")
-            self._serial.write(data)
-        self._last_send_time = time.time() * 1000
+        if not self._connected:
+            return
+        with self._io_cond:
+            self._report_dirty = True
+            self._io_cond.notify()
 
     def _report_to_str(self) -> str:
         buttons = []

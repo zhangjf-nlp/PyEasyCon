@@ -82,16 +82,21 @@ vision:
 
 # ==================== VL 模型 ====================
 vl_model:
-  type: vllm                # vllm | glm
+  type: vllm                # vllm | minicpm | glm
   vllm:
     base_url: "http://localhost:8000/v1"
     api_key: "sk-PyEasyCon"
     model_name: "/opt/models/Qwen3-VL-2B-Instruct-FP8"
   glm:
-    model: "glm-4.6v-flash"
+    model: "GLM-4.6V-Flash"
     api_key: ""
     max_retries: 8
     rate_limit_rpm: 30
+  minicpm:
+    base_url: "https://api.modelbest.cn/v1"
+    api_key: "sk-pQ8L2zF3XmR5kY9wV4jB7hN1tC6vM0xG3aD5sH2bJ9lK4cZ8"
+    model: "MiniCPM-V-4.6-Instruct"
+    max_retries: 8
 
 # ==================== 标签目录 ====================
 labels:

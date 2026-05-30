@@ -74,7 +74,6 @@ def get_species_name(species: int) -> str:
     return names[species] if 0 <= species < len(names) else str(species)
 
 def get_species_id(name_or_id: str) -> int:
-    """Resolve a species name or numeric ID to an integer species ID."""
     try:
         return int(name_or_id)
     except ValueError:
@@ -459,8 +458,8 @@ class CalibrationResult:
                           for a in ("hp","attack","defense","sp_attack","sp_defense","speed"))
         return (
             f"{self.seed} | {self.seed_time}ms {self.advances} | {method_name} "
-            f"{self.frames} {self.encounter_slot}: {self.species_name:<12} "
-            f"{self.level:<2} {self.shiny} {self.nature:<8} {self.ability:<10} {ivs_str:<18} {self.hidden_type:<6} {self.gender}"
+            f"{self.frames} {self.encounter_slot}: {self.species_name} "
+            f"{self.level:<2} {self.shiny} {self.nature} {self.ability} {ivs_str:<18} {self.hidden_type:<6} {self.gender}"
         )
 
 

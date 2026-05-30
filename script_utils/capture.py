@@ -8,7 +8,7 @@ import numpy as np
 from easycon.context import ScriptContext
 from rng.config import RNGConfig, SessionState
 from vision.sprite import identify_pokemon as _identify, detect_gba_area, SPRITE_NATIVE
-from rng.tenlines_utils import get_species_en_name, get_species_zh_name, get_encounter_species_list
+from rng.tenlines_utils import get_species_en_name, get_species_id, get_species_zh_name, get_encounter_species_list
 from script_utils.hit import sleep
 
 
@@ -20,14 +20,25 @@ def check_shiny(
 ) -> Tuple[bool, Optional[str]]:
     ctx.log("识别宝可梦...")
 
-    for _ in range(20):
+    for _ in range(30):
         if ctx.search_label("FRLG野怪血条", 90):
             break
+        else:
+            ctx.press("B")
         sleep(0.5)
     else:
+        ctx.log("画面异常")
+        frame = ctx.get_frame()
+        if frame is not None:
+            ts = _time.strftime("%Y%m%d_%H%M%S")
+            os.makedirs("debug_label", exist_ok=True)
+            cv2.imencode(".png", frame)[1].tofile(f"debug_label/{ts}_abnormal.png")
         return False, None
 
-    candidates = get_encounter_species_list(cfg.rng_location, cfg.rng_category)
+    if cfg.rng_method in ["Static 1", "Static 4"]:
+        candidates = [get_species_id(cfg.pokemon_species)]
+    else:
+        candidates = get_encounter_species_list(cfg.rng_location, cfg.rng_category)
     if not candidates:
         raise RuntimeError(f"Empty encounter list for {cfg.rng_location}/{cfg.rng_category}")
 
@@ -46,7 +57,7 @@ def check_shiny(
     sw_roi = int(72 * scale)
     sh_roi = int(100 * scale)
 
-    if species_id is None or score < 0.95:
+    if species_id is None or score < 0.90:
         ts = _time.strftime("%Y%m%d_%H%M%S")
         os.makedirs("debug_label", exist_ok=True)
         cv2.imencode(".png", frame)[1].tofile(f"debug_label/{ts}.png")
@@ -100,18 +111,26 @@ def catch_with_ball(ctx: ScriptContext) -> bool:
             sleep(0.5)
             if ctx.search_label("FRLG关键词PokeBalls", 95):
                 break
-        for _ in range(5):
-            if ctx.search_label("FRLG关键词UltraBall选中", 98):
+        sleep(0.5)
+        ball = None
+        if ctx.search_label("FRLG关键词MasterBall", 90):
+            ball = "大师球"
+        elif ctx.search_label("FRLG关键词UltraBall", 90):
+            ball = "高级球"
+        elif ctx.search_label("FRLG关键词GreatBall", 90):
+            ball = "超级球"
+        elif ctx.search_label("FRLG关键词POKeBall", 90):
+            ball = "精灵球"
+        else:
+            raise ValueError("未找到可用精灵球")
+        for _ in range(10):
+            if ctx.search_label(f"FRLG选中{ball}", 95):
                 break
             ctx.press("DOWN")
-            sleep(0.5)
+            sleep(0.8)
         for _ in range(10):
             ctx.press("A")
-            sleep(0.5)
-            break
-        for _ in range(10):
-            ctx.press("A")
-            sleep(0.5)
+            sleep(0.8)
             if ctx.search_label("FRLG野怪血条", 90):
                 break
         else:

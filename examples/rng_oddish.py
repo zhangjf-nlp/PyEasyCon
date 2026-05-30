@@ -21,6 +21,7 @@ cfg = RNGConfig(
     seed_bias=-4790,
     advances_bias=-11249,
     normal_ms_min=10000,
+    max_fast_attempts=0,
 )
 state = SessionState()
 

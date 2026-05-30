@@ -4,15 +4,21 @@ from script_utils.hit import sleep
 
 def restart(ctx: ScriptContext) -> None:
     ctx.log("重启游戏...")
-    for _ in range(30):
+    if ctx.search_label("NS主页满电量", 90):
+        pass
+    else:
         ctx.press("HOME")
-        sleep(3.0)
-        if ctx.search_label("NS主页满电量", 90):
-            break
-    ctx.press("X")
-    sleep(1.0)
-    for _ in range(10):
+        sleep(2.0)
+    if ctx.search_label("NS主页关闭确认", 90):
         ctx.press("A")
-        sleep(3.0)
-        if ctx.search_label("NS主页选择玩家", 90):
+    else:
+        ctx.press("Y")
+        sleep(2.0)
+        ctx.press("A")
+    for _ in range(5):
+        sleep(1.0)
+        if ctx.search_label("NS主页选择玩家", 40):
             break
+    else:
+        raise ValueError("未检测到NS选择玩家界面")
+    sleep(1.0)

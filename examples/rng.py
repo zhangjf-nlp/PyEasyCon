@@ -39,7 +39,7 @@ def launch(cfg: RNGConfig, state: SessionState = None) -> None:
 
             hit(ctx, cfg)
 
-            if cfg.rng_category in ["Grass", "Surfing", "SuperRod"]:
+            if cfg.rng_category in ["Grass", "Surfing", "SuperRod", "Stationary"]:
                 is_shiny, pokemon_en = check_shiny(ctx, cfg, state, state.attempt_index)
                 if is_shiny:
                     ctx.log("闪光出现!")

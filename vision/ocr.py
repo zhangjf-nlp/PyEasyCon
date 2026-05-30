@@ -36,15 +36,22 @@ VLLM_MODEL_NAME = _vl_cfg.get("vllm", {}).get("model_name", "/opt/models/Qwen3-V
 
 GLM_API_BASE_URL = "https://open.bigmodel.cn/api/paas/v4"
 GLM_API_KEY = _vl_cfg.get("glm", {}).get("api_key", "")
-GLM_MODEL = _vl_cfg.get("glm", {}).get("model", "glm-4.6v-flash")
+GLM_MODEL = _vl_cfg.get("glm", {}).get("model", "GLM-4.6V-Flash")
 GLM_MAX_RETRIES = _vl_cfg.get("glm", {}).get("max_retries", 8)
+
+MINICPM_API_BASE_URL = _vl_cfg.get("minicpm", {}).get("base_url", "https://api.modelbest.cn/v1")
+MINICPM_API_KEY = _vl_cfg.get("minicpm", {}).get("api_key", "sk-pQ8L2zF3XmR5kY9wV4jB7hN1tC6vM0xG3aD5sH2bJ9lK4cZ8")
+MINICPM_MODEL = _vl_cfg.get("minicpm", {}).get("model", "MiniCPM-V-4.6-Instruct")
+MINICPM_MAX_RETRIES = _vl_cfg.get("minicpm", {}).get("max_retries", 8)
 
 MODEL_TYPE_VLLM = "vllm"
 MODEL_TYPE_GLM = "glm"
+MODEL_TYPE_MINICPM = "minicpm"
 
 _preferred = _vl_cfg.get("type", "vllm").lower()
 _current_model_type = (
     MODEL_TYPE_GLM if _preferred == "glm"
+    else MODEL_TYPE_MINICPM if _preferred == "minicpm"
     else MODEL_TYPE_VLLM if _preferred == "vllm"
     else MODEL_TYPE_VLLM
 )
@@ -53,9 +60,11 @@ _model_init_done = False
 _model_init_lock = threading.Lock()
 
 _glm_semaphore = threading.Semaphore(2)
+_minicpm_semaphore = threading.Semaphore(2)
 
 _client = None
 _glm_client = None
+_minicpm_client = None
 _openai_available = False
 
 try:
@@ -187,10 +196,19 @@ def _get_glm_client() -> OpenAI:
     return _glm_client
 
 
+def _get_minicpm_client() -> OpenAI:
+    global _minicpm_client
+    if not _openai_available:
+        raise ImportError("openai 库未安装，请运行: pip install openai")
+    if _minicpm_client is None:
+        _minicpm_client = OpenAI(api_key=MINICPM_API_KEY, base_url=MINICPM_API_BASE_URL, timeout=60)
+    return _minicpm_client
+
+
 def set_model_type(model_type: str):
     global _current_model_type
-    if model_type not in [MODEL_TYPE_VLLM, MODEL_TYPE_GLM]:
-        raise ValueError(f"不支持的模型类型: {model_type}，支持的类型: {MODEL_TYPE_VLLM}, {MODEL_TYPE_GLM}")
+    if model_type not in [MODEL_TYPE_VLLM, MODEL_TYPE_GLM, MODEL_TYPE_MINICPM]:
+        raise ValueError(f"不支持的模型类型: {model_type}，支持的类型: {MODEL_TYPE_VLLM}, {MODEL_TYPE_GLM}, {MODEL_TYPE_MINICPM}")
     _current_model_type = model_type
 
 
@@ -204,6 +222,8 @@ def get_available_model_types() -> list:
         available.append(MODEL_TYPE_VLLM)
     if _probe_openai(GLM_API_BASE_URL, GLM_API_KEY):
         available.append(MODEL_TYPE_GLM)
+    if _probe_openai(MINICPM_API_BASE_URL, MINICPM_API_KEY):
+        available.append(MODEL_TYPE_MINICPM)
     return available
 
 
@@ -218,6 +238,8 @@ def check_service() -> bool:
         return _probe_openai(VLLM_BASE_URL, VLLM_API_KEY)
     elif _current_model_type == MODEL_TYPE_GLM:
         return _probe_openai(GLM_API_BASE_URL, GLM_API_KEY)
+    elif _current_model_type == MODEL_TYPE_MINICPM:
+        return _probe_openai(MINICPM_API_BASE_URL, MINICPM_API_KEY)
     return False
 
 
@@ -227,6 +249,10 @@ def check_vllm_service() -> bool:
 
 def check_glm_service() -> bool:
     return _probe_openai(GLM_API_BASE_URL, GLM_API_KEY)
+
+
+def check_minicpm_service() -> bool:
+    return _probe_openai(MINICPM_API_BASE_URL, MINICPM_API_KEY)
 
 
 # ==================== 画面预处理 (1920×1080 直入) ====================
@@ -287,12 +313,30 @@ def _ensure_model_init():
                 _current_model_type = MODEL_TYPE_GLM
                 _model_init_done = True
                 return
-            print("GLM 不可用，回退到 vLLM")
+            print("GLM 不可用，回退到其他模型")
+
+        if preferred == "minicpm":
+            if check_minicpm_service():
+                _current_model_type = MODEL_TYPE_MINICPM
+                _model_init_done = True
+                return
+            print("MiniCPM 不可用，回退到其他模型")
+
+        if preferred == "vllm":
+            if check_vllm_service():
+                _current_model_type = MODEL_TYPE_VLLM
+                _model_init_done = True
+                return
+            print("vLLM 不可用，回退到其他模型")
 
         vllm_ok = check_vllm_service()
         glm_ok = check_glm_service()
+        minicpm_ok = check_minicpm_service()
         if vllm_ok:
             _current_model_type = MODEL_TYPE_VLLM
+        elif minicpm_ok:
+            _current_model_type = MODEL_TYPE_MINICPM
+            print(f"vLLM 未运行，自动切换到 {MINICPM_MODEL} 在线API")
         elif glm_ok:
             _current_model_type = MODEL_TYPE_GLM
             print(f"vLLM 未运行，自动切换到 {GLM_MODEL} 在线API")
@@ -334,7 +378,7 @@ def _call_vlm(image: np.ndarray, prompt: str, max_tokens: int = 64, temperature:
                 with _glm_semaphore:
                     try:
                         response = _get_glm_client().chat.completions.create(
-                            model=GLM_MODEL,
+                            model=GLM_MODEL.lower(),
                             messages=msg,
                             max_tokens=max_tokens,
                             temperature=temperature,
@@ -348,7 +392,30 @@ def _call_vlm(image: np.ndarray, prompt: str, max_tokens: int = 64, temperature:
                         if not is_rate_limit or attempt >= GLM_MAX_RETRIES - 1:
                             raise
                 wait = 2 ** attempt
-                print(f"GLM rate limit, retry in {wait:.0f}s (attempt {attempt + 1}/{GLM_MAX_RETRIES})")
+                #print(f"GLM rate limit, retry in {wait:.0f}s (attempt {attempt + 1}/{GLM_MAX_RETRIES})")
+                time.sleep(wait)
+
+        elif effective_model == MODEL_TYPE_MINICPM:
+            for attempt in range(MINICPM_MAX_RETRIES):
+                with _minicpm_semaphore:
+                    try:
+                        response = _get_minicpm_client().chat.completions.create(
+                            model=MINICPM_MODEL,
+                            messages=msg,
+                            max_tokens=max_tokens,
+                            temperature=temperature,
+                        )
+                        raw = response.choices[0].message.content
+                        if raw is None and hasattr(response.choices[0].message, 'reasoning_content'):
+                            raw = response.choices[0].message.reasoning_content
+                        return _clean_vlm_response(raw)
+                    except Exception as e:
+                        err_str = str(e)
+                        is_rate_limit = '429' in err_str
+                        if not is_rate_limit or attempt >= MINICPM_MAX_RETRIES - 1:
+                            raise
+                wait = 2 ** attempt
+                print(f"MiniCPM rate limit, retry in {wait:.0f}s (attempt {attempt + 1}/{MINICPM_MAX_RETRIES})")
                 time.sleep(wait)
 
         else:
@@ -404,7 +471,7 @@ def _parallel_ocr(tasks: List[Tuple[str, np.ndarray, callable]]) -> Dict[str, ob
 
     tasks: [(key, roi_image, ocr_function), ...]
     """
-    max_workers = 4 if _current_model_type == MODEL_TYPE_GLM else min(len(tasks), 8)
+    max_workers = 4 if _current_model_type in (MODEL_TYPE_GLM, MODEL_TYPE_MINICPM) else min(len(tasks), 8)
     results: Dict[str, object] = {}
     with ThreadPoolExecutor(max_workers=max_workers) as ex:
         futures = {ex.submit(ocr_func, img): key for key, img, ocr_func in tasks}

@@ -84,7 +84,7 @@ def hit_super_rod(ctx: ScriptContext, cfg: RNGConfig) -> None:
     ctx.press("RIGHT")
     sleep(0.5)
     for _ in range(100):
-        if ctx.search_label("FRLG关键词SuperRod选中", 99):
+        if ctx.search_label("FRLG关键词SuperRod选中", 95):
             break
         ctx.press("DOWN")
         sleep(0.3)
@@ -105,19 +105,19 @@ def hit_game_corner(ctx: ScriptContext, cfg: RNGConfig) -> None:
     sleep(1.5)
     ctx.press("A")
     sleep(1.5)
-    if cfg.game_version == "fr_nx":
+    if cfg.game_version in ["fr_nx", "fr_nx2"]:
         pokemon_list = ["Abra", "Clefairy", "Dratini", "Scyther", "Porygon"]
-    elif cfg.game_version == "lg_nx":
+    elif cfg.game_version in ["lg_nx", "lg_nx2"]:
         pokemon_list = ["Abra", "Clefairy", "Pinsir", "Dratini", "Porygon"]
     else:
-        raise NotImplementedError(cfg.game_version)
+        raise NotImplementedError(f"暂未支持的游戏版本：{cfg.game_version}")
     for pokemon in pokemon_list:
         if pokemon == cfg.pokemon_species:
             break
         ctx.press('DOWN')
-        sleep(0.5)
+        sleep(0.8)
     else:
-        raise ValueError(f"版本游戏厅无预期宝可梦：{cfg.game_version}-{cfg.pokemon_species}")
+        raise ValueError(f"该版本游戏厅无预期宝可梦：{cfg.game_version}-{cfg.pokemon_species}")
     ctx.press('A')
     sleep(0.0, end)
     ctx.press('A')
@@ -125,9 +125,17 @@ def hit_game_corner(ctx: ScriptContext, cfg: RNGConfig) -> None:
     ctx.press("B")
 
 
-def hit_gift(ctx: ScriptContext, cfg: RNGConfig) -> None:
+def hit_A(ctx: ScriptContext, cfg: RNGConfig) -> None:
     start = time.time()
     end = start + cfg.schedule.advances_ms_normal / 1000.0
+    extra_as = {
+        "Lapras": 3,
+        "Eevee": 0,
+        "Snorlax": 1,
+    }[cfg.pokemon_species]
+    for _ in range(extra_as):
+        ctx.press("A")
+        sleep(3.0)
     sleep(0.0, end)
     ctx.press("A")
     sleep(3.0)
@@ -145,8 +153,8 @@ def hit(ctx: ScriptContext, cfg: RNGConfig) -> bool:
         hit_super_rod(ctx, cfg)
     elif cfg.rng_category == "Game Corner":
         hit_game_corner(ctx, cfg)
-    elif cfg.rng_category == "Gift":
-        hit_gift(ctx, cfg)
+    elif cfg.rng_category in ["Gifts", "Stationary"]:
+        hit_A(ctx, cfg)
     else:
         raise NotImplementedError(cfg.rng_category)
     ctx.log("--- RNG 流程结束 ---")

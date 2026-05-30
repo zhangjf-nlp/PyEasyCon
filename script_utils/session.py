@@ -143,8 +143,8 @@ def observe_pokemon(ctx: ScriptContext, state: SessionState, cfg: RNGConfig, att
     ctx.save_ocr_screenshot(f"{state.log_dir}/screens/{attempt:03d}-CAUGHT_INFO.png", "CAUGHT_INFO")
 
     gender = (
-        "male" if ctx.search_label("FRLG性别符号♂", 98)
-        else "female" if ctx.search_label("FRLG性别符号♀", 98)
+        "male" if ctx.search_label("FRLG性别符号♂", 90)
+        else "female" if ctx.search_label("FRLG性别符号♀", 90)
         else "unknown"
     )
     ocr_caught_info["gender"] = gender
@@ -171,10 +171,10 @@ def observe_pokemon(ctx: ScriptContext, state: SessionState, cfg: RNGConfig, att
                 sleep(0.5)
                 ctx.press("X")
                 sleep(1.0)
-                if ctx.search_label("FRLG关键词POKeMON", 95):
+                if ctx.search_label("FRLG关键词POKeMON", 90):
                     break
             for _ in range(20):
-                if ctx.search_label("FRLG关键词BAG选中", 97):
+                if ctx.search_label("FRLG关键词BAG选中", 95):
                     break
                 ctx.press("DOWN")
                 sleep(0.5)
@@ -183,10 +183,10 @@ def observe_pokemon(ctx: ScriptContext, state: SessionState, cfg: RNGConfig, att
             for _ in range(5):
                 ctx.press("LEFT")
                 sleep(0.5)
-                if ctx.search_label("FRLG关键词Items", 95):
+                if ctx.search_label("FRLG关键词Items", 90):
                     break
             for _ in range(30):
-                if ctx.search_label("FRLG神奇糖果", 95):
+                if ctx.search_label("FRLG神奇糖果", 90):
                     break
                 ctx.press("DOWN")
                 sleep(0.5)
@@ -204,18 +204,14 @@ def observe_pokemon(ctx: ScriptContext, state: SessionState, cfg: RNGConfig, att
             ctx.press("UP")
             sleep(1.0)
         ctx.press("A")
+        sleep(5.0)
+        ctx.press("B")
         sleep(3.0)
-
-        for _ in range(10):
-            ctx.press("B")
-            sleep(1.0)
-            if ctx.search_label("FRLG升级能力值", 97):
-                ctx.press("B")
-                sleep(0.5)
-                ocr_elevated = ctx.ocr_pokemon()
-                break
-        else:
-            break
+        ctx.press("B")
+        sleep(1.0)
+        ctx.press("B")
+        sleep(1.0)
+        ocr_elevated = ctx.ocr_pokemon()
 
         assert ocr_elevated.get("screen") == "ELEVATED"
         ctx.save_ocr_screenshot(f"{state.log_dir}/screens/{attempt:03d}-ELEVATEDx{i+1}.png", "ELEVATED")
@@ -236,9 +232,9 @@ def observe_pokemon(ctx: ScriptContext, state: SessionState, cfg: RNGConfig, att
         for _ in range(30):
             ctx.press("B")
             sleep(0.5)
-            if ctx.search_label("FRLG神奇糖果", 95):
+            if ctx.search_label("FRLG神奇糖果", 90):
                 break
-            if ctx.search_label("FRLG技能替换", 95):
+            if ctx.search_label("FRLG技能替换", 90):
                 ctx.press("B")
                 sleep(1.0)
                 ctx.press("A")
