@@ -14,8 +14,8 @@ cfg = RNGConfig(
         "Mono | Help | Seed Button: Start | Extra Button: None"
     ),
     pokemon_species="Eevee",
-    rng_category="Gifts",
-    rng_location="Gifts",
+    rng_category="Gift",
+    rng_location="Gift",
     rng_method="Static 1",
     target=RNGSlot(0x4C88, 0, 371024),
     seed_bias=-4790,

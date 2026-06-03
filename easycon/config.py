@@ -16,7 +16,7 @@ def load_config(config_path: str = None) -> Dict[str, Any]:
     if config_path is None:
         config_path = os.environ.get(
             "EASYCON_CONFIG",
-            os.path.join(os.path.dirname(os.path.dirname(__file__)), "config", "default.yaml"),
+            os.path.join(os.path.dirname(os.path.dirname(__file__)), "default.yaml"),
         )
 
     if os.path.exists(config_path):

@@ -1,0 +1,8 @@
+# Shell scripts MUST use LF on all platforms
+*.sh text eol=lf
+
+# Windows batch files use CRLF
+*.bat text eol=crlf
+
+# Python files: LF is fine everywhere
+*.py text eol=lf

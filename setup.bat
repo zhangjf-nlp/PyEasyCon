@@ -1,6 +1,5 @@
 @echo off
 setlocal enabledelayedexpansion
-chcp 65001 >nul
 title EasyCon - Environment Setup
 
 cd /d "%~dp0"
@@ -34,13 +33,13 @@ echo This script will set up a standalone Python for EasyCon.
 echo It will NOT affect any existing Python on your system.
 echo.
 
-:: ── Step 1/6: Unpack clean Python ─────────────────────
+:: -- Step 1/6: Unpack clean Python ---------------------
 echo [1/6] Checking Python...
 
 if exist "%PYTHON_EXE%" (
     "%PYTHON_EXE%" -c "exit(0)" >nul 2>&1
     if !ERRORLEVEL! equ 0 (
-        echo   √ Python found, skipping
+        echo   [OK] Python found, skipping
         goto :check_git
     )
     echo   ! Existing Python is broken, re-extracting...
@@ -78,14 +77,14 @@ if not exist "%PYTHON_EXE%" (
     pause
     exit /b 1
 )
-echo   √ Python extracted
+echo   [OK] Python extracted
 
 :: Enable site-packages and add project root to sys.path
 echo   Configuring Python search path...
 powershell -NoProfile -Command ^
     "Set-Content '%PTH_FILE%' @('python312.zip', '%ROOT_DIR%', '', 'import site')"
 
-:: ── Step 2/6: Download portable Git ─────────────────
+:: -- Step 2/6: Download portable Git -----------------
 :check_git
 echo.
 echo [2/6] Checking Git...
@@ -93,13 +92,13 @@ echo [2/6] Checking Git...
 where git >nul 2>&1
 if !ERRORLEVEL! equ 0 (
     for /f "delims=" %%i in ('where git') do set GIT_PATH=%%i
-    echo   √ System Git found: !GIT_PATH!
+    echo   [OK] System Git found: !GIT_PATH!
     set GIT_EXE=git
     goto :install_pip
 )
 
 if exist "%GIT_EXE%" (
-    echo   √ Local Git found, skipping
+    echo   [OK] Local Git found, skipping
     goto :install_pip
 )
 
@@ -123,19 +122,19 @@ echo   Extracting Git...
 mkdir "%GIT_DIR%" 2>nul
 "%GIT_INSTALLER%" -o"%GIT_DIR%" -y
 if exist "%GIT_EXE%" (
-    echo   √ Git ready
+    echo   [OK] Git ready
 ) else (
     echo   ! Git extraction failed. Auto-update will be unavailable.
 )
 
-:: ── Step 3/6: Bootstrap pip ─────────────────────────
+:: -- Step 3/6: Bootstrap pip -------------------------
 :install_pip
 echo.
 echo [3/6] Checking pip...
 
 "%PYTHON_EXE%" -m pip --version >nul 2>&1
 if !ERRORLEVEL! equ 0 (
-    echo   √ pip already installed
+    echo   [OK] pip already installed
     goto :upgrade_pip
 )
 
@@ -160,9 +159,9 @@ if !ERRORLEVEL! neq 0 (
     pause
     exit /b 1
 )
-echo   √ pip installed
+echo   [OK] pip installed
 
-:: ── Step 4/6: Upgrade pip ───────────────────────────
+:: -- Step 4/6: Upgrade pip ---------------------------
 :upgrade_pip
 echo.
 echo [4/6] Upgrading pip...
@@ -171,10 +170,10 @@ echo [4/6] Upgrading pip...
 if !ERRORLEVEL! neq 0 (
     echo   ! pip upgrade failed, continuing anyway...
 ) else (
-    echo   √ pip upgraded
+    echo   [OK] pip upgraded
 )
 
-:: ── Step 5/6: Install project dependencies ──────────
+:: -- Step 5/6: Install project dependencies ----------
 echo.
 echo [5/6] Installing dependencies...
 echo   (First time may take a few minutes, please wait)
@@ -187,17 +186,17 @@ if !ERRORLEVEL! neq 0 (
     exit /b 1
 )
 
-echo   √ Dependencies installed
+echo   [OK] Dependencies installed
 
-:: ── Step 6/6: MiniCPM OCR (已内置免费 Key) ────────
+:: -- Step 6/6: MiniCPM OCR (已内置免费 Key) --------
 echo.
 echo [6/6] VL Model OCR - MiniCPM-V-4.6 configured
 echo   MiniCPM-V-4.6 is pre-configured with a free API key.
 echo   No additional setup needed for image recognition.
 echo   vLLM (local GPU) -^> MiniCPM (free online) -^> GLM (online)
-echo   √ MiniCPM OCR ready
+echo   [OK] MiniCPM OCR ready
 
-:: ── Cleanup ─────────────────────────────────────────
+:: -- Cleanup -----------------------------------------
 :setup_done
 echo.
 echo ========================================
@@ -217,7 +216,7 @@ echo.
 pause
 exit /b 0
 
-:: ── Helper: download with retry ─────────────────────
+:: -- Helper: download with retry ---------------------
 :download
 set URL=%~1
 set OUTPUT=%~2

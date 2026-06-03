@@ -82,14 +82,21 @@ def hit_super_rod(ctx: ScriptContext, cfg: RNGConfig) -> None:
     ctx.press("A")
     sleep(1.0)
     ctx.press("RIGHT")
-    sleep(0.5)
-    for _ in range(100):
-        if ctx.search_label("FRLG关键词SuperRod选中", 95):
+    sleep(1.0)
+    reversed = False
+    for _ in range(30):
+        if ctx.search_label(f"FRLG关键词选中CANCEL", 90):
+            reversed = True
+        score = ctx.search_label(f"FRLG关键词{cfg.rng_category}选中", -1)
+        import cv2
+        cv2.imwrite(f"tmp-{_:0>2d}-{score}.png", ctx.get_frame().copy())
+        if score >= 80:
             break
-        ctx.press("DOWN")
-        sleep(0.3)
+        else:
+            ctx.press("DOWN" if not reversed else "UP", duration_ms=100)
+            sleep(0.5)
     else:
-        ctx.log('未找到超级钓竿')
+        ctx.log(f'未找到{cfg.rng_category}')
         return
     ctx.press("A")
     sleep(0.5)
@@ -153,7 +160,7 @@ def hit(ctx: ScriptContext, cfg: RNGConfig) -> bool:
         hit_super_rod(ctx, cfg)
     elif cfg.rng_category == "Game Corner":
         hit_game_corner(ctx, cfg)
-    elif cfg.rng_category in ["Gifts", "Stationary"]:
+    elif cfg.rng_category in ["Gift", "Stationary"]:
         hit_A(ctx, cfg)
     else:
         raise NotImplementedError(cfg.rng_category)

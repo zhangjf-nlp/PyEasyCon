@@ -16,6 +16,7 @@ from gui import run_script
 from script_utils.hit import sleep
 from rng.tenlines_utils import get_encounter
 from vision.sprite import identify_pokemon, preload_sprites
+from script_utils.navigation import run_away, in_wild
 
 _BASEPOINTS_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
@@ -52,11 +53,6 @@ def get_name(sid):
 def format_ev(bp, stat_keys=None):
     keys = stat_keys if stat_keys is not None else _ALL_STATS
     return ", ".join(f"{_STAT_ZH[k]}+{bp.get(k, 0)}" for k in keys if bp.get(k, 0) > 0)
-
-
-def in_wild(ctx: ScriptContext) -> bool:
-    return ctx.search_label("FRLG草丛", 90) or ctx.search_label("FRLG对话", 90) \
-        or ctx.search_label("FRLG水面", 90) or ctx.search_label("FRLG洞穴", 90)
 
 
 @dataclass
@@ -187,19 +183,18 @@ def navigate_to_sweet_scent(ctx: ScriptContext, item_counts: dict) -> bool:
     ctx.press("A")
     sleep(1.0)
 
-    if not ctx.search_label("FRLG关键词SweetScent", 80):
-        ctx.log("队末宝可梦未学习甜甜香气")
-
-    for _ in range(5):
-        if ctx.search_label("FRLG关键词SweetScent", 99):
+    for _ in range(10):
+        if ctx.search_label("FRLG关键词SweetScent", 95):
             break
         else:
             ctx.press("DOWN")
             sleep(0.5)
     else:
-        ctx.log("队末宝可梦未找到甜甜香气")
-        sleep(3600)
-        return False
+        ctx.log("队末宝可梦未找到甜甜香气 -> 递归重试")
+        for _ in range(10):
+            ctx.press("B")
+            sleep(0.5)
+        return navigate_to_sweet_scent(ctx, item_counts)
 
     ctx.press("A")
     sleep(8.0)
@@ -215,26 +210,6 @@ def use_sweet_scent(ctx: ScriptContext, item_counts: dict) -> bool:
             return True
     ctx.log("甜甜香气未触发遇敌")
     return False
-
-
-def run_away(ctx: ScriptContext) -> None:
-    for _ in range(15):
-        ctx.press("B")
-        sleep(0.3)
-        ctx.press("DOWN")
-        sleep(0.3)
-        ctx.press("RIGHT")
-        sleep(0.3)
-        if ctx.search_label("FRLG逃跑", 90):
-            ctx.press("A")
-            sleep(1.0)
-            break
-    for _ in range(30):
-        sleep(0.5)
-        if in_wild(ctx):
-            return
-        ctx.press("B")
-        sleep(0.3)
 
 
 def handle_post_battle(ctx: ScriptContext) -> None:
@@ -258,6 +233,7 @@ def handle_post_battle(ctx: ScriptContext) -> None:
             ctx.press("B")
             sleep(0.5)
         elif in_wild(ctx):
+            sleep(0.5)
             return
         else:
             if i > 30:
@@ -278,7 +254,7 @@ def defeat_pokemon(ctx: ScriptContext) -> bool:
         sleep(0.3)
         if ctx.search_label("FRLG野怪血条", 90):
             break
-
+    
     while True:
         if ctx.search_label("FRLG空PP", 98):
             if pp_switches == 0:
@@ -294,11 +270,10 @@ def defeat_pokemon(ctx: ScriptContext) -> bool:
                 pp_switches += 1
                 continue
             elif pp_switches == 2:
-                ctx.log(f"四技能PP耗尽, 脚本停止")
+                ctx.log(f"四技能PP耗尽, 逃跑")
                 return False
             else:
-                ctx.log("所有技能PP耗尽!")
-                return False
+                raise ValueError
         
         if ctx.search_label("FRLG首发晕厥", 95):
             ctx.log("首发宝可梦昏厥, 脚本停止")
@@ -313,6 +288,83 @@ def defeat_pokemon(ctx: ScriptContext) -> bool:
                 or in_wild(ctx)):
             sleep(1.0)
             return True
+
+
+def heal_pokemon(ctx: ScriptContext, cfg: EVTrainConfig) -> bool:
+    if not in_wild(ctx):
+        return False
+    
+    ctx.press("X")
+    sleep(1.0)
+
+    for _ in range(10):
+        if ctx.search_label("FRLG关键词POKeMON选中", 98):
+            break
+        ctx.press("DOWN")
+        sleep(0.8)
+    else:
+        ctx.log("无法定位到POKeMON菜单")
+        return False
+
+    ctx.press("A")
+    sleep(2.0)
+
+    ctx.press("UP")
+    sleep(0.5)
+    ctx.press("UP")
+    sleep(0.5)
+    ctx.press("UP")
+    sleep(0.5)
+    ctx.press("A")
+    sleep(1.0)
+
+    for _ in range(5):
+        if ctx.search_label("FRLG关键词TELEPORT", 95):
+            break
+        else:
+            ctx.press("DOWN")
+            sleep(0.5)
+    else:
+        ctx.log("队末宝可梦未找到瞬间移动")
+        return False
+
+    ctx.press("A")
+    sleep(2.0)
+
+    ctx.press("A")
+    sleep(9.0)
+
+    ctx.press("UP", duration_ms=4000)
+    
+    sleep(0.5)
+    ctx.press("A")
+    sleep(2.0)
+    ctx.press("A")
+    sleep(2.5)
+    ctx.press("A")
+    sleep(10.0)
+    ctx.press("B")
+    sleep(4.0)
+    ctx.press("B")
+    sleep(1.0)
+
+    ctx.press("DOWN", duration_ms=2000)
+    sleep(2.0)
+
+    return goto_location(ctx, cfg)
+
+
+def goto_location(ctx: ScriptContext, cfg: EVTrainConfig):
+    if cfg.location == "Route 22":
+        ctx.press("LEFT", duration_ms=2000)
+        ctx.press("UP", duration_ms=2100)
+        ctx.press("LEFT", duration_ms=7000)
+        ctx.press("DOWN", duration_ms=1200)
+        ctx.press("LEFT", duration_ms=900)
+        ctx.press("UP", duration_ms=500)
+        sleep(1.0)
+        return True
+    return False
 
 
 def ev_train(config: EVTrainConfig) -> None:
@@ -338,6 +390,9 @@ def ev_train(config: EVTrainConfig) -> None:
                 if not use_sweet_scent(ctx, item_counts):
                     ctx.log("甜甜香气使用失败, 重试...")
                     sleep(2.0)
+                    if in_wild(ctx):
+                        heal_pokemon(ctx, cfg)
+                        sleep
                     continue
 
                 frame = ctx.get_frame()
@@ -359,9 +414,17 @@ def ev_train(config: EVTrainConfig) -> None:
                 if species_id is not None and score >= 0.95 and species_id in targets:
                     ctx.log(f"{prefix} -> 击败")
                     if not defeat_pokemon(ctx):
-                        ctx.log("击败失败, 脚本停止")
-                        break
-                    handle_post_battle(ctx)
+                        ctx.log("击败失败 -> 逃跑")
+                        run_away(ctx)
+                        if not in_wild(ctx):
+                            ctx.log("逃跑失败 -> 停止")
+                            break
+                        else:
+                            ctx.log("逃跑成功 -> 恢复")
+                        if not heal_pokemon(ctx, cfg):
+                            ctx.log("恢复成功 -> 停止")
+                    else:
+                        handle_post_battle(ctx)
                     battle_count += 1
                     for k in stat_keys:
                         ev_totals[k] += bp.get(k, 0)
@@ -382,8 +445,8 @@ def ev_train(config: EVTrainConfig) -> None:
 
 if __name__ == "__main__":
     cfg = EVTrainConfig(
-        location="Route 15",
+        location="Route 22",
         category="Grass",
-        base_points=["speed", "sp_atk"],
+        base_points=["attack", "speed"],
     )
     ev_train(cfg)

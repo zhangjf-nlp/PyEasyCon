@@ -11,7 +11,7 @@ from rng.config import RNGConfig, SessionState
 from script_utils.hit import hit
 from script_utils.capture import check_shiny, catch_with_ball, check_last_pokemon
 from script_utils.session import observe_pokemon, init_log_dir, run_calibration, ready_for_calibration
-from script_utils.navigation import restart
+from script_utils.navigation import in_wild, restart
 
 
 def launch(cfg: RNGConfig, state: SessionState = None) -> None:
@@ -31,6 +31,9 @@ def launch(cfg: RNGConfig, state: SessionState = None) -> None:
             ctx.log(f'[Warning] Too low seed time: {cfg.schedule.seed_ms}ms')
         if cfg.schedule.advances_ms_tv < 1000:
             ctx.log(f'[Warning] Too low TV time: {cfg.schedule.advances_ms_tv}ms')
+        
+        if in_wild(ctx):
+            restart(ctx)
 
         state.attempt_index = 0
         while ctx.is_running():

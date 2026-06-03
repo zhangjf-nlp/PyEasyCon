@@ -500,8 +500,27 @@ def parse_frlg_seed_data(data: bytes, is_nx_format: bool):
     return seed_map, contiguous
 
 
+SEED_BASE_URL = "https://lincoln-lm.github.io/ten-lines/generated"
+
+
+def _download_seed_file(filename, local_path):
+    import os
+    import urllib.request
+    url = f"{SEED_BASE_URL}/{filename}"
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "EasyCon/1.0"})
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = resp.read()
+        os.makedirs(os.path.dirname(local_path), exist_ok=True)
+        with open(local_path, 'wb') as f:
+            f.write(data)
+        return data
+    except Exception:
+        return None
+
+
 def load_frlg_seed_data(game: str = "fr_nx"):
-    """Load FRLG seed data from resources directory."""
+    """Load FRLG seed data. Tries to download latest from ten-lines site first, falls back to local file."""
     import os
     seed_files = {
         "fr": "fr_eng.bin", "fr_eu": "fr_eng.bin", "fr_nx": "fr_eng_nx.bin",
@@ -514,8 +533,10 @@ def load_frlg_seed_data(game: str = "fr_nx"):
         return {}, {}
     filename = seed_files[game]
     local_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "resources", filename)
-    with open(local_path, 'rb') as f:
-        data = f.read()
+    data = _download_seed_file(filename, local_path)
+    if data is None:
+        with open(local_path, 'rb') as f:
+            data = f.read()
     return parse_frlg_seed_data(data, game.endswith("nx") or game.endswith("nx2"))
 
 

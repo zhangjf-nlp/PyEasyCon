@@ -1,6 +1,5 @@
 @echo off
 setlocal enabledelayedexpansion
-chcp 65001 >nul
 title EasyCon
 
 cd /d "%~dp0"
@@ -12,7 +11,7 @@ set GIT_DIR=%ROOT_DIR%\Git\bin
 set GIT_EXE=
 set EXAMPLES_DIR=%ROOT_DIR%\examples
 
-:: ── Check environment ────────────────────────────────
+:: ---- Check environment ---------------------------------
 if not exist "%PYTHON_EXE%" (
     echo ========================================
     echo   Environment not found. Running setup...
@@ -35,7 +34,7 @@ if !ERRORLEVEL! neq 0 (
     call "%ROOT_DIR%\setup.bat"
 )
 
-:: ── Check Git and auto-update ────────────────────────
+:: ---- Check Git and auto-update -------------------------
 where git >nul 2>&1
 if !ERRORLEVEL! equ 0 (
     set GIT_EXE=git
@@ -55,7 +54,7 @@ if not "%GIT_EXE%"=="" (
     echo.
 )
 
-:: ── Ensure sys.path includes project root ────────────
+:: ---- Ensure sys.path includes project root -------------
 set "PTH=%ROOT_DIR%\Python312\python312._pth"
 > "%PTH%" echo python312.zip
 >>"%PTH%" echo !ROOT_DIR!
@@ -64,7 +63,7 @@ set "PTH=%ROOT_DIR%\Python312\python312._pth"
 
 set "PATH=%ROOT_DIR%\Python312\Scripts;%ROOT_DIR%\Python312;!PATH!"
 
-:: ── Build script list ────────────────────────────────
+:: ---- Build script list ---------------------------------
 set COUNT=0
 for %%f in ("%EXAMPLES_DIR%\*.py") do (
     set /a COUNT+=1
@@ -78,7 +77,7 @@ if !COUNT! equ 0 (
     exit /b 1
 )
 
-:: ── Menu ─────────────────────────────────────────────
+:: ---- Menu ----------------------------------------------
 :menu
 echo.
 echo ========================================

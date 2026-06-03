@@ -5,7 +5,7 @@ import numpy as np
 from rng.tenlines_utils import (
     calibration as _api,
     iv_calculator,
-    GameSettings, IVsObservation, NATURES,
+    GameSettings, IVsObservation, NATURES, METHOD_NAMES,
     get_species_id, get_personal,
 )
 from rng.config import RNGConfig, SessionState, RNGSlot, SEED_PERIOD, ADV_PERIOD
@@ -138,16 +138,22 @@ class RNGAttempt:
             self.cfg.rng_location, self.cfg.rng_category,
         )
         self.slots = _make_slots(results)
+        self._method_of = {}
+        for r in results:
+            key = (int(r.seed, 16), r.seed_time, r.advances)
+            self._method_of[key] = METHOD_NAMES.get(r.method, f"Method {r.method}")
 
         if len(self.slots) == 0:
             print(f"[classify] #{self.id} -> empty")
         elif self.is_precise:
-            print(f"[classify] #{self.id} -> precise | unique {self.slots[0] - self.target}")
+            method_name = self._method_of.get((self.slots[0].seed_hex, self.slots[0].seed_time, self.slots[0].advances), "?")
+            print(f"[classify] #{self.id} -> precise ({method_name}) | unique {self.slots[0] - self.target}")
         else:
             for r in results:
                 print(f"[classify] #{self.id} {r}")
             nearest = self.find_nearest(self.target)
-            print(f"[classify] #{self.id} -> vague | nearest (1/{len(self.slots)}) {nearest - self.target}")
+            method_name = self._method_of.get((nearest.seed_hex, nearest.seed_time, nearest.advances), "?")
+            print(f"[classify] #{self.id} -> vague ({method_name}) | nearest (1/{len(self.slots)}) {nearest - self.target}")
 
     @property
     def is_precise(self) -> bool:
@@ -219,8 +225,9 @@ def calibrate(cfg: RNGConfig, state: SessionState) -> dict:
         nearest = attempt.find_nearest(anchor)
         observed_slots.append(nearest)
         disp = nearest - target
+        method_name = attempt._method_of.get((nearest.seed_hex, nearest.seed_time, nearest.advances), "?")
         print(
-            f"[calibrate] #{attempt.id}: {nearest} -> {disp}"
+            f"[calibrate] #{attempt.id}: {nearest} ({method_name}) -> {disp}"
         )
 
     deltas = np.array([(obs - target).to_array() for obs in observed_slots])
