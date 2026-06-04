@@ -63,7 +63,7 @@ def hit_sweet_scent(ctx: ScriptContext, cfg: RNGConfig) -> None:
     ctx.press("A")
 
 
-def hit_super_rod(ctx: ScriptContext, cfg: RNGConfig) -> None:
+def hit_rod(ctx: ScriptContext, cfg: RNGConfig) -> None:
     start = time.time()
     end = start + cfg.schedule.advances_ms_normal / 1000.0
     ctx.press("X")
@@ -129,10 +129,13 @@ def hit_A(ctx: ScriptContext, cfg: RNGConfig) -> None:
     start = time.time()
     end = start + cfg.schedule.advances_ms_normal / 1000.0
     extra_as = {
-        "Lapras": 3,
-        "Eevee": 0,
-        "Snorlax": 1,
-    }[cfg.pokemon_species]
+        "Lapras": 3, "Eevee": 0, # Gift
+        "Snorlax": 1, "Electrode": 0, "Hypno": 6, # Stationary
+        "Zapdos": 0, "Articuno": 0, "Moltres": 0, "Mewtwo": -1, # Legend
+        "Omanyte": 2, "Kabuto": 2, "Aerodactyl": 2, # Fossil
+    }.get(cfg.pokemon_species, -1)
+    if extra_as == -1:
+        raise ValueError(f"{cfg.pokemon_species}暂未支持")
     for _ in range(extra_as):
         ctx.press("A")
         sleep(3.0)
@@ -149,11 +152,11 @@ def hit(ctx: ScriptContext, cfg: RNGConfig) -> bool:
         hit_tv_frame(ctx, cfg)
     if cfg.rng_category in ["Grass", "Surfing"]:
         hit_sweet_scent(ctx, cfg)
-    elif cfg.rng_category == "SuperRod":
-        hit_super_rod(ctx, cfg)
+    elif cfg.rng_category in ["OldRod", "GoodRod", "SuperRod"]:
+        hit_rod(ctx, cfg)
     elif cfg.rng_category == "Game Corner":
         hit_game_corner(ctx, cfg)
-    elif cfg.rng_category in ["Gift", "Stationary"]:
+    elif cfg.rng_category in ["Gift", "Stationary", "Legend", "Fossil"]:
         hit_A(ctx, cfg)
     else:
         raise NotImplementedError(cfg.rng_category)
