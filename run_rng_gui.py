@@ -32,7 +32,7 @@ from easycon.config import get as config_get
 # ── 常量 ──────────────────────────────────────────────
 GAME_OPTIONS = {"火红": "fr_nx", "叶绿": "lg_nx"}
 
-STATIC_CATEGORIES = ["Gift", "Game Corner", "Stationary"]
+STATIC_CATEGORIES = ["Gift", "Game Corner", "Stationary", "Legend", "Fossil"]
 WILD_CATEGORIES = ["Grass", "Surfing", "SuperRod", "GoodRod", "OldRod"]
 
 METHOD_OPTIONS = {
