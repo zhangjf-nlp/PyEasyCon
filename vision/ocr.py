@@ -4,7 +4,7 @@ Pokemon OCR Module - 宝可梦信息 OCR 识别模块
 
 ROI 坐标基于 1920×1080 (采集卡直出)
 
-配置来源：config/default.yaml → vl_model 段
+配置来源：default.yaml → vl_model 段
 """
 
 import base64
@@ -18,7 +18,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import cv2
 import numpy as np
 
-# ==================== VL 模型配置（config/default.yaml → vl_model 段） ====================
+# ==================== VL 模型配置（default.yaml → vl_model 段） ====================
 
 def _read_vl_config():
     """读取 VL 模型配置（延迟导入，避免循环依赖）"""
@@ -34,24 +34,23 @@ VLLM_BASE_URL = _vl_cfg.get("vllm", {}).get("base_url", "http://localhost:8000/v
 VLLM_API_KEY = _vl_cfg.get("vllm", {}).get("api_key", "sk-PyEasyCon")
 VLLM_MODEL_NAME = _vl_cfg.get("vllm", {}).get("model_name", "/opt/models/Qwen3-VL-2B-Instruct-FP8")
 
-GLM_API_BASE_URL = "https://open.bigmodel.cn/api/paas/v4"
-GLM_API_KEY = _vl_cfg.get("glm", {}).get("api_key", "")
-GLM_MODEL = _vl_cfg.get("glm", {}).get("model", "GLM-4.6V-Flash")
-GLM_MAX_RETRIES = _vl_cfg.get("glm", {}).get("max_retries", 8)
+OLLAMA_BASE_URL = _vl_cfg.get("ollama", {}).get("base_url", "http://localhost:11434/v1")
+OLLAMA_API_KEY = _vl_cfg.get("ollama", {}).get("api_key", "ollama")
+OLLAMA_MODEL_NAME = _vl_cfg.get("ollama", {}).get("model_name", "qwen3-vl:2b")
 
-MINICPM_API_BASE_URL = _vl_cfg.get("minicpm", {}).get("base_url", "https://api.modelbest.cn/v1")
-MINICPM_API_KEY = _vl_cfg.get("minicpm", {}).get("api_key", "sk-pQ8L2zF3XmR5kY9wV4jB7hN1tC6vM0xG3aD5sH2bJ9lK4cZ8")
-MINICPM_MODEL = _vl_cfg.get("minicpm", {}).get("model", "MiniCPM-V-4.6-Instruct")
-MINICPM_MAX_RETRIES = _vl_cfg.get("minicpm", {}).get("max_retries", 8)
+MODELSCOPE_API_BASE_URL = _vl_cfg.get("modelscope", {}).get("base_url", "https://api-inference.modelscope.cn/v1")
+MODELSCOPE_API_KEY = _vl_cfg.get("modelscope", {}).get("api_key", "")
+MODELSCOPE_MODEL = _vl_cfg.get("modelscope", {}).get("model", "Qwen/Qwen3-VL-8B-Instruct")
+MODELSCOPE_MAX_RETRIES = _vl_cfg.get("modelscope", {}).get("max_retries", 3)
 
 MODEL_TYPE_VLLM = "vllm"
-MODEL_TYPE_GLM = "glm"
-MODEL_TYPE_MINICPM = "minicpm"
+MODEL_TYPE_OLLAMA = "ollama"
+MODEL_TYPE_MODELSCOPE = "modelscope"
 
 _preferred = _vl_cfg.get("type", "vllm").lower()
 _current_model_type = (
-    MODEL_TYPE_GLM if _preferred == "glm"
-    else MODEL_TYPE_MINICPM if _preferred == "minicpm"
+    MODEL_TYPE_OLLAMA if _preferred == "ollama"
+    else MODEL_TYPE_MODELSCOPE if _preferred == "modelscope"
     else MODEL_TYPE_VLLM if _preferred == "vllm"
     else MODEL_TYPE_VLLM
 )
@@ -59,12 +58,11 @@ _current_model_type = (
 _model_init_done = False
 _model_init_lock = threading.Lock()
 
-_glm_semaphore = threading.Semaphore(2)
-_minicpm_semaphore = threading.Semaphore(2)
+_modelscope_semaphore = threading.Semaphore(2)
 
 _client = None
-_glm_client = None
-_minicpm_client = None
+_ollama_client = None
+_modelscope_client = None
 _openai_available = False
 
 try:
@@ -187,28 +185,28 @@ def _get_vllm_client() -> OpenAI:
     return _client
 
 
-def _get_glm_client() -> OpenAI:
-    global _glm_client
+def _get_ollama_client() -> OpenAI:
+    global _ollama_client
     if not _openai_available:
         raise ImportError("openai 库未安装，请运行: pip install openai")
-    if _glm_client is None:
-        _glm_client = OpenAI(api_key=GLM_API_KEY, base_url=GLM_API_BASE_URL, timeout=60)
-    return _glm_client
+    if _ollama_client is None:
+        _ollama_client = OpenAI(api_key=OLLAMA_API_KEY, base_url=OLLAMA_BASE_URL, timeout=60)
+    return _ollama_client
 
 
-def _get_minicpm_client() -> OpenAI:
-    global _minicpm_client
+def _get_modelscope_client() -> OpenAI:
+    global _modelscope_client
     if not _openai_available:
         raise ImportError("openai 库未安装，请运行: pip install openai")
-    if _minicpm_client is None:
-        _minicpm_client = OpenAI(api_key=MINICPM_API_KEY, base_url=MINICPM_API_BASE_URL, timeout=60)
-    return _minicpm_client
+    if _modelscope_client is None:
+        _modelscope_client = OpenAI(api_key=MODELSCOPE_API_KEY, base_url=MODELSCOPE_API_BASE_URL, timeout=60)
+    return _modelscope_client
 
 
 def set_model_type(model_type: str):
     global _current_model_type
-    if model_type not in [MODEL_TYPE_VLLM, MODEL_TYPE_GLM, MODEL_TYPE_MINICPM]:
-        raise ValueError(f"不支持的模型类型: {model_type}，支持的类型: {MODEL_TYPE_VLLM}, {MODEL_TYPE_GLM}, {MODEL_TYPE_MINICPM}")
+    if model_type not in [MODEL_TYPE_VLLM, MODEL_TYPE_OLLAMA, MODEL_TYPE_MODELSCOPE]:
+        raise ValueError(f"不支持的模型类型: {model_type}，支持的类型: {MODEL_TYPE_VLLM}, {MODEL_TYPE_OLLAMA}, {MODEL_TYPE_MODELSCOPE}")
     _current_model_type = model_type
 
 
@@ -220,10 +218,10 @@ def get_available_model_types() -> list:
     available = []
     if _probe_openai(VLLM_BASE_URL, VLLM_API_KEY):
         available.append(MODEL_TYPE_VLLM)
-    if _probe_openai(GLM_API_BASE_URL, GLM_API_KEY):
-        available.append(MODEL_TYPE_GLM)
-    if _probe_openai(MINICPM_API_BASE_URL, MINICPM_API_KEY):
-        available.append(MODEL_TYPE_MINICPM)
+    if _probe_openai(OLLAMA_BASE_URL, OLLAMA_API_KEY):
+        available.append(MODEL_TYPE_OLLAMA)
+    if _probe_openai(MODELSCOPE_API_BASE_URL, MODELSCOPE_API_KEY):
+        available.append(MODEL_TYPE_MODELSCOPE)
     return available
 
 
@@ -236,10 +234,10 @@ def get_vllm_model() -> str:
 def check_service() -> bool:
     if _current_model_type == MODEL_TYPE_VLLM:
         return _probe_openai(VLLM_BASE_URL, VLLM_API_KEY)
-    elif _current_model_type == MODEL_TYPE_GLM:
-        return _probe_openai(GLM_API_BASE_URL, GLM_API_KEY)
-    elif _current_model_type == MODEL_TYPE_MINICPM:
-        return _probe_openai(MINICPM_API_BASE_URL, MINICPM_API_KEY)
+    elif _current_model_type == MODEL_TYPE_OLLAMA:
+        return _probe_openai(OLLAMA_BASE_URL, OLLAMA_API_KEY)
+    elif _current_model_type == MODEL_TYPE_MODELSCOPE:
+        return _probe_openai(MODELSCOPE_API_BASE_URL, MODELSCOPE_API_KEY)
     return False
 
 
@@ -247,12 +245,12 @@ def check_vllm_service() -> bool:
     return _probe_openai(VLLM_BASE_URL, VLLM_API_KEY)
 
 
-def check_glm_service() -> bool:
-    return _probe_openai(GLM_API_BASE_URL, GLM_API_KEY)
+def check_ollama_service() -> bool:
+    return _probe_openai(OLLAMA_BASE_URL, OLLAMA_API_KEY)
 
 
-def check_minicpm_service() -> bool:
-    return _probe_openai(MINICPM_API_BASE_URL, MINICPM_API_KEY)
+def check_modelscope_service() -> bool:
+    return _probe_openai(MODELSCOPE_API_BASE_URL, MODELSCOPE_API_KEY)
 
 
 # ==================== 画面预处理 (1920×1080 直入) ====================
@@ -308,19 +306,19 @@ def _ensure_model_init():
             return
         preferred = _read_vl_config().get("type", "vllm").lower()
 
-        if preferred == "glm":
-            if check_glm_service():
-                _current_model_type = MODEL_TYPE_GLM
+        if preferred == "ollama":
+            if check_ollama_service():
+                _current_model_type = MODEL_TYPE_OLLAMA
                 _model_init_done = True
                 return
-            print("GLM 不可用，回退到其他模型")
+            print("Ollama 不可用，回退到其他模型")
 
-        if preferred == "minicpm":
-            if check_minicpm_service():
-                _current_model_type = MODEL_TYPE_MINICPM
+        if preferred == "modelscope":
+            if check_modelscope_service():
+                _current_model_type = MODEL_TYPE_MODELSCOPE
                 _model_init_done = True
                 return
-            print("MiniCPM 不可用，回退到其他模型")
+            print("ModelScope 不可用，回退到其他模型")
 
         if preferred == "vllm":
             if check_vllm_service():
@@ -330,16 +328,16 @@ def _ensure_model_init():
             print("vLLM 不可用，回退到其他模型")
 
         vllm_ok = check_vllm_service()
-        glm_ok = check_glm_service()
-        minicpm_ok = check_minicpm_service()
+        ollama_ok = check_ollama_service()
+        modelscope_ok = check_modelscope_service()
         if vllm_ok:
             _current_model_type = MODEL_TYPE_VLLM
-        elif glm_ok:
-            _current_model_type = MODEL_TYPE_GLM
-            print(f"vLLM 未运行，自动切换到 {GLM_MODEL} 在线API")
-        elif minicpm_ok:
-            _current_model_type = MODEL_TYPE_MINICPM
-            print(f"vLLM 未运行，自动切换到 {MINICPM_MODEL} 在线API")
+        elif ollama_ok:
+            _current_model_type = MODEL_TYPE_OLLAMA
+            print(f"vLLM 未运行，自动切换到 Ollama ({OLLAMA_MODEL_NAME})")
+        elif modelscope_ok:
+            _current_model_type = MODEL_TYPE_MODELSCOPE
+            print(f"自动切换到 {MODELSCOPE_MODEL} (ModelScope)")
         _model_init_done = True
 
 
@@ -373,49 +371,34 @@ def _call_vlm(image: np.ndarray, prompt: str, max_tokens: int = 64, temperature:
             raw = response.choices[0].message.content
             return _clean_vlm_response(raw)
 
-        elif effective_model == MODEL_TYPE_GLM:
-            for attempt in range(GLM_MAX_RETRIES):
-                with _glm_semaphore:
-                    try:
-                        response = _get_glm_client().chat.completions.create(
-                            model=GLM_MODEL.lower(),
-                            messages=msg,
-                            max_tokens=max_tokens,
-                            temperature=temperature,
-                            extra_body={"thinking": {"type": "disabled"}},
-                        )
-                        raw = response.choices[0].message.content
-                        return _clean_vlm_response(raw)
-                    except Exception as e:
-                        err_str = str(e)
-                        is_rate_limit = '429' in err_str or '1302' in err_str or '1305' in err_str
-                        if not is_rate_limit or attempt >= GLM_MAX_RETRIES - 1:
-                            raise
-                wait = 2 ** attempt
-                #print(f"GLM rate limit, retry in {wait:.0f}s (attempt {attempt + 1}/{GLM_MAX_RETRIES})")
-                time.sleep(wait)
+        elif effective_model == MODEL_TYPE_OLLAMA:
+            response = _get_ollama_client().chat.completions.create(
+                model=OLLAMA_MODEL_NAME,
+                messages=msg,
+                max_tokens=max_tokens,
+                temperature=temperature,
+            )
+            raw = response.choices[0].message.content
+            return _clean_vlm_response(raw)
 
-        elif effective_model == MODEL_TYPE_MINICPM:
-            for attempt in range(MINICPM_MAX_RETRIES):
-                with _minicpm_semaphore:
+        elif effective_model == MODEL_TYPE_MODELSCOPE:
+            for attempt in range(MODELSCOPE_MAX_RETRIES):
+                with _modelscope_semaphore:
                     try:
-                        response = _get_minicpm_client().chat.completions.create(
-                            model=MINICPM_MODEL,
+                        response = _get_modelscope_client().chat.completions.create(
+                            model=MODELSCOPE_MODEL,
                             messages=msg,
                             max_tokens=max_tokens,
                             temperature=temperature,
                         )
                         raw = response.choices[0].message.content
-                        if raw is None and hasattr(response.choices[0].message, 'reasoning_content'):
-                            raw = response.choices[0].message.reasoning_content
                         return _clean_vlm_response(raw)
                     except Exception as e:
                         err_str = str(e)
                         is_rate_limit = '429' in err_str
-                        if not is_rate_limit or attempt >= MINICPM_MAX_RETRIES - 1:
+                        if not is_rate_limit or attempt >= MODELSCOPE_MAX_RETRIES - 1:
                             raise
                 wait = 2 ** attempt
-                print(f"MiniCPM rate limit, retry in {wait:.0f}s (attempt {attempt + 1}/{MINICPM_MAX_RETRIES})")
                 time.sleep(wait)
 
         else:
@@ -471,7 +454,7 @@ def _parallel_ocr(tasks: List[Tuple[str, np.ndarray, callable]]) -> Dict[str, ob
 
     tasks: [(key, roi_image, ocr_function), ...]
     """
-    max_workers = 4 if _current_model_type in (MODEL_TYPE_GLM, MODEL_TYPE_MINICPM) else min(len(tasks), 8)
+    max_workers = 4 if _current_model_type in (MODEL_TYPE_OLLAMA, MODEL_TYPE_MODELSCOPE) else min(len(tasks), 8)
     results: Dict[str, object] = {}
     with ThreadPoolExecutor(max_workers=max_workers) as ex:
         futures = {ex.submit(ocr_func, img): key for key, img, ocr_func in tasks}

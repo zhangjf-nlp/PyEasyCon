@@ -44,8 +44,8 @@ from vision import (
     get_all_roi_boxes as _get_all_roi_boxes,
     check_service as _check_service,
     check_vllm_service as _check_vllm_service,
-    check_glm_service as _check_glm_service,
-    check_minicpm_service as _check_minicpm_service,
+    check_ollama_service as _check_ollama_service,
+    check_modelscope_service as _check_modelscope_service,
     set_model_type as _set_model_type,
     get_current_model_type as _get_current_model_type,
     get_available_model_types as _get_available_model_types,
@@ -54,7 +54,7 @@ from vision import (
     preload_sprites as _preload_sprites,
 )
 
-from vision.ocr import MODEL_TYPE_VLLM, MODEL_TYPE_GLM, MODEL_TYPE_MINICPM, GLM_MODEL, MINICPM_MODEL, VLLM_MODEL_NAME
+from vision.ocr import MODEL_TYPE_VLLM, MODEL_TYPE_OLLAMA, MODEL_TYPE_MODELSCOPE, OLLAMA_MODEL_NAME, MODELSCOPE_MODEL, VLLM_MODEL_NAME
 
 
 class EasyConGUI:
@@ -219,38 +219,38 @@ class EasyConGUI:
         """检查 VL 模型服务状态"""
         def check_worker():
             vllm_ok = _check_vllm_service()
-            glm_ok = _check_glm_service()
-            minicpm_ok = _check_minicpm_service()
+            ollama_ok = _check_ollama_service()
+            modelscope_ok = _check_modelscope_service()
 
             vllm_short = VLLM_MODEL_NAME.replace('\\', '/').split('/')[-1]
-            glm_short = GLM_MODEL
-            minicpm_short = MINICPM_MODEL
+            ollama_short = OLLAMA_MODEL_NAME
+            modelscope_short = MODELSCOPE_MODEL
 
             if vllm_ok:
                 self.output_panel.log(f"vLLM ({vllm_short}) 可用")
             else:
                 self.output_panel.log(f"vLLM (无) 不可用")
 
-            if glm_ok:
-                self.output_panel.log(f"GLM ({glm_short}) 可用")
+            if ollama_ok:
+                self.output_panel.log(f"Ollama ({ollama_short}) 可用")
             else:
-                self.output_panel.log(f"GLM ({glm_short}) 不可用")
+                self.output_panel.log(f"Ollama ({ollama_short}) 不可用")
 
-            if minicpm_ok:
-                self.output_panel.log(f"MiniCPM ({minicpm_short}) 可用")
+            if modelscope_ok:
+                self.output_panel.log(f"ModelScope ({modelscope_short}) 可用")
             else:
-                self.output_panel.log(f"MiniCPM ({minicpm_short}) 不可用")
+                self.output_panel.log(f"ModelScope ({modelscope_short}) 不可用")
 
             available = _get_available_model_types()
             if MODEL_TYPE_VLLM in available:
                 _set_model_type(MODEL_TYPE_VLLM)
                 self.output_panel.log(f"VL模型: vLLM ({vllm_short})")
-            elif MODEL_TYPE_GLM in available:
-                _set_model_type(MODEL_TYPE_GLM)
-                self.output_panel.log(f"VL模型: GLM ({glm_short})")
-            elif MODEL_TYPE_MINICPM in available:
-                _set_model_type(MODEL_TYPE_MINICPM)
-                self.output_panel.log(f"VL模型: MiniCPM ({minicpm_short})")
+            elif MODEL_TYPE_OLLAMA in available:
+                _set_model_type(MODEL_TYPE_OLLAMA)
+                self.output_panel.log(f"VL模型: {ollama_short} (Ollama)")
+            elif MODEL_TYPE_MODELSCOPE in available:
+                _set_model_type(MODEL_TYPE_MODELSCOPE)
+                self.output_panel.log(f"VL模型: {modelscope_short} (ModelScope)")
             else:
                 self.output_panel.log("VL模型: 无可用")
 
@@ -563,10 +563,10 @@ class EasyConGUI:
         vllm_short = VLLM_MODEL_NAME.replace('\\', '/').split('/')[-1]
         if next_model == MODEL_TYPE_VLLM:
             self.output_panel.log(f"VL模型: vLLM ({vllm_short})")
-        elif next_model == MODEL_TYPE_MINICPM:
-            self.output_panel.log(f"VL模型: MiniCPM ({MINICPM_MODEL})")
-        elif next_model == MODEL_TYPE_GLM:
-            self.output_panel.log(f"VL模型: GLM ({GLM_MODEL})")
+        elif next_model == MODEL_TYPE_OLLAMA:
+            self.output_panel.log(f"VL模型: {OLLAMA_MODEL_NAME} (Ollama)")
+        elif next_model == MODEL_TYPE_MODELSCOPE:
+            self.output_panel.log(f"VL模型: {MODELSCOPE_MODEL} (ModelScope)")
     
     def _capture_for_label(self):
         """为标签制作模块截图 - 使用规范化后的 1920×1080 帧，确保跨分辨率兼容"""

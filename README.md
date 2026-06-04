@@ -19,19 +19,15 @@ python script_rattata.py    # 1号道路 - 草丛 - 小拉达
 
 ## VL 模型配置
 
-OCR 识别个体值需要 VL 视觉语言模型，支持三种模型自动回退：
+OCR 识别个体值需要 VL 视觉语言模型，支持两种模型自动回退：
 
 | 优先级 | 模型 | 类型 | 说明 |
 |--------|------|------|------|
 | 1 | vLLM + Qwen3-VL-2B | 本地 GPU | 需 WSL 部署，最快 |
-| 2 | MiniCPM-V-4.6 | 免费在线 | 已内置免费 Key，开箱即用 |
-| 3 | GLM-4.6V-Flash | 在线 | 需注册智谱 API Key |
+| 2 | Ollama + Qwen3-VL-2B | 本地 GPU | 双击 bat 一键部署，适合小白 |
+| 3 | Qwen3-VL-8B | ModelScope | 云端，需 API Key |
 
-### 方案 A：免费在线 MiniCPM-V-4.6（已内置 Key，开箱即用）
-
-无需任何配置，`setup.bat` 运行后自动可用。双击 `run.bat` 即可启动。
-
-### 方案 B：本地 vLLM + Qwen3-VL-2B（建议 NVIDIA GPU ≥ 6 GB，无需联网）
+### 方案 A：本地 vLLM + Qwen3-VL-2B（建议 NVIDIA GPU ≥ 6 GB，无需联网）
 
 1. 在 WSL Ubuntu 中部署 vLLM，使用 `vllm/` 目录下的脚本：
    - [`setup_wsl.sh`](vllm/setup_wsl.sh) — 安装 CUDA、PyTorch、vLLM
@@ -39,13 +35,24 @@ OCR 识别个体值需要 VL 视觉语言模型，支持三种模型自动回退
    - [`start_vllm.sh`](vllm/start_vllm.sh) — 启动服务（复制到 `~/vllm-qwen3vl/`）
 2. 双击 `start_vllm.bat` 或在终端运行 `start_vllm.ps1`
 
-```yaml
-# config/default.yaml
-vl_model:
-  type: vllm          # 默认
-  vllm:
-    base_url: "http://localhost:8000/v1"
-```
+### 方案 B：Ollama Qwen3-VL-2B（Windows 一键部署，支持 NVIDIA GPU）
+
+1. 下载 [OllamaSetup.exe](https://ollama.com/download/OllamaSetup.exe)，放在项目根目录
+2. 双击 `start_ollama.bat`，自动完成安装、配置、模型下载
+3. 模型将从 ModelScope 镜像下载，速度极快
+
+### 方案 C：ModelScope Qwen3-VL-8B（无需 GPU，需联网）
+ 
+ 1. 注册 [ModelScope](https://modelscope.cn)，获取 API Key
+ 2. 编辑 `default.yaml`：
+ 
+ ```yaml
+ # default.yaml
+ vl_model:
+   type: modelscope
+   modelscope:
+     api_key: "你的APIKey"
+ ```
 
 ## 运行脚本
 

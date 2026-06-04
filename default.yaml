@@ -82,21 +82,20 @@ vision:
 
 # ==================== VL 模型 ====================
 vl_model:
-  type: vllm                # vllm | minicpm | glm
+  type: vllm                # vllm | ollama | modelscope
   vllm:
     base_url: "http://localhost:8000/v1"
     api_key: "sk-PyEasyCon"
     model_name: "Qwen3-VL-2B-Instruct-FP8"
-  glm:
-    model: "GLM-4.6V-Flash"
-    api_key: "74e7af66a7984a85839b2834943a82d9.7WI7S38XHmPng8vr"
-    max_retries: 10
-    rate_limit_rpm: 30
-  minicpm:
-    base_url: "https://api.modelbest.cn/v1"
-    api_key: "sk-pQ8L2zF3XmR5kY9wV4jB7hN1tC6vM0xG3aD5sH2bJ9lK4cZ8"
-    model: "MiniCPM-V-4.6-Instruct"
-    max_retries: 10
+  ollama:
+    base_url: "http://localhost:11434/v1"
+    api_key: "ollama"
+    model_name: "qwen3-vl:2b"
+  modelscope:
+    base_url: "https://api-inference.modelscope.cn/v1"
+    api_key: "ms-b144c7f2-cab1-49c9-8e73-c549e11de855"
+    model: "Qwen/Qwen3-VL-8B-Instruct"
+    max_retries: 3
 
 # ==================== 标签目录 ====================
 labels:

@@ -38,7 +38,7 @@ def check_shiny(
     if cfg.rng_method in ["Static 1", "Static 4"]:
         candidates = [get_species_id(cfg.pokemon_species)]
     else:
-        candidates = get_encounter_species_list(cfg.rng_location, cfg.rng_category)
+        candidates = get_encounter_species_list(cfg.rng_location, cfg.rng_category, cfg.game_version)
     if not candidates:
         raise RuntimeError(f"Empty encounter list for {cfg.rng_location}/{cfg.rng_category}")
 

@@ -60,7 +60,7 @@ class EVTrainConfig:
     location: str = "Route 1"
     category: str = "Grass"
     base_points: List[str] = None
-    game_version: str = "frlg"
+    game_version: str = "fr_nx"
 
     def __post_init__(self):
         if self.base_points is None:
@@ -78,7 +78,7 @@ def resolve_target_species(config: EVTrainConfig):
     if "safari" in config.location.lower():
         raise RuntimeError("沙湖乐园 (Safari Zone) 暂不支持！")
 
-    encounter = get_encounter(config.location, config.category)
+    encounter = get_encounter(config.location, config.category, config.game_version)
     if encounter is None:
         raise RuntimeError(
             f"未找到遇敌数据: location={config.location}, category={config.category}\n"

@@ -165,14 +165,14 @@ class VideoModule:
                         
                         # 更新模型类型显示
                         try:
-                            from vision.ocr import get_current_model_type, GLM_MODEL
+                            from vision.ocr import get_current_model_type, OLLAMA_MODEL_NAME, MODELSCOPE_MODEL
                             model_type = get_current_model_type()
                             if model_type == "vllm":
                                 self.model_type = "vLLM(本地)"
-                            elif model_type == "glm":
-                                self.model_type = f"{GLM_MODEL}(在线)"
-                            elif model_type == "minicpm":
-                                self.model_type = "MiniCPM-V-4.6(在线)"
+                            elif model_type == "ollama":
+                                self.model_type = f"{OLLAMA_MODEL_NAME}(Ollama)"
+                            elif model_type == "modelscope":
+                                self.model_type = f"{MODELSCOPE_MODEL.split('/')[-1]}(ModelScope)"
                             else:
                                 self.model_type = "未知"
                         except Exception:

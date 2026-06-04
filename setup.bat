@@ -188,13 +188,12 @@ if !ERRORLEVEL! neq 0 (
 
 echo   [OK] Dependencies installed
 
-:: -- Step 6/6: MiniCPM OCR (已内置免费 Key) --------
+:: -- Step 6/6: VL 模型配置 -------------------------
 echo.
-echo [6/6] VL Model OCR - MiniCPM-V-4.6 configured
-echo   MiniCPM-V-4.6 is pre-configured with a free API key.
-echo   No additional setup needed for image recognition.
-echo   vLLM (local GPU) -^> MiniCPM (free online) -^> GLM (online)
-echo   [OK] MiniCPM OCR ready
+echo [6/6] VL Model - 本地或云端备选
+echo   vLLM (WSL Docker) -^> Ollama (Windows 本地) -^> ModelScope (云端)
+echo   推荐使用 start_ollama.bat 一键部署 Ollama 本地模型
+echo   [OK] VL 模型配置完成
 
 :: -- Cleanup -----------------------------------------
 :setup_done

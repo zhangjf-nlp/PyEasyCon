@@ -35,6 +35,15 @@ GAME_OPTIONS = {"火红": "fr_nx", "叶绿": "lg_nx"}
 STATIC_CATEGORIES = ["Gift", "Game Corner", "Stationary", "Legend", "Fossil"]
 WILD_CATEGORIES = ["Grass", "Surfing", "SuperRod", "GoodRod", "OldRod"]
 
+# FRLG 静态遭遇宝可梦（与 ten-lines/PokeFinder 一致）
+STATIC_POKEMON_MAP = {
+    "Fossil":      ["Omanyte", "Kabuto", "Aerodactyl"],
+    "Gift":        ["Eevee", "Lapras"],
+    "Game Corner": ["Abra", "Clefairy", "Scyther", "Pinsir", "Dratini", "Porygon"],
+    "Stationary":  ["Snorlax", "Electrode", "Hypno"],
+    "Legend":      ["Articuno", "Zapdos", "Moltres", "Mewtwo"],
+}
+
 METHOD_OPTIONS = {
     "Static": {"categories": STATIC_CATEGORIES, "rng_method": "Static 1"},
     "Wild": {"categories": WILD_CATEGORIES, "rng_method": "All Wild Methods"},
@@ -67,12 +76,14 @@ C_WARNING = (220, 180, 0)
 # ── 辅助函数 ──────────────────────────────────────────
 
 def _get_all_locations() -> dict:
-    encounters = _load_frlg_encounters()
+    """合并火红和叶绿的遇敌地点列表"""
     cat_to_locs = {}
-    for (loc, cat), data in encounters.items():
-        if cat not in cat_to_locs:
-            cat_to_locs[cat] = set()
-        cat_to_locs[cat].add(loc)
+    for gv in ("fr_nx", "lg_nx"):
+        encounters = _load_frlg_encounters(gv)
+        for (loc, cat), data in encounters.items():
+            if cat not in cat_to_locs:
+                cat_to_locs[cat] = set()
+            cat_to_locs[cat].add(loc)
     for cat in cat_to_locs:
         cat_to_locs[cat] = sorted(cat_to_locs[cat])
     return cat_to_locs
@@ -910,8 +921,12 @@ class RNGGui:
 
     def _get_pokemon_options(self, method: str, category: str, location: str) -> list:
         """获取当前 method/category/location 下实际可选的宝可梦列表"""
+        if method == "Static" and category:
+            return STATIC_POKEMON_MAP.get(category, [])
         if method == "Wild" and location and category:
-            species_ids = get_encounter_species_list(location, category)
+            game_label = self.game_combo.get_value()
+            game_version = GAME_OPTIONS.get(game_label, "fr_nx")
+            species_ids = get_encounter_species_list(location, category, game_version)
             return [get_species_name(s) for s in species_ids]
         return []
 
@@ -929,12 +944,15 @@ class RNGGui:
             self.category_combo._apply_filter()
 
         if level <= 2:
-            # 重置 location 为第一个
+            # 重置 location
             method = self.method_combo.get_value()
             cat = self.category_combo.get_value()
             if method == "Wild" and cat:
                 locs = self._all_locations.get(cat, [])
                 self.location_combo.set_options(locs, 0 if locs else -1)
+            elif method == "Static" and cat:
+                # Static 方法下 Location 自动同步为 Category
+                self.location_combo.set_options([cat], 0)
             else:
                 self.location_combo.set_options([])
 
@@ -1309,11 +1327,20 @@ class RNGGui:
             errors.append(f"未找到宝可梦: {data['pokemon']}")
 
         if data["method"] == "Wild" and species_id is not None and data["location"]:
-            encounter_species = get_encounter_species_list(data["location"], data["category"])
+            game_ver = GAME_OPTIONS.get(data["game"], "fr_nx")
+            encounter_species = get_encounter_species_list(data["location"], data["category"], game_ver)
             if encounter_species and species_id not in encounter_species:
                 avail = ", ".join(get_species_name(s) for s in encounter_species[:10])
                 errors.append(
                     f"宝可梦 '{data['pokemon']}' 不在遭遇列表中\n可用: {avail}"
+                )
+
+        if data["method"] == "Static" and data["category"]:
+            static_pokemon = STATIC_POKEMON_MAP.get(data["category"], [])
+            en_name = data.get("pokemon", "")
+            if static_pokemon and en_name not in static_pokemon:
+                errors.append(
+                    f"宝可梦 '{data['pokemon']}' 不在 {data['category']} 遭遇列表中\n可用: {', '.join(static_pokemon)}"
                 )
 
         if errors:

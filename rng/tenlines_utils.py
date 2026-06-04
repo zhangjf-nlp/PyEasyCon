@@ -150,9 +150,9 @@ def get_species_en_name(zh_name: str) -> str:
     return _ZH_TO_EN.get(zh_name, zh_name)
 
 
-def get_encounter_species_list(location: str, category: str) -> list:
+def get_encounter_species_list(location: str, category: str, game_version: str = "fr_nx") -> list:
     """返回指定地点和方式的宝可梦 species ID 列表（去重）。"""
-    enc = get_encounter(location, category)
+    enc = get_encounter(location, category, game_version)
     if enc is None:
         return []
     seen = set()
@@ -252,15 +252,16 @@ _FRLG_MAP_TO_LOCATION = {
     "MAP_FIVE_ISLAND_LOST_CAVE_ITEM_ROOM": "Five Island Lost Cave Item Room",
 }
 
-def _load_frlg_encounters() -> dict:
+def _load_frlg_encounters(game_version: str = "fr_nx") -> dict:
     data_dir = _get_data_dir()
     json_path = os.path.join(data_dir, "EncounterTables", "Gen3", "frlg", "wild_encounters.json")
     with open(json_path, 'r') as f:
         encounters = json.load(f)
+    version_filter = "FireRed" if game_version.startswith("fr") else "LeafGreen"
     result = {}
     for enc in encounters:
         base = enc.get("base_label", "")
-        if "FireRed" not in base:
+        if version_filter not in base:
             continue
         map_name = enc.get("map", "")
         location_name = _FRLG_MAP_TO_LOCATION.get(map_name)
@@ -295,12 +296,12 @@ def _load_frlg_encounters() -> dict:
                         })
     return result
 
-def get_encounter(location: str, category: str) -> Optional[dict]:
-    cache_key = (location, category)
+def get_encounter(location: str, category: str, game_version: str = "fr_nx") -> Optional[dict]:
+    cache_key = (location, category, game_version)
     if cache_key in _encounter_cache:
         return _encounter_cache[cache_key]
-    all_encounters = _load_frlg_encounters()
-    result = all_encounters.get(cache_key)
+    all_encounters = _load_frlg_encounters(game_version)
+    result = all_encounters.get((location, category))
     _encounter_cache[cache_key] = result
     return result
 
@@ -624,7 +625,7 @@ def searcher(
     encounter_data = None
     encounter_type = 0
     if is_wild:
-        encounter_data = get_encounter(location, category)
+        encounter_data = get_encounter(location, category, game)
         if encounter_data is None:
             raise ValueError(f"No encounter data for location={location} category={category}")
         _enrich_slots_with_gender(encounter_data)
@@ -869,7 +870,7 @@ def calibration(
     encounter_type = 0
     matching_slots = None
     if is_wild:
-        encounter_data = get_encounter(location, category)
+        encounter_data = get_encounter(location, category, game)
         if encounter_data is None:
             raise ValueError(f"No encounter data for location={location} category={category}")
         _enrich_slots_with_gender(encounter_data)
