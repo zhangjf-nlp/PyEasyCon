@@ -1,6 +1,6 @@
 """
 Pokemon OCR Module - 宝可梦信息 OCR 识别模块
-通过 WSL vLLM 部署的 Qwen3-VL-2B 进行图像识别，提供给 EasyCon 脚本使用
+通过 OpenAI 兼容 API 调用 VL 模型进行图像识别，提供给 EasyCon 脚本使用
 
 ROI 坐标基于 1920×1080 (采集卡直出)
 
@@ -8,10 +8,10 @@ ROI 坐标基于 1920×1080 (采集卡直出)
 """
 
 import base64
-from fnmatch import translate
 import os
 import time
 import threading
+from dataclasses import dataclass, field
 from typing import Optional, Tuple, List, Dict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -28,48 +28,98 @@ def _read_vl_config():
     except Exception:
         return {}
 
-_vl_cfg = _read_vl_config()
-
-VLLM_BASE_URL = _vl_cfg.get("vllm", {}).get("base_url", "http://localhost:8000/v1")
-VLLM_API_KEY = _vl_cfg.get("vllm", {}).get("api_key", "sk-PyEasyCon")
-VLLM_MODEL_NAME = _vl_cfg.get("vllm", {}).get("model_name", "Qwen3-VL-2B-Instruct-FP8")
-
-OLLAMA_BASE_URL = _vl_cfg.get("ollama", {}).get("base_url", "http://localhost:8008/v1")
-OLLAMA_API_KEY = _vl_cfg.get("ollama", {}).get("api_key", "sk-PyEasyCon")
-OLLAMA_MODEL_NAME = _vl_cfg.get("ollama", {}).get("model_name", "modelscope.cn/Qwen/Qwen3-VL-2B-Instruct-GGUF:latest")
-
-SILICONFLOW_API_BASE_URL = _vl_cfg.get("siliconflow", {}).get("base_url", "https://api.siliconflow.cn/v1")
-SILICONFLOW_API_KEY = _vl_cfg.get("siliconflow", {}).get("api_key", "")
-SILICONFLOW_MODEL = _vl_cfg.get("siliconflow", {}).get("model", "Qwen/Qwen3-VL-8B-Instruct")
-SILICONFLOW_MAX_RETRIES = _vl_cfg.get("siliconflow", {}).get("max_retries", 3)
+# ==================== 模型提供者注册表 ====================
 
 MODEL_TYPE_VLLM = "vllm"
 MODEL_TYPE_OLLAMA = "ollama"
 MODEL_TYPE_SILICONFLOW = "siliconflow"
 
+
+@dataclass
+class _ModelProvider:
+    """统一的模型提供者描述，消除 vLLM/Ollama/SiliconFlow 三套重复逻辑"""
+    key: str                                    # "vllm" / "ollama" / "siliconflow"
+    display: str                                # "vLLM" / "Ollama" / "SiliconFlow"
+    base_url: str
+    api_key: str
+    model_name: str
+    max_retries: int = 1                        # API 调用最大重试次数
+    max_concurrency: int = 8                    # 并行 OCR 时的最大线程数
+    _client: Optional[object] = field(default=None, repr=False, init=False)
+
+
+def _normalize_host(url: str) -> str:
+    """将 URL 中的 0.0.0.0 替换为 127.0.0.1，因为 0.0.0.0 是服务器 bind 地址，无法作为客户端连接地址"""
+    return url.replace("0.0.0.0", "127.0.0.1")
+
+
+def _build_providers() -> Dict[str, _ModelProvider]:
+    """从配置文件构建模型提供者注册表"""
+    cfg = _read_vl_config()
+
+    vllm_cfg = cfg.get("vllm", {})
+    ollama_cfg = cfg.get("ollama", {})
+    sf_cfg = cfg.get("siliconflow", {})
+
+    return {
+        MODEL_TYPE_VLLM: _ModelProvider(
+            key=MODEL_TYPE_VLLM, display="vLLM",
+            base_url=_normalize_host(vllm_cfg.get("base_url", "http://localhost:8000/v1")),
+            api_key=vllm_cfg.get("api_key", "sk-PyEasyCon"),
+            model_name=vllm_cfg.get("model_name", "Qwen3-VL-2B-Instruct-FP8"),
+            max_concurrency=8,
+        ),
+        MODEL_TYPE_OLLAMA: _ModelProvider(
+            key=MODEL_TYPE_OLLAMA, display="Ollama",
+            base_url=_normalize_host(ollama_cfg.get("base_url", "http://localhost:8008/v1")),
+            api_key=ollama_cfg.get("api_key", "sk-PyEasyCon"),
+            model_name=ollama_cfg.get("model_name", "modelscope.cn/Qwen/Qwen3-VL-2B-Instruct-GGUF:latest"),
+            max_concurrency=4,
+        ),
+        MODEL_TYPE_SILICONFLOW: _ModelProvider(
+            key=MODEL_TYPE_SILICONFLOW, display="SiliconFlow",
+            base_url=_normalize_host(sf_cfg.get("base_url", "https://api.siliconflow.cn/v1")),
+            api_key=sf_cfg.get("api_key", ""),
+            # 兼容 config 中同时使用 model 和 model_name 两种 key
+            model_name=sf_cfg.get("model") or sf_cfg.get("model_name", "Qwen/Qwen3-VL-8B-Instruct"),
+            max_retries=sf_cfg.get("max_retries", 3),
+            max_concurrency=4,
+        ),
+    }
+
+
+_PROVIDERS = _build_providers()
+
+# 兼容旧代码的模块级常量（从注册表派生，保证调用方不受影响）
+VLLM_MODEL_NAME = _PROVIDERS[MODEL_TYPE_VLLM].model_name
+OLLAMA_MODEL_NAME = _PROVIDERS[MODEL_TYPE_OLLAMA].model_name
+SILICONFLOW_MODEL = _PROVIDERS[MODEL_TYPE_SILICONFLOW].model_name
+
+
+def _get_provider(key: str) -> _ModelProvider:
+    """获取指定 key 的提供者，key 无效时回退到 vllm"""
+    return _PROVIDERS.get(key, _PROVIDERS[MODEL_TYPE_VLLM])
+
+
+# ==================== 当前模型状态 ====================
+
+_vl_cfg = _read_vl_config()
 _preferred = _vl_cfg.get("type", "vllm").lower()
-_current_model_type = (
-    MODEL_TYPE_OLLAMA if _preferred == "ollama"
-    else MODEL_TYPE_SILICONFLOW if _preferred == "siliconflow"
-    else MODEL_TYPE_VLLM if _preferred == "vllm"
-    else MODEL_TYPE_VLLM
-)
+_current_model_type = _preferred if _preferred in _PROVIDERS else MODEL_TYPE_VLLM
 
 _model_init_done = False
 _model_init_lock = threading.Lock()
 
-_siliconflow_semaphore = threading.Semaphore(2)
-
-_client = None
-_ollama_client = None
-_siliconflow_client = None
 _openai_available = False
-
 try:
     from openai import OpenAI
     _openai_available = True
 except ImportError:
     pass
+
+# SiliconFlow 并发控制（API 侧有速率限制）
+_siliconflow_semaphore = threading.Semaphore(2)
+
 
 # ==================== ROI 定义 (1920×1080) ====================
 
@@ -153,60 +203,89 @@ def get_all_roi_boxes() -> List[Dict]:
     return boxes
 
 
-# ==================== VL 客户端 & 服务检测 ====================
+# ==================== VL 客户端 & 服务检测（统一层） ====================
 
-def _make_message(image_base64: str, prompt: str) -> list:
-    return [{
-        "role": "user",
-        "content": [
-            {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{image_base64}"}},
-            {"type": "text", "text": prompt}
-        ]
-    }]
+def _get_client(provider_key: str) -> OpenAI:
+    """获取指定提供者的 OpenAI 客户端（懒加载，线程不安全但读多写少无害）"""
+    if not _openai_available:
+        raise ImportError("openai 库未安装，请运行: pip install openai")
+    provider = _get_provider(provider_key)
+    if provider._client is None:
+        provider._client = OpenAI(api_key=provider.api_key, base_url=provider.base_url, timeout=60)
+    return provider._client
 
 
-def _probe_openai(base_url: str, api_key: str, timeout: float = 5) -> bool:
+def _probe_ollama_native(host: str, timeout: float = 5) -> bool:
+    """通过 Ollama 原生 API (/api/tags) 探测服务，比 /v1/models 更可靠（模型加载期间也立即可用）"""
+    import urllib.request
+    try:
+        req = urllib.request.Request(f"{host}/api/tags")
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return resp.status == 200
+    except Exception:
+        return False
+
+
+def _probe_service(provider_key: str, timeout: float = 5) -> bool:
+    """探测指定模型提供者服务是否可用"""
     if not _openai_available:
         return False
     try:
-        client = OpenAI(api_key=api_key, base_url=base_url, timeout=timeout)
+        provider = _get_provider(provider_key)
+        # Ollama 使用原生 API 探测，避免模型加载期间 /v1/models 不可用
+        if provider_key == MODEL_TYPE_OLLAMA:
+            host = provider.base_url.rstrip('/').removesuffix('/v1')
+            return _probe_ollama_native(host, timeout)
+        client = OpenAI(api_key=provider.api_key, base_url=provider.base_url, timeout=timeout)
         models = client.models.list()
         return len(models.data) > 0
     except Exception:
         return False
 
 
-def _get_vllm_client() -> OpenAI:
-    global _client
-    if not _openai_available:
-        raise ImportError("openai 库未安装，请运行: pip install openai")
-    if _client is None:
-        _client = OpenAI(api_key=VLLM_API_KEY, base_url=VLLM_BASE_URL, timeout=60)
-    return _client
+def _probe_all_services(types_to_probe: List[str] = None) -> Dict[str, bool]:
+    """并行探测多个模型服务，返回 {provider_key: is_available}"""
+    if types_to_probe is None:
+        types_to_probe = list(_PROVIDERS.keys())
+    results = {}
+
+    def _probe_one(key):
+        results[key] = _probe_service(key)
+
+    with ThreadPoolExecutor(max_workers=len(types_to_probe)) as ex:
+        list(ex.map(_probe_one, types_to_probe))
+    return results
 
 
-def _get_ollama_client() -> OpenAI:
-    global _ollama_client
-    if not _openai_available:
-        raise ImportError("openai 库未安装，请运行: pip install openai")
-    if _ollama_client is None:
-        _ollama_client = OpenAI(api_key=OLLAMA_API_KEY, base_url=OLLAMA_BASE_URL, timeout=60)
-    return _ollama_client
+# ==================== 公开的服务检测 API ====================
+
+def check_service() -> bool:
+    """检测当前模型类型是否可用"""
+    return _probe_service(_current_model_type)
 
 
-def _get_siliconflow_client() -> OpenAI:
-    global _siliconflow_client
-    if not _openai_available:
-        raise ImportError("openai 库未安装，请运行: pip install openai")
-    if _siliconflow_client is None:
-        _siliconflow_client = OpenAI(api_key=SILICONFLOW_API_KEY, base_url=SILICONFLOW_API_BASE_URL, timeout=60)
-    return _siliconflow_client
+def check_vllm_service() -> bool:
+    return _probe_service(MODEL_TYPE_VLLM)
+
+
+def check_ollama_service() -> bool:
+    return _probe_service(MODEL_TYPE_OLLAMA)
+
+
+def check_siliconflow_service() -> bool:
+    return _probe_service(MODEL_TYPE_SILICONFLOW)
+
+
+def get_available_model_types() -> list:
+    """并行探测所有模型服务，返回可用的模型类型列表"""
+    probe_results = _probe_all_services()
+    return [k for k, available in probe_results.items() if available]
 
 
 def set_model_type(model_type: str):
     global _current_model_type
-    if model_type not in [MODEL_TYPE_VLLM, MODEL_TYPE_OLLAMA, MODEL_TYPE_SILICONFLOW]:
-        raise ValueError(f"不支持的模型类型: {model_type}，支持的类型: {MODEL_TYPE_VLLM}, {MODEL_TYPE_OLLAMA}, {MODEL_TYPE_SILICONFLOW}")
+    if model_type not in _PROVIDERS:
+        raise ValueError(f"不支持的模型类型: {model_type}，支持的类型: {list(_PROVIDERS.keys())}")
     _current_model_type = model_type
 
 
@@ -214,43 +293,9 @@ def get_current_model_type() -> str:
     return _current_model_type
 
 
-def get_available_model_types() -> list:
-    available = []
-    if _probe_openai(VLLM_BASE_URL, VLLM_API_KEY):
-        available.append(MODEL_TYPE_VLLM)
-    if _probe_openai(OLLAMA_BASE_URL, OLLAMA_API_KEY):
-        available.append(MODEL_TYPE_OLLAMA)
-    if _probe_openai(SILICONFLOW_API_BASE_URL, SILICONFLOW_API_KEY):
-        available.append(MODEL_TYPE_SILICONFLOW)
-    return available
-
-
 def get_vllm_model() -> str:
-    if not _probe_openai(VLLM_BASE_URL, VLLM_API_KEY):
-        raise RuntimeError("vLLM 服务不可用")
+    """获取 vLLM 模型名称（兼容旧调用方）"""
     return VLLM_MODEL_NAME
-
-
-def check_service() -> bool:
-    if _current_model_type == MODEL_TYPE_VLLM:
-        return _probe_openai(VLLM_BASE_URL, VLLM_API_KEY)
-    elif _current_model_type == MODEL_TYPE_OLLAMA:
-        return _probe_openai(OLLAMA_BASE_URL, OLLAMA_API_KEY)
-    elif _current_model_type == MODEL_TYPE_SILICONFLOW:
-        return _probe_openai(SILICONFLOW_API_BASE_URL, SILICONFLOW_API_KEY)
-    return False
-
-
-def check_vllm_service() -> bool:
-    return _probe_openai(VLLM_BASE_URL, VLLM_API_KEY)
-
-
-def check_ollama_service() -> bool:
-    return _probe_openai(OLLAMA_BASE_URL, OLLAMA_API_KEY)
-
-
-def check_siliconflow_service() -> bool:
-    return _probe_openai(SILICONFLOW_API_BASE_URL, SILICONFLOW_API_KEY)
 
 
 # ==================== 画面预处理 (1920×1080 直入) ====================
@@ -289,11 +334,21 @@ def classify_screen_type(game_screen: np.ndarray, debug: bool = False) -> str:
     return SCREEN_UNKNOWN
 
 
-# ==================== vLLM OCR 调用 ====================
+# ==================== VLM OCR 调用 ====================
 
 def _image_to_base64(image: np.ndarray) -> str:
     _, buffer = cv2.imencode('.png', image)
     return base64.b64encode(buffer).decode()
+
+
+def _make_message(image_base64: str, prompt: str) -> list:
+    return [{
+        "role": "user",
+        "content": [
+            {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{image_base64}"}},
+            {"type": "text", "text": prompt}
+        ]
+    }]
 
 
 def _ensure_model_init():
@@ -306,38 +361,23 @@ def _ensure_model_init():
             return
         preferred = _read_vl_config().get("type", "vllm").lower()
 
-        if preferred == "ollama":
-            if check_ollama_service():
-                _current_model_type = MODEL_TYPE_OLLAMA
-                _model_init_done = True
-                return
-            print("Ollama 不可用，回退到其他模型")
+        # 并行探测所有模型
+        probe_results = _probe_all_services()
 
-        if preferred == "siliconflow":
-            if check_siliconflow_service():
-                _current_model_type = MODEL_TYPE_SILICONFLOW
-                _model_init_done = True
-                return
-            print("SiliconFlow 不可用，回退到其他模型")
+        # 优先使用配置的首选类型
+        if probe_results.get(preferred):
+            _current_model_type = preferred
+            _model_init_done = True
+            return
 
-        if preferred == "vllm":
-            if check_vllm_service():
-                _current_model_type = MODEL_TYPE_VLLM
-                _model_init_done = True
-                return
-            print("vLLM 不可用，回退到其他模型")
+        print(f"{preferred} 不可用，回退到其他模型")
 
-        vllm_ok = check_vllm_service()
-        ollama_ok = check_ollama_service()
-        siliconflow_ok = check_siliconflow_service()
-        if vllm_ok:
-            _current_model_type = MODEL_TYPE_VLLM
-        elif ollama_ok:
-            _current_model_type = MODEL_TYPE_OLLAMA
-            print(f"vLLM 未运行，自动切换到 Ollama ({OLLAMA_MODEL_NAME})")
-        elif siliconflow_ok:
-            _current_model_type = MODEL_TYPE_SILICONFLOW
-            print(f"自动切换到 {SILICONFLOW_MODEL} (SiliconFlow)")
+        # 按优先级回退
+        for mt in _PROVIDERS:
+            if probe_results.get(mt):
+                _current_model_type = mt
+                print(f"自动切换到 {_PROVIDERS[mt].display} ({_PROVIDERS[mt].model_name})")
+                break
         _model_init_done = True
 
 
@@ -352,61 +392,57 @@ def _clean_vlm_response(text: Optional[str]) -> Optional[str]:
 
 def _call_vlm(image: np.ndarray, prompt: str, max_tokens: int = 64, temperature: float = 0.1,
               model_type: str = None) -> Optional[str]:
+    """统一的 VLM 调用入口，根据 model_type 路由到对应提供者"""
     if image is None or image.size == 0:
         return None
 
     _ensure_model_init()
-    effective_model = model_type or _current_model_type
+    provider_key = model_type or _current_model_type
+    provider = _get_provider(provider_key)
+    client = _get_client(provider_key)
     image_base64 = _image_to_base64(image)
     msg = _make_message(image_base64, prompt)
 
+    # SiliconFlow 有并发限制，走重试+信号量逻辑；其他模型直接调用
+    if provider_key == MODEL_TYPE_SILICONFLOW:
+        return _call_vlm_with_retry(client, provider, msg, max_tokens, temperature)
+
     try:
-        if effective_model == MODEL_TYPE_VLLM:
-            response = _get_vllm_client().chat.completions.create(
-                model=VLLM_MODEL_NAME,
-                messages=msg,
-                max_tokens=max_tokens,
-                temperature=temperature,
-            )
-            raw = response.choices[0].message.content
-            return _clean_vlm_response(raw)
-
-        elif effective_model == MODEL_TYPE_OLLAMA:
-            response = _get_ollama_client().chat.completions.create(
-                model=OLLAMA_MODEL_NAME,
-                messages=msg,
-                max_tokens=max_tokens,
-                temperature=temperature,
-            )
-            raw = response.choices[0].message.content
-            return _clean_vlm_response(raw)
-
-        elif effective_model == MODEL_TYPE_SILICONFLOW:
-            for attempt in range(SILICONFLOW_MAX_RETRIES):
-                with _siliconflow_semaphore:
-                    try:
-                        response = _get_siliconflow_client().chat.completions.create(
-                            model=SILICONFLOW_MODEL,
-                            messages=msg,
-                            max_tokens=max_tokens,
-                            temperature=temperature,
-                        )
-                        raw = response.choices[0].message.content
-                        return _clean_vlm_response(raw)
-                    except Exception as e:
-                        err_str = str(e)
-                        is_rate_limit = '429' in err_str
-                        if not is_rate_limit or attempt >= SILICONFLOW_MAX_RETRIES - 1:
-                            raise
-                wait = 2 ** attempt
-                time.sleep(wait)
-
-        else:
-            raise ValueError(f"不支持的模型类型: {effective_model}")
-
+        response = client.chat.completions.create(
+            model=provider.model_name,
+            messages=msg,
+            max_tokens=max_tokens,
+            temperature=temperature,
+        )
+        raw = response.choices[0].message.content
+        return _clean_vlm_response(raw)
     except Exception as e:
-        print(f"VLM API error: {e}")
+        print(f"VLM API error ({provider.display}): {e}")
         return None
+
+
+def _call_vlm_with_retry(client: OpenAI, provider: _ModelProvider, msg: list,
+                         max_tokens: int, temperature: float) -> Optional[str]:
+    """带重试和并发控制的 VLM 调用（用于 SiliconFlow 等有速率限制的服务）"""
+    for attempt in range(provider.max_retries):
+        with _siliconflow_semaphore:
+            try:
+                response = client.chat.completions.create(
+                    model=provider.model_name,
+                    messages=msg,
+                    max_tokens=max_tokens,
+                    temperature=temperature,
+                )
+                raw = response.choices[0].message.content
+                return _clean_vlm_response(raw)
+            except Exception as e:
+                err_str = str(e)
+                is_rate_limit = '429' in err_str
+                if not is_rate_limit or attempt >= provider.max_retries - 1:
+                    print(f"VLM API error ({provider.display}): {e}")
+                    return None
+        time.sleep(2 ** attempt)
+    return None
 
 
 # ==================== OCR 单项识别 ====================
@@ -438,9 +474,6 @@ def ocr_ability(roi_image: np.ndarray) -> Optional[str]:
     return None
 
 
-
-
-
 # ==================== 高级 OCR 接口 (直接基于 1920×1080 ROI) ====================
 
 def _crop_roi(image, roi):
@@ -454,7 +487,8 @@ def _parallel_ocr(tasks: List[Tuple[str, np.ndarray, callable]]) -> Dict[str, ob
 
     tasks: [(key, roi_image, ocr_function), ...]
     """
-    max_workers = 4 if _current_model_type in (MODEL_TYPE_OLLAMA, MODEL_TYPE_SILICONFLOW) else min(len(tasks), 8)
+    provider = _get_provider(_current_model_type)
+    max_workers = min(provider.max_concurrency, len(tasks))
     results: Dict[str, object] = {}
     with ThreadPoolExecutor(max_workers=max_workers) as ex:
         futures = {ex.submit(ocr_func, img): key for key, img, ocr_func in tasks}
@@ -470,7 +504,7 @@ def _parallel_ocr(tasks: List[Tuple[str, np.ndarray, callable]]) -> Dict[str, ob
 
 def ocr_elevated(image: np.ndarray) -> Dict[str, object]:
     """
-    Elevated (查看IV) 界面 OCR。并行调用 vLLM。
+    Elevated (查看IV) 界面 OCR。并行调用 VL 模型。
 
     输入 1920×1080 BGR 图像，返回平铺字典:
         {'level': '50', 'hp': '31', 'attack': '15', 'defense': '20',
@@ -485,7 +519,7 @@ def ocr_elevated(image: np.ndarray) -> Dict[str, object]:
 
 def ocr_caught_info(image: np.ndarray) -> Dict[str, object]:
     """
-    Caught Info 界面 OCR (等级、性别、性格)。并行调用 vLLM。
+    Caught Info 界面 OCR (等级、性别、性格)。并行调用 VL 模型。
 
     输入 1920×1080 BGR 图像，返回平铺字典:
         {'level': '50', 'gender': 'male', 'nature': 'ADAMANT'}
@@ -499,7 +533,7 @@ def ocr_caught_info(image: np.ndarray) -> Dict[str, object]:
 
 def ocr_caught_iv(image: np.ndarray) -> Dict[str, object]:
     """
-    Caught IV 界面 OCR (等级、特性、6项能力值)。并行调用 vLLM。
+    Caught IV 界面 OCR (等级、特性、6项能力值)。并行调用 VL 模型。
 
     输入 1920×1080 BGR 图像，返回平铺字典:
         {'level': '50', 'ability': 'TORRENT',
@@ -570,7 +604,7 @@ _NAME_ROI = (300, 135, 400, 55)
 def ocr_pokemon_name(frame: np.ndarray, candidates: list, debug: bool = True) -> Optional[str]:
     """
     识别野生宝可梦英文名，识别野生血条上方、等级左侧区域
-    
+
     candidates: 备选列表，如 ["走路草(Oddish)", "嘟嘟(Doduo)"]
     返回英文名或 None。debug=True 时保存标注图和裁剪图到 debug_label/。
     """

@@ -44,6 +44,7 @@ class EasyConController:
         self._serial: Optional[serial.Serial] = None
         self._port_name: Optional[str] = None
         self._baudrate = 115200
+        self._baudrate_fallbacks = [9600]  # 部分固件使用 9600
         self._connected = False
         self._lock = threading.Lock()
         self._debug = False
@@ -66,17 +67,28 @@ class EasyConController:
     def connect(self, port: Optional[str] = None, timeout: float = 2.0) -> bool:
         if port is None:
             for p in self.list_ports():
-                if self._try_connect_port(p, timeout):
+                if self._try_connect_port(p, self._baudrate, timeout):
                     return True
+            # 空端口参数时也尝试回退波特率
+            for baud in self._baudrate_fallbacks:
+                for p in self.list_ports():
+                    if self._try_connect_port(p, baud, timeout):
+                        return True
             return False
-        return self._try_connect_port(port, timeout)
+        # 指定端口：先尝试主波特率，再回退
+        if self._try_connect_port(port, self._baudrate, timeout):
+            return True
+        for baud in self._baudrate_fallbacks:
+            if self._try_connect_port(port, baud, timeout):
+                return True
+        return False
 
-    def _try_connect_port(self, port: str, timeout: float) -> bool:
+    def _try_connect_port(self, port: str, baudrate: int, timeout: float) -> bool:
         try:
             if self._debug:
-                print(f"Trying {port}...")
+                print(f"Trying {port}@{baudrate}...")
 
-            ser = serial.Serial(port, self._baudrate, timeout=0.1)
+            ser = serial.Serial(port, baudrate, timeout=0.1)
             ser.dtr = False
             ser.rts = False
 
@@ -107,18 +119,21 @@ class EasyConController:
                     print(f"[{port}] << {' '.join(f'{b:02X}' for b in response) if response else '(无数据)'}")
 
                 if len(response) >= 1 and response[0] == Reply.Hello:
+                    if self._debug:
+                        print(f"Connected to {port}@{baudrate}")
                     self._serial = ser
                     self._port_name = port
+                    self._baudrate = baudrate
                     self._connected = True
                     self._start_io_thread()
-                    if self._debug:
-                        print(f"Connected to {port}")
                     return True
 
                 # 首轮未响应：可能是自动复位还在启动，等够再试一次
                 if attempt == 0 and not response:
                     time.sleep(max(0, timeout - dead_air_wait - 0.1))
 
+            if self._debug:
+                print(f"No valid handshake on {port}@{baudrate}")
             ser.close()
             return False
 
