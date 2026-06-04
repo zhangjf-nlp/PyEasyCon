@@ -32,7 +32,7 @@ from easycon.config import get as config_get
 # ── 常量 ──────────────────────────────────────────────
 GAME_OPTIONS = {"火红": "fr_nx", "叶绿": "lg_nx"}
 
-STATIC_CATEGORIES = ["Gift", "Game Corner", "Stationary", "Legend", "Fossil"]
+STATIC_CATEGORIES = ["Gift", "Game Corner", "Stationary", "Legend", "Fossil", "Event"]
 WILD_CATEGORIES = ["Grass", "Surfing", "SuperRod", "GoodRod", "OldRod"]
 
 # FRLG 静态遭遇宝可梦（与 ten-lines/PokeFinder 一致）
@@ -42,6 +42,7 @@ STATIC_POKEMON_MAP = {
     "Game Corner": ["Abra", "Clefairy", "Scyther", "Pinsir", "Dratini", "Porygon"],
     "Stationary":  ["Snorlax", "Electrode", "Hypno"],
     "Legend":      ["Articuno", "Zapdos", "Moltres", "Mewtwo"],
+    "Event":       ["Deoxys"],
 }
 
 METHOD_OPTIONS = {

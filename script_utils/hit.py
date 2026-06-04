@@ -133,6 +133,7 @@ def hit_A(ctx: ScriptContext, cfg: RNGConfig) -> None:
         "Snorlax": 1, "Electrode": 0, "Hypno": 6, # Stationary
         "Zapdos": 0, "Articuno": 0, "Moltres": 0, "Mewtwo": -1, # Legend
         "Omanyte": 2, "Kabuto": 2, "Aerodactyl": 2, # Fossil
+        "Deoxys": 0, # Event
     }.get(cfg.pokemon_species, -1)
     if extra_as == -1:
         raise ValueError(f"{cfg.pokemon_species}暂未支持")
@@ -156,7 +157,7 @@ def hit(ctx: ScriptContext, cfg: RNGConfig) -> bool:
         hit_rod(ctx, cfg)
     elif cfg.rng_category == "Game Corner":
         hit_game_corner(ctx, cfg)
-    elif cfg.rng_category in ["Gift", "Stationary", "Legend", "Fossil"]:
+    elif cfg.rng_category in ["Gift", "Stationary", "Legend", "Fossil", "Event"]:
         hit_A(ctx, cfg)
     else:
         raise NotImplementedError(cfg.rng_category)
