@@ -76,33 +76,48 @@ class EasyConController:
             if self._debug:
                 print(f"Trying {port}...")
 
-            ser = serial.Serial(port, self._baudrate, timeout=timeout)
+            ser = serial.Serial(port, self._baudrate, timeout=0.1)
             ser.dtr = False
             ser.rts = False
 
+            # DTR 下降沿可能触发 MCU 自动复位（Arduino/CH340 常见设计），
+            # 先等待启动完成 + 清空复位噪声，再发送握手命令
+            time.sleep(0.05)
             ser.reset_input_buffer()
-            ser.reset_output_buffer()
 
             hello_bytes = bytes([EzDvCommand.Ready, EzDvCommand.Ready, EzDvCommand.Hello])
-            ser.write(hello_bytes)
+            dead_air_wait = 0.15  # 首轮快速等待，适配无自动复位的 MCU
 
-            if self._debug:
-                print(f"[{port}] >> {' '.join(f'{b:02X}' for b in hello_bytes)}")
+            for attempt in range(2):
+                ser.reset_input_buffer()
+                ser.write(hello_bytes)
 
-            time.sleep(0.1)
-            response = ser.read(ser.in_waiting or 1)
-
-            if self._debug:
-                print(f"[{port}] << {' '.join(f'{b:02X}' for b in response)}")
-
-            if len(response) >= 1 and response[0] == Reply.Hello:
-                self._serial = ser
-                self._port_name = port
-                self._connected = True
-                self._start_io_thread()
                 if self._debug:
-                    print(f"Connected to {port}")
-                return True
+                    print(f"[{port}] >> {' '.join(f'{b:02X}' for b in hello_bytes)}")
+
+                deadline = time.time() + (timeout if attempt > 0 else dead_air_wait)
+                response = b''
+                while time.time() < deadline:
+                    if ser.in_waiting:
+                        response += ser.read(ser.in_waiting)
+                        break
+                    time.sleep(0.05)
+
+                if self._debug:
+                    print(f"[{port}] << {' '.join(f'{b:02X}' for b in response) if response else '(无数据)'}")
+
+                if len(response) >= 1 and response[0] == Reply.Hello:
+                    self._serial = ser
+                    self._port_name = port
+                    self._connected = True
+                    self._start_io_thread()
+                    if self._debug:
+                        print(f"Connected to {port}")
+                    return True
+
+                # 首轮未响应：可能是自动复位还在启动，等够再试一次
+                if attempt == 0 and not response:
+                    time.sleep(max(0, timeout - dead_air_wait - 0.1))
 
             ser.close()
             return False
