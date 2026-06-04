@@ -63,7 +63,7 @@ class RNGSchedule:
     def apply_calibration(self, disp: RNGDisplacement) -> None:
         self.seed_ms -= disp.ds * 16
         self.advances_ms_tv -= disp.dt * 16
-        self.advances_ms_normal -= disp.dn * 16 / 2
+        self.advances_ms_normal -= disp.dn * 16 // 2
 
         while self.advances_ms_normal < self.normal_ms_min:
             self.advances_ms_tv -= 16

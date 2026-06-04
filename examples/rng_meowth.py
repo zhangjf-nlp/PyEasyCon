@@ -18,8 +18,8 @@ cfg = RNGConfig(
     rng_location="Route 5",
     rng_method="All Wild Methods",
     target=RNGSlot(0x077C, 0, 516475),
-    seed_bias=-3942,
-    advances_bias=-11500,
+    seed_bias=-3750,
+    advances_bias=-10688,
     normal_ms_min=10000,
 )
 state = SessionState()

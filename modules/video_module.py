@@ -3,6 +3,7 @@ Video Module - 游戏画面显示模块
 负责实时显示游戏画面和键盘控制
 """
 
+import os
 import pygame
 import cv2
 import threading
@@ -316,9 +317,9 @@ class VideoModule:
                 rois = get_all_roi_boxes()
                 scale_x = self.width / 1920.0
                 scale_y = self.height / 1080.0
-                small_font = pygame.font.SysFont("microsoft YaHei", 9)
-                if small_font is None:
-                    small_font = pygame.font.Font(None, 9)
+                small_font = pygame.font.Font(os.path.join(
+                    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                    "assets", "NotoSansCJKsc-Regular.otf"), 9)
                 for box in rois:
                     rx, ry, rw, rh = box['roi']
                     sx = self.x + int(rx * scale_x)

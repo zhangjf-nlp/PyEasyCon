@@ -4,6 +4,7 @@ Script Editor Module - pygame-texteditor PatchedTextEditor
 
 import copy
 import math
+import os
 import pygame
 from pygame_texteditor import TextEditor
 
@@ -20,10 +21,9 @@ class PatchedTextEditor(TextEditor):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        try:
-            self.editor_font = pygame.font.SysFont("simsun", self.letter_height)
-        except Exception:
-            pass
+        self.editor_font = pygame.font.Font(os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            "assets", "NotoSansCJKsc-Regular.otf"), self.letter_height)
         self.letter_width = self.editor_font.render(" ", 1, (0, 0, 0)).get_width()
         self.line_height_including_margin = self.letter_height + self.line_margin
         self.showable_line_numbers_in_editor = int(

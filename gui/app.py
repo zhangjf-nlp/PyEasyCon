@@ -97,13 +97,13 @@ class EasyConGUI:
             icon_final = pygame.transform.smoothscale(cropped, (64, 64))
             pygame.display.set_icon(icon_final)
 
-        # 字体
-        try:
-            self.font = pygame.font.SysFont("microsoft YaHei", 14)
-            self.font_small = pygame.font.SysFont("SimSun", 12)
-        except:
-            self.font = pygame.font.Font(None, 14)
-            self.font_small = pygame.font.Font(None, 12)
+        # 字体（使用项目内置开源字体，无需系统安装中文字体）
+        self.font = pygame.font.Font(os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            "assets", "NotoSansCJKsc-Regular.otf"), 14)
+        self.font_small = pygame.font.Font(os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            "assets", "NotoSansCJKsc-Regular.otf"), 12)
         
         # 控制器
         self.controller: Optional[EasyConController] = None
@@ -245,12 +245,12 @@ class EasyConGUI:
             if MODEL_TYPE_VLLM in available:
                 _set_model_type(MODEL_TYPE_VLLM)
                 self.output_panel.log(f"VL模型: vLLM ({vllm_short})")
-            elif MODEL_TYPE_MINICPM in available:
-                _set_model_type(MODEL_TYPE_MINICPM)
-                self.output_panel.log(f"VL模型: MiniCPM ({minicpm_short})")
             elif MODEL_TYPE_GLM in available:
                 _set_model_type(MODEL_TYPE_GLM)
                 self.output_panel.log(f"VL模型: GLM ({glm_short})")
+            elif MODEL_TYPE_MINICPM in available:
+                _set_model_type(MODEL_TYPE_MINICPM)
+                self.output_panel.log(f"VL模型: MiniCPM ({minicpm_short})")
             else:
                 self.output_panel.log("VL模型: 无可用")
 

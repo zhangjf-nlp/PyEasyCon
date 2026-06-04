@@ -24,7 +24,8 @@ def run_away(ctx: ScriptContext) -> None:
 
 def in_wild(ctx: ScriptContext) -> bool:
     return ctx.search_label("FRLG草丛", 90) or ctx.search_label("FRLG对话", 90) \
-        or ctx.search_label("FRLG水面", 90) or ctx.search_label("FRLG洞穴", 90)
+        or ctx.search_label("FRLG水面", 90) or ctx.search_label("FRLG洞穴", 90) \
+        or ctx.search_label("FRLG宝可梦塔", 90)
 
 
 def restart(ctx: ScriptContext) -> None:

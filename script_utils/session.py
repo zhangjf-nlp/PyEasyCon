@@ -106,7 +106,7 @@ def run_calibration(ctx: ScriptContext, state: SessionState, cfg: RNGConfig) -> 
     cfg.seed_bias += result["seed_bias"]
     cfg.advances_bias += result["adv_bias"]
 
-    ctx.log(f"SeedTime={cfg.target.seed_time}ms Advances={cfg.target.advances}")
+    ctx.log(f"target: {cfg.target}")
     ctx.log(f"SeedBias={cfg.seed_bias} AdvancesBias={cfg.advances_bias}")
     ctx.log(
         f"Seed takes {cfg.schedule.seed_ms}ms | TV takes {cfg.schedule.advances_ms_tv}ms "

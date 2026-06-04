@@ -22,24 +22,17 @@ def sleep(seconds: float, end: Optional[float] = None) -> None:
 
 def hit_init_seed(ctx: ScriptContext, cfg: RNGConfig) -> None:
     sb, eb = cfg.game_settings.seed_button, cfg.game_settings.extra_button
+    EB = eb[-1].upper() if eb in ["blackout_r", "blackout_l"] else None
+    SB = {"start": "PLUS", "a": "A", "l": "L"}[sb]
+    time_start = time.time()
     ctx.press("A")
-    sleep(0.1)
-    if eb in ["blackout_r", "blackout_l"]:
-        ctx.log(f"hold {eb[-1].upper()}")
-        ctx.hold(eb[-1].upper())
-    sleep(cfg.schedule.seed_ms / 1000.0)
-    if eb in ["blackout_r", "blackout_l"]:
-        ctx.log(f"release {eb[-1].upper()}")
-        ctx.release(eb[-1].upper())
-    if sb == "start":
-        ctx.hold("PLUS")
-        sleep(4.0)
-        ctx.release("PLUS")
-    else:
-        assert sb in ["a", "l"], sb
-        ctx.hold(sb.upper())
-        sleep(4.0)
-        ctx.release(sb.upper())
+    time_end = time_start + cfg.schedule.seed_ms / 1000
+    if EB:
+        while not ctx.search_label("FRLGCopyright", 90):
+            sleep(0.1)
+        ctx.press(EB, 3000)
+    sleep(0.0, end=time_end)
+    ctx.press(SB, 4000)
     sleep(1.0)
     ctx.press("A")
     sleep(1.0)

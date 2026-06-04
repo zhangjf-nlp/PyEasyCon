@@ -334,12 +334,12 @@ def _ensure_model_init():
         minicpm_ok = check_minicpm_service()
         if vllm_ok:
             _current_model_type = MODEL_TYPE_VLLM
-        elif minicpm_ok:
-            _current_model_type = MODEL_TYPE_MINICPM
-            print(f"vLLM 未运行，自动切换到 {MINICPM_MODEL} 在线API")
         elif glm_ok:
             _current_model_type = MODEL_TYPE_GLM
             print(f"vLLM 未运行，自动切换到 {GLM_MODEL} 在线API")
+        elif minicpm_ok:
+            _current_model_type = MODEL_TYPE_MINICPM
+            print(f"vLLM 未运行，自动切换到 {MINICPM_MODEL} 在线API")
         _model_init_done = True
 
 
