@@ -45,7 +45,7 @@ from vision import (
     check_service as _check_service,
     check_vllm_service as _check_vllm_service,
     check_ollama_service as _check_ollama_service,
-    check_modelscope_service as _check_modelscope_service,
+    check_siliconflow_service as _check_siliconflow_service,
     set_model_type as _set_model_type,
     get_current_model_type as _get_current_model_type,
     get_available_model_types as _get_available_model_types,
@@ -54,7 +54,7 @@ from vision import (
     preload_sprites as _preload_sprites,
 )
 
-from vision.ocr import MODEL_TYPE_VLLM, MODEL_TYPE_OLLAMA, MODEL_TYPE_MODELSCOPE, OLLAMA_MODEL_NAME, MODELSCOPE_MODEL, VLLM_MODEL_NAME
+from vision.ocr import MODEL_TYPE_VLLM, MODEL_TYPE_OLLAMA, MODEL_TYPE_SILICONFLOW, OLLAMA_MODEL_NAME, SILICONFLOW_MODEL, VLLM_MODEL_NAME
 
 
 class EasyConGUI:
@@ -220,11 +220,11 @@ class EasyConGUI:
         def check_worker():
             vllm_ok = _check_vllm_service()
             ollama_ok = _check_ollama_service()
-            modelscope_ok = _check_modelscope_service()
+            siliconflow_ok = _check_siliconflow_service()
 
             vllm_short = VLLM_MODEL_NAME.replace('\\', '/').split('/')[-1]
             ollama_short = OLLAMA_MODEL_NAME
-            modelscope_short = MODELSCOPE_MODEL
+            siliconflow_short = SILICONFLOW_MODEL
 
             if vllm_ok:
                 self.output_panel.log(f"vLLM ({vllm_short}) 可用")
@@ -236,10 +236,10 @@ class EasyConGUI:
             else:
                 self.output_panel.log(f"Ollama ({ollama_short}) 不可用")
 
-            if modelscope_ok:
-                self.output_panel.log(f"ModelScope ({modelscope_short}) 可用")
+            if siliconflow_ok:
+                self.output_panel.log(f"SiliconFlow ({siliconflow_short}) 可用")
             else:
-                self.output_panel.log(f"ModelScope ({modelscope_short}) 不可用")
+                self.output_panel.log(f"SiliconFlow ({siliconflow_short}) 不可用")
 
             available = _get_available_model_types()
             if MODEL_TYPE_VLLM in available:
@@ -248,9 +248,9 @@ class EasyConGUI:
             elif MODEL_TYPE_OLLAMA in available:
                 _set_model_type(MODEL_TYPE_OLLAMA)
                 self.output_panel.log(f"VL模型: {ollama_short} (Ollama)")
-            elif MODEL_TYPE_MODELSCOPE in available:
-                _set_model_type(MODEL_TYPE_MODELSCOPE)
-                self.output_panel.log(f"VL模型: {modelscope_short} (ModelScope)")
+            elif MODEL_TYPE_SILICONFLOW in available:
+                _set_model_type(MODEL_TYPE_SILICONFLOW)
+                self.output_panel.log(f"VL模型: {siliconflow_short} (SiliconFlow)")
             else:
                 self.output_panel.log("VL模型: 无可用")
 
@@ -565,8 +565,8 @@ class EasyConGUI:
             self.output_panel.log(f"VL模型: vLLM ({vllm_short})")
         elif next_model == MODEL_TYPE_OLLAMA:
             self.output_panel.log(f"VL模型: {OLLAMA_MODEL_NAME} (Ollama)")
-        elif next_model == MODEL_TYPE_MODELSCOPE:
-            self.output_panel.log(f"VL模型: {MODELSCOPE_MODEL} (ModelScope)")
+        elif next_model == MODEL_TYPE_SILICONFLOW:
+            self.output_panel.log(f"VL模型: {SILICONFLOW_MODEL} (SiliconFlow)")
     
     def _capture_for_label(self):
         """为标签制作模块截图 - 使用规范化后的 1920×1080 帧，确保跨分辨率兼容"""

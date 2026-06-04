@@ -165,14 +165,14 @@ class VideoModule:
                         
                         # 更新模型类型显示
                         try:
-                            from vision.ocr import get_current_model_type, OLLAMA_MODEL_NAME, MODELSCOPE_MODEL
+                            from vision.ocr import get_current_model_type, OLLAMA_MODEL_NAME, SILICONFLOW_MODEL
                             model_type = get_current_model_type()
                             if model_type == "vllm":
                                 self.model_type = "vLLM(本地)"
                             elif model_type == "ollama":
                                 self.model_type = f"{OLLAMA_MODEL_NAME}(Ollama)"
-                            elif model_type == "modelscope":
-                                self.model_type = f"{MODELSCOPE_MODEL.split('/')[-1]}(ModelScope)"
+                            elif model_type == "siliconflow":
+                                self.model_type = f"{SILICONFLOW_MODEL.split('/')[-1]}(SiliconFlow)"
                             else:
                                 self.model_type = "未知"
                         except Exception:

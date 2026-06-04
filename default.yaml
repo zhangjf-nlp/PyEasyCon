@@ -82,18 +82,18 @@ vision:
 
 # ==================== VL 模型 ====================
 vl_model:
-  type: vllm                # vllm | ollama | modelscope
+  type: vllm                # vllm | ollama | siliconflow
   vllm:
     base_url: "http://localhost:8000/v1"
     api_key: "sk-PyEasyCon"
     model_name: "Qwen3-VL-2B-Instruct-FP8"
   ollama:
-    base_url: "http://5b4c56df.r32.cpolar.top"
+    base_url: "http://localhost:8008/v1"
     api_key: "sk-PyEasyCon"
-    model_name: "Qwen3-VL-2B-Instruct-FP8"
-  modelscope:
-    base_url: "https://api-inference.modelscope.cn/v1"
-    api_key: "ms-xxxxx"
+    model_name: "modelscope.cn/Qwen/Qwen3-VL-2B-Instruct-GGUF:latest"
+  siliconflow:
+    base_url: "https://api.siliconflow.cn/v1"
+    api_key: "sk-xxxxx"
     model: "Qwen/Qwen3-VL-8B-Instruct"
     max_retries: 3
 

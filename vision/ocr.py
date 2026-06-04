@@ -32,25 +32,25 @@ _vl_cfg = _read_vl_config()
 
 VLLM_BASE_URL = _vl_cfg.get("vllm", {}).get("base_url", "http://localhost:8000/v1")
 VLLM_API_KEY = _vl_cfg.get("vllm", {}).get("api_key", "sk-PyEasyCon")
-VLLM_MODEL_NAME = _vl_cfg.get("vllm", {}).get("model_name", "/opt/models/Qwen3-VL-2B-Instruct-FP8")
+VLLM_MODEL_NAME = _vl_cfg.get("vllm", {}).get("model_name", "Qwen3-VL-2B-Instruct-FP8")
 
-OLLAMA_BASE_URL = _vl_cfg.get("ollama", {}).get("base_url", "http://localhost:11434/v1")
-OLLAMA_API_KEY = _vl_cfg.get("ollama", {}).get("api_key", "ollama")
-OLLAMA_MODEL_NAME = _vl_cfg.get("ollama", {}).get("model_name", "qwen3-vl:2b")
+OLLAMA_BASE_URL = _vl_cfg.get("ollama", {}).get("base_url", "http://localhost:8008/v1")
+OLLAMA_API_KEY = _vl_cfg.get("ollama", {}).get("api_key", "sk-PyEasyCon")
+OLLAMA_MODEL_NAME = _vl_cfg.get("ollama", {}).get("model_name", "modelscope.cn/Qwen/Qwen3-VL-2B-Instruct-GGUF:latest")
 
-MODELSCOPE_API_BASE_URL = _vl_cfg.get("modelscope", {}).get("base_url", "https://api-inference.modelscope.cn/v1")
-MODELSCOPE_API_KEY = _vl_cfg.get("modelscope", {}).get("api_key", "")
-MODELSCOPE_MODEL = _vl_cfg.get("modelscope", {}).get("model", "Qwen/Qwen3-VL-8B-Instruct")
-MODELSCOPE_MAX_RETRIES = _vl_cfg.get("modelscope", {}).get("max_retries", 3)
+SILICONFLOW_API_BASE_URL = _vl_cfg.get("siliconflow", {}).get("base_url", "https://api.siliconflow.cn/v1")
+SILICONFLOW_API_KEY = _vl_cfg.get("siliconflow", {}).get("api_key", "")
+SILICONFLOW_MODEL = _vl_cfg.get("siliconflow", {}).get("model", "Qwen/Qwen3-VL-8B-Instruct")
+SILICONFLOW_MAX_RETRIES = _vl_cfg.get("siliconflow", {}).get("max_retries", 3)
 
 MODEL_TYPE_VLLM = "vllm"
 MODEL_TYPE_OLLAMA = "ollama"
-MODEL_TYPE_MODELSCOPE = "modelscope"
+MODEL_TYPE_SILICONFLOW = "siliconflow"
 
 _preferred = _vl_cfg.get("type", "vllm").lower()
 _current_model_type = (
     MODEL_TYPE_OLLAMA if _preferred == "ollama"
-    else MODEL_TYPE_MODELSCOPE if _preferred == "modelscope"
+    else MODEL_TYPE_SILICONFLOW if _preferred == "siliconflow"
     else MODEL_TYPE_VLLM if _preferred == "vllm"
     else MODEL_TYPE_VLLM
 )
@@ -58,11 +58,11 @@ _current_model_type = (
 _model_init_done = False
 _model_init_lock = threading.Lock()
 
-_modelscope_semaphore = threading.Semaphore(2)
+_siliconflow_semaphore = threading.Semaphore(2)
 
 _client = None
 _ollama_client = None
-_modelscope_client = None
+_siliconflow_client = None
 _openai_available = False
 
 try:
@@ -194,19 +194,19 @@ def _get_ollama_client() -> OpenAI:
     return _ollama_client
 
 
-def _get_modelscope_client() -> OpenAI:
-    global _modelscope_client
+def _get_siliconflow_client() -> OpenAI:
+    global _siliconflow_client
     if not _openai_available:
         raise ImportError("openai 库未安装，请运行: pip install openai")
-    if _modelscope_client is None:
-        _modelscope_client = OpenAI(api_key=MODELSCOPE_API_KEY, base_url=MODELSCOPE_API_BASE_URL, timeout=60)
-    return _modelscope_client
+    if _siliconflow_client is None:
+        _siliconflow_client = OpenAI(api_key=SILICONFLOW_API_KEY, base_url=SILICONFLOW_API_BASE_URL, timeout=60)
+    return _siliconflow_client
 
 
 def set_model_type(model_type: str):
     global _current_model_type
-    if model_type not in [MODEL_TYPE_VLLM, MODEL_TYPE_OLLAMA, MODEL_TYPE_MODELSCOPE]:
-        raise ValueError(f"不支持的模型类型: {model_type}，支持的类型: {MODEL_TYPE_VLLM}, {MODEL_TYPE_OLLAMA}, {MODEL_TYPE_MODELSCOPE}")
+    if model_type not in [MODEL_TYPE_VLLM, MODEL_TYPE_OLLAMA, MODEL_TYPE_SILICONFLOW]:
+        raise ValueError(f"不支持的模型类型: {model_type}，支持的类型: {MODEL_TYPE_VLLM}, {MODEL_TYPE_OLLAMA}, {MODEL_TYPE_SILICONFLOW}")
     _current_model_type = model_type
 
 
@@ -220,8 +220,8 @@ def get_available_model_types() -> list:
         available.append(MODEL_TYPE_VLLM)
     if _probe_openai(OLLAMA_BASE_URL, OLLAMA_API_KEY):
         available.append(MODEL_TYPE_OLLAMA)
-    if _probe_openai(MODELSCOPE_API_BASE_URL, MODELSCOPE_API_KEY):
-        available.append(MODEL_TYPE_MODELSCOPE)
+    if _probe_openai(SILICONFLOW_API_BASE_URL, SILICONFLOW_API_KEY):
+        available.append(MODEL_TYPE_SILICONFLOW)
     return available
 
 
@@ -236,8 +236,8 @@ def check_service() -> bool:
         return _probe_openai(VLLM_BASE_URL, VLLM_API_KEY)
     elif _current_model_type == MODEL_TYPE_OLLAMA:
         return _probe_openai(OLLAMA_BASE_URL, OLLAMA_API_KEY)
-    elif _current_model_type == MODEL_TYPE_MODELSCOPE:
-        return _probe_openai(MODELSCOPE_API_BASE_URL, MODELSCOPE_API_KEY)
+    elif _current_model_type == MODEL_TYPE_SILICONFLOW:
+        return _probe_openai(SILICONFLOW_API_BASE_URL, SILICONFLOW_API_KEY)
     return False
 
 
@@ -249,8 +249,8 @@ def check_ollama_service() -> bool:
     return _probe_openai(OLLAMA_BASE_URL, OLLAMA_API_KEY)
 
 
-def check_modelscope_service() -> bool:
-    return _probe_openai(MODELSCOPE_API_BASE_URL, MODELSCOPE_API_KEY)
+def check_siliconflow_service() -> bool:
+    return _probe_openai(SILICONFLOW_API_BASE_URL, SILICONFLOW_API_KEY)
 
 
 # ==================== 画面预处理 (1920×1080 直入) ====================
@@ -313,12 +313,12 @@ def _ensure_model_init():
                 return
             print("Ollama 不可用，回退到其他模型")
 
-        if preferred == "modelscope":
-            if check_modelscope_service():
-                _current_model_type = MODEL_TYPE_MODELSCOPE
+        if preferred == "siliconflow":
+            if check_siliconflow_service():
+                _current_model_type = MODEL_TYPE_SILICONFLOW
                 _model_init_done = True
                 return
-            print("ModelScope 不可用，回退到其他模型")
+            print("SiliconFlow 不可用，回退到其他模型")
 
         if preferred == "vllm":
             if check_vllm_service():
@@ -329,15 +329,15 @@ def _ensure_model_init():
 
         vllm_ok = check_vllm_service()
         ollama_ok = check_ollama_service()
-        modelscope_ok = check_modelscope_service()
+        siliconflow_ok = check_siliconflow_service()
         if vllm_ok:
             _current_model_type = MODEL_TYPE_VLLM
         elif ollama_ok:
             _current_model_type = MODEL_TYPE_OLLAMA
             print(f"vLLM 未运行，自动切换到 Ollama ({OLLAMA_MODEL_NAME})")
-        elif modelscope_ok:
-            _current_model_type = MODEL_TYPE_MODELSCOPE
-            print(f"自动切换到 {MODELSCOPE_MODEL} (ModelScope)")
+        elif siliconflow_ok:
+            _current_model_type = MODEL_TYPE_SILICONFLOW
+            print(f"自动切换到 {SILICONFLOW_MODEL} (SiliconFlow)")
         _model_init_done = True
 
 
@@ -381,12 +381,12 @@ def _call_vlm(image: np.ndarray, prompt: str, max_tokens: int = 64, temperature:
             raw = response.choices[0].message.content
             return _clean_vlm_response(raw)
 
-        elif effective_model == MODEL_TYPE_MODELSCOPE:
-            for attempt in range(MODELSCOPE_MAX_RETRIES):
-                with _modelscope_semaphore:
+        elif effective_model == MODEL_TYPE_SILICONFLOW:
+            for attempt in range(SILICONFLOW_MAX_RETRIES):
+                with _siliconflow_semaphore:
                     try:
-                        response = _get_modelscope_client().chat.completions.create(
-                            model=MODELSCOPE_MODEL,
+                        response = _get_siliconflow_client().chat.completions.create(
+                            model=SILICONFLOW_MODEL,
                             messages=msg,
                             max_tokens=max_tokens,
                             temperature=temperature,
@@ -396,7 +396,7 @@ def _call_vlm(image: np.ndarray, prompt: str, max_tokens: int = 64, temperature:
                     except Exception as e:
                         err_str = str(e)
                         is_rate_limit = '429' in err_str
-                        if not is_rate_limit or attempt >= MODELSCOPE_MAX_RETRIES - 1:
+                        if not is_rate_limit or attempt >= SILICONFLOW_MAX_RETRIES - 1:
                             raise
                 wait = 2 ** attempt
                 time.sleep(wait)
@@ -454,7 +454,7 @@ def _parallel_ocr(tasks: List[Tuple[str, np.ndarray, callable]]) -> Dict[str, ob
 
     tasks: [(key, roi_image, ocr_function), ...]
     """
-    max_workers = 4 if _current_model_type in (MODEL_TYPE_OLLAMA, MODEL_TYPE_MODELSCOPE) else min(len(tasks), 8)
+    max_workers = 4 if _current_model_type in (MODEL_TYPE_OLLAMA, MODEL_TYPE_SILICONFLOW) else min(len(tasks), 8)
     results: Dict[str, object] = {}
     with ThreadPoolExecutor(max_workers=max_workers) as ex:
         futures = {ex.submit(ocr_func, img): key for key, img, ocr_func in tasks}
