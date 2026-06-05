@@ -202,7 +202,7 @@ class EasyConGUI:
                 
                 for port in ports:
                     try:
-                        if self.controller.connect(port.device, timeout=1.0):
+                        if self.controller.connect(port.device, timeout=2.0):
                             self.output_panel.log(f"控制器已连接: {port.device}")
                             self.video_module._update_connection_status()
                             return

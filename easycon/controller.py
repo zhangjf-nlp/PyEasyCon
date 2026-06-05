@@ -44,7 +44,7 @@ class EasyConController:
         self._serial: Optional[serial.Serial] = None
         self._port_name: Optional[str] = None
         self._baudrate = 115200
-        self._baudrate_fallbacks = [9600]  # 部分固件使用 9600
+        self._baudrate_fallbacks = [9600, 57600, 38400, 19200]  # 覆盖多种固件波特率
         self._connected = False
         self._lock = threading.Lock()
         self._debug = False
@@ -88,13 +88,17 @@ class EasyConController:
             if self._debug:
                 print(f"Trying {port}@{baudrate}...")
 
-            ser = serial.Serial(port, baudrate, timeout=0.1)
-            ser.dtr = False
-            ser.rts = False
+            # 关键修复：先创建 Serial 对象（不打开），设置 DTR/RTS 为低电平，
+            # 再手动打开串口。避免 pyserial 默认 DTR=True 触发 CH340/Arduino
+            # 兼容板的自动复位（auto-reset），导致握手失败。
+            ser = serial.Serial()
+            ser.port = port
+            ser.baudrate = baudrate
+            ser.timeout = 0.1
+            ser._dtr_state = False
+            ser._rts_state = False
+            ser.open()
 
-            # DTR 下降沿可能触发 MCU 自动复位（Arduino/CH340 常见设计），
-            # 先等待启动完成 + 清空复位噪声，再发送握手命令
-            time.sleep(0.05)
             ser.reset_input_buffer()
 
             hello_bytes = bytes([EzDvCommand.Ready, EzDvCommand.Ready, EzDvCommand.Hello])
@@ -298,3 +302,168 @@ class EasyConController:
 
     def wait(self, ms: int):
         time.sleep(ms / 1000.0)
+
+    # ============== 高级控制器命令 ==============
+
+    def _recv_byte(self, timeout: float = 0.2) -> Optional[int]:
+        """等待并读取单字节响应"""
+        if not self._serial:
+            return None
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            if self._serial.in_waiting:
+                return self._serial.read(1)[0]
+            time.sleep(0.01)
+        return None
+
+    def _send_command(self, *cmd_bytes: int, timeout: float = 0.2) -> Optional[int]:
+        """发送 EzDv 命令并等待单字节响应"""
+        if not self._connected or not self._serial:
+            return None
+        with self._lock:
+            try:
+                self._serial.reset_input_buffer()
+                self._serial.write(bytes(cmd_bytes))
+                return self._recv_byte(timeout)
+            except Exception:
+                return None
+
+    def change_controller_mode(self, mode: int) -> bool:
+        """切换控制器模式: 1=JoyCon-L, 2=JoyCon-R, 3=Pro"""
+        reply = self._send_command(
+            EzDvCommand.Ready, mode, EzDvCommand.ChangeControllerMode
+        )
+        return reply == Reply.Ack
+
+    def change_controller_color(self, body_rgb: tuple, button_rgb: tuple,
+                                grip_l_rgb: tuple, grip_r_rgb: tuple) -> bool:
+        """设置手柄颜色 (各 3 字节 RGB)。
+        颜色数据内联在命令中一并发送，与 C# 版 SendSync 行为一致。"""
+        if not self._connected or not self._serial:
+            return False
+        cmd = bytes([
+            EzDvCommand.Ready, 0, 0, 12, 0,
+            EzDvCommand.ChangeControllerColor,
+            *body_rgb, *button_rgb, *grip_l_rgb, *grip_r_rgb,
+        ])
+        with self._lock:
+            try:
+                self._serial.reset_input_buffer()
+                self._serial.write(cmd)
+                reply = self._recv_byte(timeout=1.0)
+                return reply == Reply.Ack
+            except Exception:
+                return False
+
+    def unpair(self) -> bool:
+        """取消配对（断开与主机的蓝牙连接）"""
+        reply = self._send_command(EzDvCommand.Ready, EzDvCommand.UnPair)
+        return reply == Reply.Ack
+
+    def trigger_led(self) -> bool:
+        """触发 LED 闪烁"""
+        reply = self._send_command(EzDvCommand.Ready, EzDvCommand.LED)
+        return reply == 0
+
+    def get_version(self) -> int:
+        """获取固件版本号"""
+        reply = self._send_command(EzDvCommand.Ready, EzDvCommand.Version, timeout=0.5)
+        if reply is not None and 0x40 <= reply <= 0x80:
+            return reply
+        return -1
+
+    def flash(self, data: bytes) -> bool:
+        """烧录固件（分片发送）"""
+        if not self._connected or not self._serial:
+            return False
+        packet_size = 20
+        with self._lock:
+            for i in range(0, len(data), packet_size):
+                chunk = data[i:i + packet_size]
+                chunk_len = len(chunk)
+                while True:
+                    header = bytes([
+                        EzDvCommand.Ready,
+                        i & 0x7F, (i >> 7) & 0x7F,
+                        chunk_len & 0x7F, (chunk_len >> 7) & 0x7F,
+                        EzDvCommand.Flash,
+                    ])
+                    self._serial.reset_input_buffer()
+                    self._serial.write(header)
+                    reply = self._recv_byte(timeout=1.0)
+                    if reply != Reply.FlashStart:
+                        if not self._handshake():
+                            return False
+                        continue
+                    self._serial.reset_input_buffer()
+                    self._serial.write(chunk)
+                    reply = self._recv_byte(timeout=1.0)
+                    if reply == Reply.FlashEnd:
+                        break
+                    if not self._handshake():
+                        return False
+        return True
+
+    def _handshake(self) -> bool:
+        """发送握手包恢复通信"""
+        if not self._serial:
+            return False
+        try:
+            for _ in range(3):
+                self._serial.write(
+                    bytes([EzDvCommand.Ready, EzDvCommand.Hello])
+                )
+            reply = self._recv_byte(timeout=0.2)
+            return reply == Reply.Hello
+        except Exception:
+            return False
+
+    def remote_start(self) -> bool:
+        """远程启动板载脚本"""
+        reply = self._send_command(EzDvCommand.Ready, EzDvCommand.ScriptStart)
+        return reply == Reply.ScriptAck
+
+    def remote_stop(self) -> bool:
+        """远程停止板载脚本"""
+        reply = self._send_command(EzDvCommand.Ready, EzDvCommand.ScriptStop)
+        return reply == Reply.ScriptAck
+
+    def save_amiibo(self, index: int, amiibo_data: bytes) -> bool:
+        """保存 Amiibo 数据到指定索引"""
+        if not self._connected or not self._serial:
+            return False
+        packet_size = 20
+        with self._lock:
+            for i in range(0, len(amiibo_data), packet_size):
+                chunk = amiibo_data[i:i + packet_size]
+                chunk_len = len(chunk)
+                while True:
+                    header = bytes([
+                        EzDvCommand.Ready,
+                        i & 0x7F, (i >> 7) & 0x7F,
+                        chunk_len & 0x7F, (chunk_len >> 7) & 0x7F,
+                        index,
+                        EzDvCommand.SaveAmiibo,
+                    ])
+                    self._serial.reset_input_buffer()
+                    self._serial.write(header)
+                    reply = self._recv_byte(timeout=1.0)
+                    if reply != Reply.Ack:
+                        if not self._handshake():
+                            return False
+                        continue
+                    self._serial.reset_input_buffer()
+                    self._serial.write(chunk)
+                    reply = self._recv_byte(timeout=1.0)
+                    if reply == Reply.Ack:
+                        break
+                    if not self._handshake():
+                        return False
+        return True
+
+    def change_amiibo_index(self, index: int) -> bool:
+        """切换当前使用的 Amiibo 索引"""
+        reply = self._send_command(
+            EzDvCommand.Ready, index, EzDvCommand.ChangeAmiiboIndex
+        )
+        return reply == Reply.Ack

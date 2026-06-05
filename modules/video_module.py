@@ -123,7 +123,7 @@ class VideoModule:
                 
                 for port in ports:
                     try:
-                        if self.controller.connect(port.device, timeout=1.0):
+                        if self.controller.connect(port.device, timeout=2.0):
                             self._update_connection_status()
                             return
                     except:

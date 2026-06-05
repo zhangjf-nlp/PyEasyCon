@@ -9,6 +9,7 @@ import os
 import shutil
 import subprocess
 import sys
+import threading
 from datetime import datetime
 from typing import Optional, Callable, Union
 from urllib.parse import urlparse, parse_qs
@@ -30,6 +31,7 @@ from rng.tenlines_utils import (
 )
 from script_utils.hit import EXTRA_A_PRESSES
 from easycon.config import get as config_get
+from easycon.controller import EasyConController
 
 # ── 常量 ──────────────────────────────────────────────
 GAME_OPTIONS = {"火红": "fr_nx", "叶绿": "lg_nx"}
@@ -76,7 +78,7 @@ _STATIC_POKEMON_ZH = {
     "Pinsir": "凯罗斯", "Dratini": "迷你龙", "Porygon": "多边兽",
     "Snorlax": "卡比兽", "Electrode": "顽皮雷弹", "Hypno": "引梦貘人",
     "Articuno": "急冻鸟", "Zapdos": "闪电鸟", "Moltres": "火焰鸟", "Mewtwo": "超梦",
-    "Deoxys": "代欧奇希斯",
+    "Deoxys": "代欧奇希斯", "Lugia": "洛奇亚", "Ho-Oh": "凤王",
 }
 
 # Settings 中英文映射
@@ -1296,11 +1298,54 @@ class RNGGui:
             self._set_status("请填写所有必填字段。", C_RED)
             return
 
-        errors = self._validate(data)
-        if errors:
-            self._set_status(errors[0], C_RED)
-            # 弹窗显示所有错误
-            self._show_message("配置校验失败", "\n\n".join(errors))
+        # 三阶段检测：参数校验 + 控制器 + 采集卡
+        progress = {"step": 0, "failed_msg": "", "data": data}  # 共享状态
+
+        def _run_checks():
+            # (1/3) 参数校验
+            progress["step"] = 1
+            errors = self._validate(data)
+            if errors:
+                progress["failed_msg"] = "\n\n".join(errors)
+                return
+            # (2/3) 控制器检测
+            progress["step"] = 2
+            try:
+                c = EasyConController()
+                if not c.list_ports() or not c.connect(timeout=2.0):
+                    progress["failed_msg"] = "未识别到可用控制器"
+                    return
+                c.disconnect()
+            except Exception:
+                progress["failed_msg"] = "未识别到可用控制器"
+                return
+            # (3/3) 采集卡检测
+            progress["step"] = 3
+            try:
+                import cv2
+                cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+                if not cap.isOpened():
+                    cap = cv2.VideoCapture(0)
+                ok = cap.isOpened()
+                if ok:
+                    cap.release()
+                if not ok:
+                    progress["failed_msg"] = "未识别到采集卡" if self.use_zh else "Capture card not found"
+                    return
+            except Exception:
+                progress["failed_msg"] = "未识别到采集卡" if self.use_zh else "Capture card not found"
+                return
+
+        self._show_progress(_run_checks, progress)
+
+        if progress["failed_msg"]:
+            self._show_message(
+                "配置校验失败" if progress["step"] == 1 else "检测失败",
+                progress["failed_msg"])
+            if progress["step"] == 1:
+                self._set_status(progress["failed_msg"].split("\n")[0], C_RED)
+            else:
+                self._set_status(progress["failed_msg"], C_RED)
             return
 
         self._save_cache(data)
@@ -1465,6 +1510,76 @@ class RNGGui:
     def _set_status(self, text: str, color: tuple):
         self._status_text = text
         self._status_color = color
+
+    def _show_progress(self, check_func, progress: dict):
+        """显示进度弹窗，后台运行 check_func，更新 progress['step']"""
+        zh = self.use_zh
+        steps_info = [
+            "(1/3) 正在验证参数有效性...",
+            "(2/3) 正在检测控制器...",
+            "(3/3) 正在检测采集卡...",
+        ] if zh else [
+            "(1/3) Validating parameters...",
+            "(2/3) Detecting controller...",
+            "(3/3) Detecting capture card...",
+        ]
+        t = threading.Thread(target=check_func, daemon=True)
+        t.start()
+
+        font = _get_font(14)
+        font_title = _get_font(18, bold=True)
+        title = "正在检测" if zh else "Checking"
+        msg_w = min(420, self.W - 40)
+        msg_h = 150
+        msg_rect = pygame.Rect((self.W - msg_w) // 2, (self.H - msg_h) // 2, msg_w, msg_h)
+
+        running = True
+        while running:
+            for event in pygame.event.get():
+                if event.type == QUIT:
+                    self._result = None
+                    self.running = False
+                    return
+
+            # 绘制背景
+            self.screen.fill(C_BG)
+            panel_rect = pygame.Rect(10, 10, self.W - 20, self.H - 20)
+            pygame.draw.rect(self.screen, C_PANEL, panel_rect, border_radius=8)
+            for w in self._widgets:
+                w.draw(self.screen)
+            for cb in self._combo_widgets:
+                cb.draw_overlay(self.screen)
+            if self._status_text:
+                st = self._status_font.render(self._status_text, True, self._status_color)
+                self.screen.blit(st, (20, self.H - 28))
+            tf = _get_font(11)
+            t2 = tf.render("EasyCon RNG 配置" if zh else "EasyCon RNG Configuration", True, C_TEXT_DIM)
+            self.screen.blit(t2, (self.W - t2.get_width() - 20, self.H - 28))
+
+            # 半透明遮罩
+            overlay = pygame.Surface((self.W, self.H), pygame.SRCALPHA)
+            overlay.fill((0, 0, 0, 160))
+            self.screen.blit(overlay, (0, 0))
+
+            # 消息框
+            pygame.draw.rect(self.screen, C_PANEL, msg_rect, border_radius=8)
+            pygame.draw.rect(self.screen, C_ACCENT, msg_rect, width=2, border_radius=8)
+
+            title_surf = font_title.render(title, True, C_TEXT)
+            self.screen.blit(title_surf, (msg_rect.x + 20, msg_rect.y + 18))
+
+            cur_step = progress["step"]
+            for i, si in enumerate(steps_info):
+                color = C_WHITE if i + 1 == cur_step else C_TEXT_DIM
+                marker = "  > " if i + 1 == cur_step else "    "
+                rendered = font.render(marker + si, True, color)
+                self.screen.blit(rendered, (msg_rect.x + 24, msg_rect.y + 50 + i * 26))
+
+            pygame.display.flip()
+            self.clock.tick(30)
+
+            if not t.is_alive():
+                running = False
 
     def _show_message(self, title: str, message: str):
         """用 pygame 显示简单消息框"""
