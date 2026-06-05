@@ -23,9 +23,9 @@ OCR 识别个体值需要 VL 视觉语言模型，支持两种模型自动回退
 
 | 优先级 | 模型 | 类型 | 说明 |
 |--------|------|------|------|
-| 1 | vLLM + Qwen3-VL-2B | 本地 GPU | 需 WSL 部署，最快 |
-| 2 | Ollama + Qwen3-VL-2B | 本地 GPU | 双击 bat 一键部署，适合小白 |
-| 3 | Qwen3-VL-8B | ModelScope | 云端，需 API Key |
+| 1 | Qwen3-VL-2B | vLLM | 性能高，安装麻烦 |
+| 2 | Qwen3-VL-2B | Ollama | 性能低，安装简单 |
+| 3 | Qwen3-VL-8B | ModelScope | 需联网和API-Key |
 
 ### 方案 A：本地 vLLM + Qwen3-VL-2B（建议 NVIDIA GPU ≥ 6 GB，无需联网）
 

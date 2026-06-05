@@ -3,10 +3,8 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 
 from rng.tenlines_utils import (
-    calibration as _api,
-    iv_calculator,
+    calibration as tenlines_calibration,
     GameSettings, IVsObservation, NATURES, METHOD_NAMES,
-    get_species_id, get_personal,
 )
 from rng.config import RNGConfig, SessionState, RNGSlot, SEED_PERIOD, ADV_PERIOD
 
@@ -16,34 +14,8 @@ WIDE_ADV_BIAS = 20000
 _NATURES_LOWER = {n.lower(): n for n in NATURES}
 
 
-def _slot_dist_key(a: RNGSlot, b: RNGSlot) -> Tuple[int, float]:
-    d = a - b
-    return (d.l1, d.l2)
-
-
 def _make_slots(results: List) -> List[RNGSlot]:
     return [RNGSlot(int(r.seed, 16), r.seed_time, r.advances) for r in results]
-
-
-def _obs_to_iv_range(
-    obs_list: List[IVsObservation],
-    base_stats: Tuple[int, int, int, int, int, int],
-) -> Optional[Tuple[List[int], List[int]]]:
-    r = iv_calculator(obs_list, base_stats)
-    lo = r.ivs_lower_bound
-    hi = r.ivs_upper_bound
-    lo_list = [lo.hp, lo.attack, lo.defense, lo.sp_attack, lo.sp_defense, lo.speed]
-    hi_list = [hi.hp, hi.attack, hi.defense, hi.sp_attack, hi.sp_defense, hi.speed]
-    if any(lo_list[i] > hi_list[i] for i in range(6)):
-        return None
-    return lo_list, hi_list
-
-
-def n_combos(lo: List[int], hi: List[int]) -> int:
-    result = 1
-    for i in range(6):
-        result *= (hi[i] - lo[i] + 1)
-    return result
 
 
 def parse_entries(
@@ -83,36 +55,6 @@ def parse_entries(
     return obs_list, nature, gender, ability, caught_level, pokemon
 
 
-def _search(
-    obs_list: List[IVsObservation],
-    nature: str,
-    gender: Optional[str],
-    ability: Optional[str],
-    caught_level: Optional[int],
-    pokemon: str,
-    seed_hex_str: str,
-    advances: int,
-    trainer_id: int,
-    secret_id: int,
-    game_settings: GameSettings,
-    seed_bias: int,
-    adv_bias: int,
-    game: str = "fr_nx",
-    method: str = "All Wild Methods",
-    location: str = "Route 19",
-    category: str = "Surfing",
-) -> List:
-    return _api(
-        game=game, console="NX2" if game.endswith("nx2") else "NX", tid=trainer_id, sid=secret_id,
-        method=method, seed=seed_hex_str, advances=advances,
-        settings=game_settings,
-        seed_bias=seed_bias, advances_bias=adv_bias,
-        nature=nature, gender=gender, ability=ability,
-        location=location, category=category,
-        ivs_observations=obs_list, pokemon=pokemon, level=caught_level,
-    )
-
-
 class RNGAttempt:
     def __init__(self, attempt_id: int, entries: List[dict], target: RNGSlot, cfg: RNGConfig) -> None:
         self.id = attempt_id
@@ -124,18 +66,18 @@ class RNGAttempt:
             parse_entries(self.entries)
         if not self.obs_list or self.pokemon is None:
             return
-        base_stats = get_personal(get_species_id(self.pokemon))["stats"]
-        if _obs_to_iv_range(self.obs_list, base_stats) is None:
-            return
 
-        results = _search(
-            self.obs_list, self.nature, self.gender, self.ability,
-            self.caught_level, self.pokemon,
-            f"{self.cfg.target.seed_hex:04X}", self.cfg.target.advances,
-            self.cfg.trainer_id, self.cfg.secret_id, self.cfg.game_settings,
-            WIDE_SEED_BIAS, WIDE_ADV_BIAS,
-            self.cfg.game_version, self.cfg.rng_method,
-            self.cfg.rng_location, self.cfg.rng_category,
+        results = tenlines_calibration(
+            game=self.cfg.game_version,
+            console="NX2" if self.cfg.game_version.endswith("nx2") else "NX",
+            tid=self.cfg.trainer_id, sid=self.cfg.secret_id,
+            method=self.cfg.rng_method,
+            seed=f"{self.cfg.target.seed_hex:04X}", advances=self.cfg.target.advances,
+            settings=self.cfg.game_settings,
+            seed_bias=WIDE_SEED_BIAS, advances_bias=WIDE_ADV_BIAS,
+            nature=self.nature, gender=self.gender, ability=self.ability,
+            location=self.cfg.rng_location, category=self.cfg.rng_category,
+            ivs_observations=self.obs_list, pokemon=self.pokemon, level=self.caught_level,
         )
         self.slots = _make_slots(results)
         self._method_of = {}
@@ -168,7 +110,7 @@ class RNGAttempt:
         return 3 if self.is_precise else (1 if self.is_valid else 0)
 
     def find_nearest(self, slot: RNGSlot) -> RNGSlot:
-        return min(self.slots, key=lambda s: _slot_dist_key(s, slot))
+        return min(self.slots, key=lambda s: s - slot)
 
     def representative(self) -> Optional[RNGSlot]:
         if not self.slots:

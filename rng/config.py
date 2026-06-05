@@ -29,6 +29,12 @@ class RNGDisplacement:
     def to_array(self) -> np.ndarray:
         return np.array([self.ds, self.dt, self.dn], dtype=float)
 
+    def __lt__(self, other: "RNGDisplacement") -> bool:
+        return (self.l1, self.l2) < (other.l1, other.l2)
+
+    def __eq__(self, other: "RNGDisplacement") -> bool:
+        return (self.l1, self.l2) == (other.l1, other.l2)
+
     def __repr__(self) -> str:
         return f"RNGDisplacement(ds={self.ds:+d}, dt={self.dt:+d}, dn={self.dn:+d})"
 

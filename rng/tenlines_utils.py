@@ -90,9 +90,26 @@ def get_ability_name(ability_id: int) -> str:
     idx = ability_id - 1
     return names[idx] if 0 <= idx < len(names) else str(ability_id)
 
-def get_personal(species: int) -> dict:
+# Deoxys form-specific base stats. In FR, Deoxys is viewed as Attack Form;
+# in LG, as Defense Form. The personal data file stores one form only.
+_DEOXYS_ATTACK_STATS = (50, 180, 20, 180, 20, 150)
+_DEOXYS_DEFENSE_STATS = (50, 70, 160, 70, 160, 90)
+
+def get_personal(species: int, game: str = None) -> dict:
     entries = _load_personal()
-    return entries[species] if 0 <= species < len(entries) else {"stats": (0,0,0,0,0,0), "gender": 127, "abilities": (0,0)}
+    if 0 <= species < len(entries):
+        entry = entries[species]
+    else:
+        return {"stats": (0,0,0,0,0,0), "gender": 127, "abilities": (0,0)}
+    # Deoxys (386): FR uses Attack Form stats, LG uses Defense Form stats for IV calc
+    if species == 386 and game is not None:
+        stats = _DEOXYS_ATTACK_STATS if game.startswith("fr") else _DEOXYS_DEFENSE_STATS
+        return {
+            "stats": stats,
+            "gender": entry["gender"],
+            "abilities": entry["abilities"],
+        }
+    return entry
 
 
 def get_seed_time(seed_hex: str, game: str = "fr_nx", game_settings = None) -> int:
@@ -826,7 +843,7 @@ def calibration(
     if pokemon is None:
         raise ValueError("pokemon is required")
     species_id = get_species_id(pokemon)  # raises ValueError if not found
-    personal = get_personal(species_id)
+    personal = get_personal(species_id, game)
     base_stats: Tuple[int, int, int, int, int, int] = personal["stats"]
     gender_ratio: int = personal["gender"]
     ability_idx = _resolve_ability_idx(ability, species_id) if ability else None

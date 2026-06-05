@@ -1,14 +1,35 @@
 import json
 import os
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from easycon.config import get
 from easycon.context import ScriptContext
-from rng.calibration import calibrate, n_combos, _obs_to_iv_range, RNGAttempt
+from rng.calibration import calibrate, RNGAttempt
 from rng.config import RNGConfig, SessionState, RNGSlot, RNGDisplacement
-from rng.tenlines_utils import IVsObservation, get_species_id, get_personal
+from rng.tenlines_utils import IVsObservation, get_species_id, get_personal, iv_calculator
 from script_utils.hit import sleep
+
+
+def n_combos(lo: List[int], hi: List[int]) -> int:
+    result = 1
+    for i in range(6):
+        result *= (hi[i] - lo[i] + 1)
+    return result
+
+
+def _obs_to_iv_range(
+    obs_list: List[IVsObservation],
+    base_stats: Tuple[int, int, int, int, int, int],
+) -> Optional[Tuple[List[int], List[int]]]:
+    r = iv_calculator(obs_list, base_stats)
+    lo = r.ivs_lower_bound
+    hi = r.ivs_upper_bound
+    lo_list = [lo.hp, lo.attack, lo.defense, lo.sp_attack, lo.sp_defense, lo.speed]
+    hi_list = [hi.hp, hi.attack, hi.defense, hi.sp_attack, hi.sp_defense, hi.speed]
+    if any(lo_list[i] > hi_list[i] for i in range(6)):
+        return None
+    return lo_list, hi_list
 
 
 def init_log_dir(ctx: ScriptContext, state: SessionState, cfg: RNGConfig) -> str:
@@ -219,7 +240,7 @@ def observe_pokemon(ctx: ScriptContext, state: SessionState, cfg: RNGConfig, att
 
         obs_list.append(_make_obs(ocr_elevated, nature))
         try:
-            base_stats = get_personal(get_species_id(pokemon))["stats"]
+            base_stats = get_personal(get_species_id(pokemon), cfg.game_version)["stats"]
             iv_range = _obs_to_iv_range(obs_list, base_stats)
             if iv_range is not None:
                 current_n_combos = n_combos(*iv_range)
