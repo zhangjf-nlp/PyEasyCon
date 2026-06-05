@@ -130,7 +130,7 @@ def hit_game_corner(ctx: ScriptContext, cfg: RNGConfig) -> None:
 EXTRA_A_PRESSES = {
     "Lapras": 3, "Eevee": 0,                                    # Gift
     "Snorlax": 1, "Electrode": 0, "Hypno": 6,                   # Stationary
-    "Zapdos": 0, "Articuno": 0, "Moltres": 0, "Mewtwo": -1,     # Legend
+    "Zapdos": 0, "Articuno": 0, "Moltres": 0, "Mewtwo": 1,     # Legend
     "Omanyte": 2, "Kabuto": 2, "Aerodactyl": 2,                 # Fossil
     "Deoxys": 0,                                                 # Event
 }
