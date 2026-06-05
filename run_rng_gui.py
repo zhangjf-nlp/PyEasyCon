@@ -4,13 +4,13 @@ RNG 配置 GUI —— 基于 pygame 的乱数配置界面
 通过 run_rng.bat 启动，不依赖 tkinter
 """
 
-import sys
-import os
 import json
+import os
 import shutil
 import subprocess
+import sys
 from datetime import datetime
-from typing import Optional, Callable
+from typing import Optional, Callable, Union
 from urllib.parse import urlparse, parse_qs
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -44,7 +44,7 @@ STATIC_POKEMON_MAP = {
     "Game Corner": ["Abra", "Clefairy", "Scyther", "Pinsir", "Dratini", "Porygon"],
     "Stationary":  ["Snorlax", "Electrode", "Hypno"],
     "Legend":      ["Articuno", "Zapdos", "Moltres", "Mewtwo"],
-    "Event":       ["Deoxys"],
+    "Event":       ["Deoxys", "Lugia", "Ho-Oh"],
 }
 
 METHOD_OPTIONS = {
@@ -56,12 +56,12 @@ DEFAULT_SETTINGS = "Mono | Help | Seed Button: Start | Extra Button: None"
 
 # ── 中文常量 ──────────────────────────────────────────
 # Method 中英文映射
-METHOD_ZH_TO_EN = {"静态": "Static", "野生": "Wild"}
-METHOD_EN_TO_ZH = {"Static": "静态", "Wild": "野生"}
+METHOD_ZH_TO_EN = {"固定": "Static", "野生": "Wild"}
+METHOD_EN_TO_ZH = {"Static": "固定", "Wild": "野生"}
 
 # Category 中英文映射
 CATEGORY_ZH_TO_EN = {
-    "赠送": "Gift", "游戏角": "Game Corner", "定点": "Stationary",
+    "赠送": "Gift", "游戏城": "Game Corner", "定点": "Stationary",
     "传说": "Legend", "化石": "Fossil", "活动": "Event",
     "草丛": "Grass", "冲浪": "Surfing", "超级钓竿": "SuperRod",
     "好钓竿": "GoodRod", "破旧钓竿": "OldRod",
@@ -134,8 +134,9 @@ def _get_all_locations() -> dict:
     return cat_to_locs
 
 
-# 地点中英文映射（参考 ten-lines 汉化版实现）
+# 地点中英文映射（严格对齐 ten-lines 汉化版 PokeFinder frlg_zh.txt）
 _LOCATION_EN_TO_ZH = {
+    # 道路
     "Route 1": "1号道路", "Route 2": "2号道路", "Route 3": "3号道路",
     "Route 4": "4号道路", "Route 5": "5号道路", "Route 6": "6号道路",
     "Route 7": "7号道路", "Route 8": "8号道路", "Route 9": "9号道路",
@@ -145,73 +146,93 @@ _LOCATION_EN_TO_ZH = {
     "Route 19": "19号道路", "Route 20": "20号道路",
     "Route 21": "21号道路", "Route 22": "22号道路", "Route 23": "23号道路",
     "Route 24": "24号道路", "Route 25": "25号道路",
+    # 森林
     "Viridian Forest": "常青森林",
-    "Mt Moon 1F": "月见山 1F", "Mt Moon B1F": "月见山 B1F", "Mt Moon B2F": "月见山 B2F",
-    "Digletts Cave B1F": "地鼠洞穴 B1F",
-    "Victory Road 1F/3F": "冠军之路 1F/3F", "Victory Road 2F": "冠军之路 2F",
-    "Pokemon Mansion 1F-3F": "宝可梦大宅 1F-3F", "Pokemon Mansion B1F": "宝可梦大宅 B1F",
-    "Safari Zone Center": "狩猎地带中心", "Safari Zone East": "狩猎地带东部",
-    "Safari Zone North": "狩猎地带北部", "Safari Zone West": "狩猎地带西部",
-    "Cerulean Cave 1F": "华蓝洞窟 1F", "Cerulean Cave 2F": "华蓝洞窟 2F",
-    "Cerulean Cave B1F": "华蓝洞窟 B1F",
-    "Rock Tunnel 1F": "岩山隧道 1F", "Rock Tunnel B1F": "岩山隧道 B1F",
-    "Seafoam Islands 1F": "双子岛 1F", "Seafoam Islands B1F": "双子岛 B1F",
-    "Seafoam Islands B2F": "双子岛 B2F", "Seafoam Islands B3F": "双子岛 B3F",
-    "Seafoam Islands B4F": "双子岛 B4F",
-    "Pokemon Tower 3F": "宝可梦塔 3F", "Pokemon Tower 4F-5F": "宝可梦塔 4F-5F",
-    "Pokemon Tower 6F": "宝可梦塔 6F", "Pokemon Tower 7F": "宝可梦塔 7F",
+    # 月见山
+    "Mt Moon 1F": "月见山1F", "Mt Moon B1F": "月见山B1F", "Mt Moon B2F": "月见山B2F",
+    # 圣特安努号
+    "S.S Anne Exterior": "圣特安努号",
+    # 地鼠洞穴
+    "Digletts Cave B1F": "地鼠洞穴B1F",
+    # 冠军之路
+    "Victory Road 1F/3F": "冠军之路1F/3F", "Victory Road 2F": "冠军之路2F",
+    # 宝可梦屋
+    "Pokemon Mansion 1F-3F": "宝可梦屋1F-3F", "Pokemon Mansion B1F": "宝可梦屋B1F",
+    # 狩猎地带
+    "Safari Zone Center": "狩猎地带（入口）",
+    "Safari Zone East": "狩猎地带东区（第1区）",
+    "Safari Zone North": "狩猎地带北区（第2区）",
+    "Safari Zone West": "狩猎地带西区（第3区）",
+    # 华蓝洞窟
+    "Cerulean Cave 1F": "华蓝洞窟1F", "Cerulean Cave 2F": "华蓝洞窟2F",
+    "Cerulean Cave B1F": "华蓝洞窟B1F",
+    # 岩山隧道
+    "Rock Tunnel 1F": "岩山隧道1F", "Rock Tunnel B1F": "岩山隧道B1F",
+    # 双子岛
+    "Seafoam Islands 1F": "双子岛1F", "Seafoam Islands B1F": "双子岛B1F",
+    "Seafoam Islands B2F": "双子岛B2F", "Seafoam Islands B3F": "双子岛B3F",
+    "Seafoam Islands B4F": "双子岛B4F",
+    # 宝可梦塔
+    "Pokemon Tower 3F": "宝可梦塔3F", "Pokemon Tower 4F-5F": "宝可梦塔4F-5F",
+    "Pokemon Tower 6F": "宝可梦塔6F", "Pokemon Tower 7F": "宝可梦塔7F",
+    # 无人发电厂
     "Power Plant": "无人发电厂",
-    "Mt Ember Exterior": "灯火山外部",
-    "Mt Ember Summit Path 1F/3F": "灯火山山顶路 1F/3F", "Mt Ember Summit Path 2F": "灯火山山顶路 2F",
-    "Mt Ember Ruby Path 1F": "灯火山红宝石路 1F", "Mt Ember Ruby Path B1F": "灯火山红宝石路 B1F",
-    "Mt Ember Ruby Path B2F": "灯火山红宝石路 B2F", "Mt Ember Ruby Path B3F": "灯火山红宝石路 B3F",
-    "Mt Ember Ruby Path B1F Stairs": "灯火山红宝石路 B1F楼梯",
-    "Mt Ember Ruby Path B2F Stairs": "灯火山红宝石路 B2F楼梯",
-    "Three Island Berry Forest": "三岛树果森林",
-    "Four Island Icefall Cave Entrance": "四岛冰瀑洞窟入口",
-    "Four Island Icefall Cave 1F/B1F": "四岛冰瀑洞窟 1F/B1F",
-    "Four Island Icefall Cave Back": "四岛冰瀑洞窟后方",
-    "Six Island Pattern Bush": "六岛花纹丛林",
-    "Five Island Lost Cave": "五岛遗失洞穴",
-    "Five Island Lost Cave Room 1": "五岛遗失洞穴 房间1",
-    "Five Island Lost Cave Room 2": "五岛遗失洞穴 房间2",
-    "Five Island Lost Cave Room 3": "五岛遗失洞穴 房间3",
-    "Five Island Lost Cave Room 4": "五岛遗失洞穴 房间4",
-    "Five Island Lost Cave Room 5": "五岛遗失洞穴 房间5",
-    "Five Island Lost Cave Room 6": "五岛遗失洞穴 房间6",
-    "Five Island Lost Cave Room 7": "五岛遗失洞穴 房间7",
-    "Five Island Lost Cave Room 8": "五岛遗失洞穴 房间8",
-    "Five Island Lost Cave Room 9": "五岛遗失洞穴 房间9",
-    "Five Island Lost Cave Room 10": "五岛遗失洞穴 房间10",
-    "Five Island Lost Cave Room 11": "五岛遗失洞穴 房间11",
-    "Five Island Lost Cave Room 12": "五岛遗失洞穴 房间12",
-    "Five Island Lost Cave Room 13": "五岛遗失洞穴 房间13",
-    "Five Island Lost Cave Room 14": "五岛遗失洞穴 房间14",
-    "Five Island Lost Cave Item Room": "五岛遗失洞穴 道具房间",
-    "One Island Kindle Road": "一岛火之路",
-    "One Island Treasure Beach": "一岛宝物海滩",
-    "Two Island Cape Brink": "二岛海角边缘",
-    "Three Island Bond Bridge": "三岛羁绊桥",
-    "Five Island Resort Gorgeous": "五岛豪华度假村",
-    "Five Island Water Labyrinth": "五岛水之迷宫",
-    "Five Island Meadow": "五岛草地",
-    "Five Island Memorial Pillar": "五岛纪念柱",
-    "Six Island Outcast Island": "六岛放逐岛",
-    "Six Island Green Path": "六岛绿色小径",
-    "Six Island Water Path": "六岛水之小径",
-    "Six Island Ruin Valley": "六岛遗迹山谷",
-    "Seven Island Trainer Tower": "七岛训练家塔",
-    "Seven Island Sevault Canyon Entrance": "七岛七宝峡谷入口",
-    "Seven Island Sevault Canyon": "七岛七宝峡谷",
-    "Seven Island Tanoby Ruins": "七岛塔诺比遗迹",
+    # 灯火山
+    "Mt Ember Exterior": "灯火山（底部）",
+    "Mt Ember Summit Path 1F/3F": "灯火山（山腰洞窟）1F/3F",
+    "Mt Ember Summit Path 2F": "灯火山（山腰洞窟）2F",
+    "Mt Ember Ruby Path 1F": "灯火山（红宝石之路）1F",
+    "Mt Ember Ruby Path B1F": "灯火山（红宝石之路）B1F",
+    "Mt Ember Ruby Path B2F": "灯火山（红宝石之路）B2F",
+    "Mt Ember Ruby Path B3F": "灯火山（红宝石之路）B3F",
+    "Mt Ember Ruby Path B1F Stairs": "灯火山（红宝石之路）B1F楼梯",
+    "Mt Ember Ruby Path B2F Stairs": "灯火山（红宝石之路）B2F楼梯",
+    # 岛屿区域
+    "Three Island Berry Forest": "树果森林",
+    "Four Island Icefall Cave Entrance": "冻瀑洞窟",
+    "Four Island Icefall Cave 1F/B1F": "冻瀑洞窟1F/B1F",
+    "Four Island Icefall Cave Back": "冻瀑洞窟（最深处）",
+    "Six Island Pattern Bush": "标志之林",
+    "Five Island Lost Cave": "不归之穴",
+    "Five Island Lost Cave Room 1": "不归之穴 房间1",
+    "Five Island Lost Cave Room 2": "不归之穴 房间2",
+    "Five Island Lost Cave Room 3": "不归之穴 房间3",
+    "Five Island Lost Cave Room 4": "不归之穴 房间4",
+    "Five Island Lost Cave Room 5": "不归之穴 房间5",
+    "Five Island Lost Cave Room 6": "不归之穴 房间6",
+    "Five Island Lost Cave Room 7": "不归之穴 房间7",
+    "Five Island Lost Cave Room 8": "不归之穴 房间8",
+    "Five Island Lost Cave Room 9": "不归之穴 房间9",
+    "Five Island Lost Cave Room 10": "不归之穴 房间10",
+    "Five Island Lost Cave Room 11": "不归之穴 房间11",
+    "Five Island Lost Cave Room 12": "不归之穴 房间12",
+    "Five Island Lost Cave Room 13": "不归之穴 房间13",
+    "Five Island Lost Cave Room 14": "不归之穴 房间14",
+    "Five Island Lost Cave Item Room": "不归之穴（有物品的房间）",
+    "One Island Kindle Road": "热气之路",
+    "One Island Treasure Beach": "宝物海滩",
+    "Two Island Cape Brink": "边缘海岬",
+    "Three Island Bond Bridge": "索桥",
+    "Three Island Port": "第3岛码头",
+    "Five Island Resort Gorgeous": "豪华度假区",
+    "Five Island Water Labyrinth": "水之迷宫",
+    "Five Island Meadow": "第5岛空地",
+    "Five Island Memorial Pillar": "回忆之塔",
+    "Six Island Outcast Island": "外岛",
+    "Six Island Green Path": "绿之步道",
+    "Six Island Water Path": "水之步道",
+    "Six Island Ruin Valley": "遗迹山谷",
+    "Seven Island Trainer Tower": "训练家塔",
+    "Seven Island Sevault Canyon Entrance": "溪谷入口",
+    "Seven Island Sevault Canyon": "七宝溪谷",
+    "Seven Island Tanoby Ruins": "阿斯卡纳遗迹",
+    # 城镇
     "Pallet Town": "真新镇", "Viridian City": "常青市",
     "Cerulean City": "华蓝市", "Vermilion City": "枯叶市",
-    "Celadon City": "彩虹市", "Fuchsia City": "浅红市",
-    "Cinnabar Island": "红莲岛", "One Island": "一岛",
-    "Four Island": "四岛", "Five Island": "五岛",
-    "Six Island Altering Cave": "六岛变化洞穴",
-    "S.S Anne Exterior": "圣安努号外部",
-    "Three Island Port": "三岛港口",
+    "Celadon City": "玉虹市", "Fuchsia City": "浅红市",
+    "Cinnabar Island": "红莲镇",
+    "One Island": "第1岛", "Four Island": "第4岛", "Five Island": "第5岛",
+    "Six Island Altering Cave": "变幻洞窟",
 }
 _LOCATION_ZH_TO_EN = {v: k for k, v in _LOCATION_EN_TO_ZH.items()}
 
@@ -337,7 +358,7 @@ class TextBox:
             pass
 
     def handle_event(self, event: pygame.event.Event) -> bool:
-        if event.type == MOUSEBUTTONDOWN:
+        if event.type == MOUSEBUTTONDOWN and event.button == 1:
             if self.rect.collidepoint(event.pos):
                 self.focused = True
                 rel_x = event.pos[0] - self.rect.x - 6 + self._scroll_x
@@ -604,7 +625,7 @@ class ComboBox:
         return max(1, min(8, len(self.options), available // item_h))
 
     def handle_event(self, event: pygame.event.Event) -> bool:
-        if event.type == MOUSEBUTTONDOWN:
+        if event.type == MOUSEBUTTONDOWN and event.button == 1:
             if self.rect.collidepoint(event.pos):
                 if not self._opened:
                     self._opened = True
@@ -631,19 +652,20 @@ class ComboBox:
                 self._opened = False
                 self._editing = False
                 return True
-        # 滚轮：下拉打开时翻页，关闭时切换选项
-        if event.type == MOUSEWHEEL and self.rect.collidepoint(pygame.mouse.get_pos()):
-            if self._opened:
-                self._scroll_offset = max(0, self._scroll_offset - event.y)
-            elif self._all_options:
-                delta = -1 if event.y > 0 else 1
-                new_idx = (self.selected_index + delta) % len(self._all_options)
-                self.selected_index = new_idx
-                self._filter_text = ""
-                self._apply_filter()
-                if self._on_change:
-                    self._on_change()
-            return True
+        if event.type == MOUSEWHEEL and self._opened:
+            item_h = self._font.get_height() + 6
+            max_visible = self._get_max_visible()
+            list_rect = pygame.Rect(self.rect.x, self.rect.bottom + 2,
+                                    self.rect.width, max_visible * item_h + 4)
+            total = len(self.options)
+            mouse_pos = pygame.mouse.get_pos()
+            if self.rect.collidepoint(mouse_pos) or list_rect.collidepoint(mouse_pos):
+                self._highlight_idx = max(0, min(total - 1, self._highlight_idx - event.y))
+                if self._highlight_idx < self._scroll_offset:
+                    self._scroll_offset = self._highlight_idx
+                elif self._highlight_idx >= self._scroll_offset + max_visible:
+                    self._scroll_offset = self._highlight_idx - max_visible + 1
+                return True
         if event.type == KEYDOWN and self._opened:
             max_vis = self._get_max_visible()
             total = len(self.options)
@@ -816,7 +838,7 @@ class Button:
         self._hovered = False
 
     def handle_event(self, event: pygame.event.Event) -> bool:
-        if event.type == MOUSEBUTTONDOWN:
+        if event.type == MOUSEBUTTONDOWN and event.button == 1:
             if self._hovered:
                 self.callback()
                 return True
@@ -835,9 +857,8 @@ class Button:
 
 class Label:
     """文本标签"""
-    def __init__(self, x: int, y: int, text: str, size: int = 15):
-        self.x = x
-        self.y = y
+    def __init__(self, x: int, y: int, w: int, h: int, text: str, size: int = 15):
+        self.rect = pygame.Rect(x, y, w, h)
         self.text = text
         self._font = _get_font(size)
 
@@ -849,7 +870,47 @@ class Label:
 
     def draw(self, screen: pygame.Surface):
         txt = self._font.render(self.text, True, C_TEXT)
-        screen.blit(txt, (self.x, self.y))
+        screen.blit(txt, (self.rect.x, self.rect.centery - txt.get_height() // 2))
+
+
+# ── 布局超参数 ─────────────────────────────────────────
+ROW_H      = 32   # row height
+ROW_GAP    = 12   # vertical gap between rows
+SIDE_PAD   = 18   # horizontal gap between adjacent InputUnits
+BOX_W      = 150  # default input box width
+LBL_W      = 60   # default label width
+
+
+class InputUnit:
+    """A label + input box pair with a scale multiplier.
+
+    total_width = (BOX_W + SIDE_PAD + LBL_W) * scale - SIDE_PAD
+    box_width   = total_width - label_width
+    """
+    def __init__(self, x: int, y: int, scale: int,
+                 box: "Union[TextBox, ComboBox]",
+                 label_text: str, label_w: int = LBL_W):
+        self.scale = scale
+        total_w = (BOX_W + SIDE_PAD + LBL_W) * scale - SIDE_PAD
+        box_w   = total_w - label_w
+        self.label = Label(x, y, label_w, ROW_H, label_text)
+        box.rect   = pygame.Rect(x + label_w, y, box_w, ROW_H)
+        self.box   = box
+
+    @property
+    def width(self) -> int:
+        return (BOX_W + SIDE_PAD + LBL_W) * self.scale - SIDE_PAD
+
+    def handle_event(self, event: pygame.event.Event) -> bool:
+        return self.box.handle_event(event)
+
+    def update(self, dt: float):
+        self.label.update(dt)
+        self.box.update(dt)
+
+    def draw(self, screen: pygame.Surface):
+        self.label.draw(screen)
+        self.box.draw(screen)
 
 
 # ── 主 GUI ────────────────────────────────────────────
@@ -859,7 +920,9 @@ class RNGGui:
         self.use_zh = use_zh
         os.environ['SDL_VIDEO_CENTERED'] = '1'
         pygame.init()
-        self.W, self.H = 720, 470
+        TOTAL_SCALE = 3
+        self.W = (BOX_W + SIDE_PAD + LBL_W) * TOTAL_SCALE + SIDE_PAD
+        self.H = 470
         self.screen = pygame.display.set_mode((self.W, self.H))
         title = "EasyCon RNG 配置" if use_zh else "EasyCon RNG Configuration"
         pygame.display.set_caption(title)
@@ -987,8 +1050,8 @@ class RNGGui:
                 json.dump(data, f, ensure_ascii=False, indent=2)
         except Exception:
             pass
-    def _make_label(self, x, y, text, size=15):
-        lbl = Label(x, y, text, size)
+    def _make_label(self, x, y, w, h, text, size=15):
+        lbl = Label(x, y, w, h, text, size)
         self._widgets.append(lbl)
         return lbl
 
@@ -1008,139 +1071,130 @@ class RNGGui:
         self._combo_widgets.append(cb)
         return cb
 
+    def _make_unit(self, x: int, y: int, scale: int, label_text: str,
+                   box, label_w: int = LBL_W) -> InputUnit:
+        unit = InputUnit(x, y, scale, box, label_text, label_w)
+        self._widgets.append(unit)
+        if isinstance(box, ComboBox):
+            self._combo_widgets.append(box)
+        return unit
+
     def _build_ui(self):
         self._widgets = []
-        PAD = 20
-        ROW_H = 34
-        ROW_GAP = 14
-        BOX_W = 150  # 统一输入框宽度
-        LABEL_BOX_GAP = 4  # label 和 box 之间的间距
+        self._combo_widgets = []
         zh = self.use_zh
+        TOTAL_SCALE = 3
+        total_w = (BOX_W + SIDE_PAD + LBL_W) * TOTAL_SCALE + SIDE_PAD
+        x0 = SIDE_PAD
 
-        y0 = 20
+        def _row_units(y, specs):
+            """Place a list of (scale, label, box) specs left-to-right on row y."""
+            x = x0
+            for scale, label_text, box, kw in specs:
+                lw = kw.get('label_w', LBL_W)
+                self._make_unit(x, y, scale, label_text, box, label_w=lw)
+                x += (BOX_W + SIDE_PAD + LBL_W) * scale - SIDE_PAD + SIDE_PAD
 
-        # ── 第一行：Game | TID | SID ──
-        y1 = y0
-        labels1 = [("Game:", 50), ("TID:", 32), ("SID:", 32)]
-        cols1 = [lw + LABEL_BOX_GAP + BOX_W for _, lw in labels1]
-        total1 = sum(cols1)
-        gap1 = (self.W - 2 * PAD - total1) // 2
-        x = PAD
+        y = SIDE_PAD
 
-        self._make_label(x, y1 + 8, labels1[0][0])
-        self.game_combo = self._make_searchable_combo(
-            x + labels1[0][1] + LABEL_BOX_GAP, y1, BOX_W, ROW_H - 2,
-            list(GAME_OPTIONS.keys()), placeholder="火红")
-        self.game_combo.selected_index = 0
+        # row 1: Game(1) | TID(1) | SID(1)
+        game_cb = ComboBox(0, 0, 0, ROW_H, list(GAME_OPTIONS.keys()),
+                           screen_height=self.H, placeholder="火红")
+        game_cb.selected_index = 0
+        self.game_combo = game_cb
+        tid_tb = TextBox(0, 0, 0, ROW_H, "58888")
+        self.tid_box = tid_tb
+        sid_tb = TextBox(0, 0, 0, ROW_H, "12232")
+        self.sid_box = sid_tb
+        _row_units(y, [
+            (1, "Game:",  game_cb, {}),
+            (1, "TID:",   tid_tb,  {}),
+            (1, "SID:",   sid_tb,  {}),
+        ])
 
-        x += cols1[0] + gap1
-        self._make_label(x, y1 + 8, labels1[1][0])
-        self.tid_box = self._make_textbox(x + labels1[1][1] + LABEL_BOX_GAP, y1, BOX_W, ROW_H - 2, "58888")
-
-        x += cols1[1] + gap1
-        self._make_label(x, y1 + 8, labels1[2][0])
-        self.sid_box = self._make_textbox(x + labels1[2][1] + LABEL_BOX_GAP, y1, BOX_W, ROW_H - 2, "12232")
-
-        # ── 第二行：Settings (2/3) | Method (1/3) ──
-        y2 = y1 + ROW_H + ROW_GAP
-        settings_label = "Settings:" if not zh else "设置:"
-        method_label = "Method:" if not zh else "方法:"
-        settings_lbl_w = 65 if not zh else 50
-        method_lbl_w = 55 if not zh else 50
-
-        # Settings 占 2/3 宽度
-        total_w2 = self.W - 2 * PAD
-        settings_w = int(total_w2 * 2 / 3) - 10
-        method_w = total_w2 - settings_w - 10
-
-        self._make_label(PAD, y2 + 8, settings_label)
-        settings_placeholder = DEFAULT_SETTINGS if not zh else DEFAULT_SETTINGS_ZH
-        self.settings_box = self._make_textbox(
-            PAD + settings_lbl_w + LABEL_BOX_GAP, y2, settings_w - settings_lbl_w - LABEL_BOX_GAP, ROW_H - 2, settings_placeholder)
-
-        method_x = PAD + settings_w + 10
-        self._make_label(method_x, y2 + 8, method_label)
-        method_combo_options = list(METHOD_OPTIONS.keys())
+        # row 2: Settings(2) | Method(1)
+        y += ROW_H + ROW_GAP
+        settings_label = "设置:" if zh else "Settings:"
+        method_label   = "方法:" if zh else "Method:"
+        method_opts = list(METHOD_OPTIONS.keys())
         if zh:
-            method_combo_options = [METHOD_EN_TO_ZH.get(m, m) for m in method_combo_options]
-        self.method_combo = self._make_searchable_combo(
-            method_x + method_lbl_w + LABEL_BOX_GAP, y2, method_w - method_lbl_w - LABEL_BOX_GAP, ROW_H - 2,
-            method_combo_options, placeholder="野生" if zh else "Wild")
+            method_opts = [METHOD_EN_TO_ZH.get(m, m) for m in method_opts]
+        settings_tb = TextBox(0, 0, 0, ROW_H,
+                              DEFAULT_SETTINGS_ZH if zh else DEFAULT_SETTINGS)
+        self.settings_box = settings_tb
+        method_cb = ComboBox(0, 0, 0, ROW_H, method_opts, screen_height=self.H,
+                             placeholder="野生" if zh else "Wild")
+        self.method_combo = method_cb
+        _row_units(y, [
+            (2, settings_label, settings_tb, {}),
+            (1, method_label,   method_cb,   {}),
+        ])
         self.method_combo.set_on_change(self._on_method_change)
 
-        # ── 第三行：Category (1/3) | Location (2/3) ──
-        y3 = y2 + ROW_H + ROW_GAP
-        cat_label = "Category:" if not zh else "分类:"
-        loc_label = "Location:" if not zh else "地点:"
-        cat_lbl_w = 72 if not zh else 50
-        loc_lbl_w = 65 if not zh else 50
-
-        cat_w = int(total_w2 / 3) - 10
-        loc_w = total_w2 - cat_w - 10
-
-        self._make_label(PAD, y3 + 8, cat_label)
-        self.category_combo = self._make_searchable_combo(
-            PAD + cat_lbl_w + LABEL_BOX_GAP, y3, cat_w - cat_lbl_w - LABEL_BOX_GAP, ROW_H - 2,
-            placeholder="草丛" if zh else "Grass")
+        # row 3: Category(1) | Location(2)
+        y += ROW_H + ROW_GAP
+        cat_label = "分类:" if zh else "Category:"
+        loc_label = "地点:" if zh else "Location:"
+        cat_cb = ComboBox(0, 0, 0, ROW_H, [], screen_height=self.H,
+                          placeholder="草丛" if zh else "Grass")
+        self.category_combo = cat_cb
+        loc_cb = ComboBox(0, 0, 0, ROW_H, [], screen_height=self.H,
+                          placeholder="搜索地点..." if zh else "Search location...")
+        self.location_combo = loc_cb
+        _row_units(y, [
+            (1, cat_label, cat_cb, {}),
+            (2, loc_label, loc_cb, {}),
+        ])
         self.category_combo.set_on_change(self._on_category_change)
-
-        loc_x = PAD + cat_w + 10
-        self._make_label(loc_x, y3 + 8, loc_label)
-        self.location_combo = self._make_searchable_combo(
-            loc_x + loc_lbl_w + LABEL_BOX_GAP, y3, loc_w - loc_lbl_w - LABEL_BOX_GAP, ROW_H - 2,
-            placeholder="搜索地点..." if zh else "Search location...")
         self.location_combo.set_on_change(self._on_location_change)
 
-        # ── 第四行：Pokemon | Seed | Advances ──
-        y4 = y3 + ROW_H + ROW_GAP
-        pokemon_label = "Pokemon:" if not zh else "宝可梦:"
-        pokemon_placeholder = "搜索宝可梦..." if zh else "Search Pokemon..."
-        labels4 = [(pokemon_label, 72 if not zh else 65), ("Seed:", 42), ("Advances:", 70)]
-        cols4 = [lw + LABEL_BOX_GAP + BOX_W for _, lw in labels4]
-        total4 = sum(cols4)
-        gap4 = (self.W - 2 * PAD - total4) // 2
-        x = PAD
+        # row 4: Pokemon(1) | Seed(1) | Adv.(1)
+        y += ROW_H + ROW_GAP
+        pokemon_label = "宝可梦:" if zh else "Pokemon:"
+        pokemon_ph    = "搜索宝可梦..." if zh else "Search Pokemon..."
+        pkm_cb = ComboBox(0, 0, 0, ROW_H, [], screen_height=self.H, placeholder=pokemon_ph)
+        self.pokemon_combo = pkm_cb
+        seed_tb = TextBox(0, 0, 0, ROW_H, "B235")
+        self.seed_box = seed_tb
+        adv_tb = TextBox(0, 0, 0, ROW_H, "153142")
+        self.advances_box = adv_tb
+        _row_units(y, [
+            (1, pokemon_label, pkm_cb,  {}),
+            (1, "Seed:",       seed_tb, {}),
+            (1, "Adv.:",       adv_tb,  {}),
+        ])
 
-        self._make_label(x, y4 + 8, labels4[0][0])
-        self.pokemon_combo = self._make_searchable_combo(
-            x + labels4[0][1] + LABEL_BOX_GAP, y4, BOX_W, ROW_H - 2,
-            placeholder=pokemon_placeholder)
-
-        x += cols4[0] + gap4
-        self._make_label(x, y4 + 8, labels4[1][0])
-        self.seed_box = self._make_textbox(
-            x + labels4[1][1] + LABEL_BOX_GAP, y4, BOX_W, ROW_H - 2, "B235")
-
-        x += cols4[1] + gap4
-        self._make_label(x, y4 + 8, labels4[2][0])
-        self.advances_box = self._make_textbox(
-            x + labels4[2][1] + LABEL_BOX_GAP, y4, BOX_W, ROW_H - 2, "153142")
-
-        # ── 第五行：URL ──
-        y5 = y4 + ROW_H + ROW_GAP
-        url_label = "URL (ten-lines calibration):" if not zh else "URL (ten-lines 校准):"
-        url_placeholder = "https://lincoln-lm.github.io/ten-lines/?..." if not zh else "https://www.xiaoyubook.net/ten-lines/?..."
-        url_label_w = 165
+        # row 5: URL (wide label) + parse button
+        y += ROW_H + ROW_GAP
+        url_label_text = "URL (ten-lines 校准):" if zh else "URL (ten-lines calibration):"
+        url_ph = ("https://www.xiaoyubook.net/ten-lines/?..."
+                  if zh else "https://lincoln-lm.github.io/ten-lines/?...")
+        url_label_w = 160
         btn_w2 = 90
-        self._make_label(PAD, y5 + 8, url_label)
+        url_total_w = total_w - url_label_w - SIDE_PAD * 3 - btn_w2
+        self._make_label(x0, y, url_label_w, ROW_H, url_label_text)
         self.url_box = self._make_textbox(
-            PAD + url_label_w, y5, self.W - 2 * PAD - url_label_w - btn_w2 - 10, ROW_H - 2,
-            placeholder=url_placeholder)
-        self._make_button(self.W - PAD - btn_w2, y5, btn_w2, ROW_H - 2, "智能识别", self._on_parse_url)
+            x0 + url_label_w, y, url_total_w, ROW_H, placeholder=url_ph)
+        self._make_button(
+            x0 + url_label_w + url_total_w + SIDE_PAD, y, btn_w2, ROW_H,
+            "智能识别", self._on_parse_url)
 
-        # ── 按钮行 ──
-        btn_y = y5 + ROW_H + ROW_GAP
+        # button row
+        y += ROW_H + ROW_GAP
         btn_w = 120
         btn_gap = 14
         total_btn_w = btn_w * 4 + btn_gap * 3
         btn_x = (self.W - total_btn_w) // 2
+        self._make_button(btn_x,                        y, btn_w, 38, "确定", self._on_confirm)
+        self._make_button(btn_x + btn_w + btn_gap,      y, btn_w, 38, "默认", self._on_default)
+        self._make_button(btn_x + (btn_w+btn_gap)*2,    y, btn_w, 38, "重置", self._on_reset)
+        self._make_button(btn_x + (btn_w+btn_gap)*3,    y, btn_w, 38, "退出", self._on_quit)
 
-        self._make_button(btn_x, btn_y, btn_w, 38, "确定", self._on_confirm)
-        self._make_button(btn_x + btn_w + btn_gap, btn_y, btn_w, 38, "默认", self._on_default)
-        self._make_button(btn_x + (btn_w + btn_gap) * 2, btn_y, btn_w, 38, "重置", self._on_reset)
-        self._make_button(btn_x + (btn_w + btn_gap) * 3, btn_y, btn_w, 38, "退出", self._on_quit)
+        self.H = y + 38 + SIDE_PAD + 30
+        self.screen = pygame.display.set_mode((self.W, self.H))
+        for cb in self._combo_widgets:
+            cb._screen_height = self.H
 
-        # 状态提示
         self._status_text = ""
         self._status_color = C_TEXT_DIM
         self._status_font = _get_font(13)
@@ -1717,6 +1771,8 @@ def _compute_normal_ms_min(category: str, pokemon: str) -> int:
         return 15000
     if category in ("Gift", "Stationary", "Legend", "Fossil", "Event"):
         extra = EXTRA_A_PRESSES.get(pokemon, 0)
+        if pokemon == "Ho-Oh":
+            extra += 2
         return 10000 + 3000 * max(extra, 0)
     return 10000
 

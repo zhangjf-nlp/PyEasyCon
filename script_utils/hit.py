@@ -130,9 +130,9 @@ def hit_game_corner(ctx: ScriptContext, cfg: RNGConfig) -> None:
 EXTRA_A_PRESSES = {
     "Lapras": 3, "Eevee": 0,                                    # Gift
     "Snorlax": 1, "Electrode": 0, "Hypno": 6,                   # Stationary
-    "Zapdos": 0, "Articuno": 0, "Moltres": 0, "Mewtwo": 1,     # Legend
+    "Zapdos": 0, "Articuno": 0, "Moltres": 0, "Mewtwo": 1,      # Legend
     "Omanyte": 2, "Kabuto": 2, "Aerodactyl": 2,                 # Fossil
-    "Deoxys": 0,                                                 # Event
+    "Deoxys": 0, "Lugia": 0, "Ho-Oh": 0,                        # Event
 }
 
 
@@ -148,7 +148,10 @@ def hit_A(ctx: ScriptContext, cfg: RNGConfig) -> None:
     sleep(0.0, end)
     ctx.press("A")
     sleep(3.0)
-    ctx.press("B")
+    if cfg.pokemon_species == "Ho-Oh":
+        ctx.press("UP", 3000)
+    else:
+        ctx.press("B")
 
 
 def hit(ctx: ScriptContext, cfg: RNGConfig) -> bool:
