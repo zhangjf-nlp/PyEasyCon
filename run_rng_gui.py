@@ -25,6 +25,7 @@ from rng.tenlines_utils import (
     get_species_id,
     get_species_name,
     get_species_en_name,
+    get_species_zh_name,
     _load_frlg_encounters,
 )
 from script_utils.hit import EXTRA_A_PRESSES
@@ -52,6 +53,48 @@ METHOD_OPTIONS = {
 }
 
 DEFAULT_SETTINGS = "Mono | Help | Seed Button: Start | Extra Button: None"
+
+# ── 中文常量 ──────────────────────────────────────────
+# Method 中英文映射
+METHOD_ZH_TO_EN = {"静态": "Static", "野生": "Wild"}
+METHOD_EN_TO_ZH = {"Static": "静态", "Wild": "野生"}
+
+# Category 中英文映射
+CATEGORY_ZH_TO_EN = {
+    "赠送": "Gift", "游戏角": "Game Corner", "定点": "Stationary",
+    "传说": "Legend", "化石": "Fossil", "活动": "Event",
+    "草丛": "Grass", "冲浪": "Surfing", "超级钓竿": "SuperRod",
+    "好钓竿": "GoodRod", "破旧钓竿": "OldRod",
+}
+CATEGORY_EN_TO_ZH = {v: k for k, v in CATEGORY_ZH_TO_EN.items()}
+
+# 静态宝可梦中英文映射
+_STATIC_POKEMON_ZH = {
+    "Omanyte": "菊石兽", "Kabuto": "化石盔", "Aerodactyl": "化石翼龙",
+    "Eevee": "伊布", "Lapras": "拉普拉斯",
+    "Abra": "凯西", "Clefairy": "皮皮", "Scyther": "飞天螳螂",
+    "Pinsir": "凯罗斯", "Dratini": "迷你龙", "Porygon": "多边兽",
+    "Snorlax": "卡比兽", "Electrode": "顽皮雷弹", "Hypno": "引梦貘人",
+    "Articuno": "急冻鸟", "Zapdos": "闪电鸟", "Moltres": "火焰鸟", "Mewtwo": "超梦",
+    "Deoxys": "代欧奇希斯",
+}
+
+# Settings 中英文映射
+SOUND_ZH_TO_EN = {"单声道": "Mono", "立体声": "Stereo"}
+SOUND_EN_TO_ZH = {"Mono": "单声道", "Stereo": "立体声"}
+BTN_MODE_ZH_TO_EN = {"帮助": "Help"}
+BTN_MODE_EN_TO_ZH = {"Help": "帮助"}
+SEED_BTN_ZH_TO_EN = {"开始": "Start"}
+SEED_BTN_EN_TO_ZH = {"Start": "开始"}
+EXTRA_BTN_ZH_TO_EN = {
+    "无": "None", "启动时 Select": "Startup Select", "启动时 A": "Startup A",
+    "黑屏后 R": "Blackout R", "黑屏后 A": "Blackout A", "黑屏后 L": "Blackout L",
+    "黑屏后 A+L": "Blackout A+L",
+}
+EXTRA_BTN_EN_TO_ZH = {v: k for k, v in EXTRA_BTN_ZH_TO_EN.items()}
+
+# URL 中文占位符
+DEFAULT_SETTINGS_ZH = "单声道 | 帮助 | Seed 按键: 开始 | 额外按键: 无"
 
 CACHE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                           "rng_logs", "latest.json")
@@ -89,6 +132,96 @@ def _get_all_locations() -> dict:
     for cat in cat_to_locs:
         cat_to_locs[cat] = sorted(cat_to_locs[cat])
     return cat_to_locs
+
+
+# 地点中英文映射（参考 ten-lines 汉化版实现）
+_LOCATION_EN_TO_ZH = {
+    "Route 1": "1号道路", "Route 2": "2号道路", "Route 3": "3号道路",
+    "Route 4": "4号道路", "Route 5": "5号道路", "Route 6": "6号道路",
+    "Route 7": "7号道路", "Route 8": "8号道路", "Route 9": "9号道路",
+    "Route 10": "10号道路", "Route 11": "11号道路", "Route 12": "12号道路",
+    "Route 13": "13号道路", "Route 14": "14号道路", "Route 15": "15号道路",
+    "Route 16": "16号道路", "Route 17": "17号道路", "Route 18": "18号道路",
+    "Route 19": "19号道路", "Route 20": "20号道路",
+    "Route 21": "21号道路", "Route 22": "22号道路", "Route 23": "23号道路",
+    "Route 24": "24号道路", "Route 25": "25号道路",
+    "Viridian Forest": "常青森林",
+    "Mt Moon 1F": "月见山 1F", "Mt Moon B1F": "月见山 B1F", "Mt Moon B2F": "月见山 B2F",
+    "Digletts Cave B1F": "地鼠洞穴 B1F",
+    "Victory Road 1F/3F": "冠军之路 1F/3F", "Victory Road 2F": "冠军之路 2F",
+    "Pokemon Mansion 1F-3F": "宝可梦大宅 1F-3F", "Pokemon Mansion B1F": "宝可梦大宅 B1F",
+    "Safari Zone Center": "狩猎地带中心", "Safari Zone East": "狩猎地带东部",
+    "Safari Zone North": "狩猎地带北部", "Safari Zone West": "狩猎地带西部",
+    "Cerulean Cave 1F": "华蓝洞窟 1F", "Cerulean Cave 2F": "华蓝洞窟 2F",
+    "Cerulean Cave B1F": "华蓝洞窟 B1F",
+    "Rock Tunnel 1F": "岩山隧道 1F", "Rock Tunnel B1F": "岩山隧道 B1F",
+    "Seafoam Islands 1F": "双子岛 1F", "Seafoam Islands B1F": "双子岛 B1F",
+    "Seafoam Islands B2F": "双子岛 B2F", "Seafoam Islands B3F": "双子岛 B3F",
+    "Seafoam Islands B4F": "双子岛 B4F",
+    "Pokemon Tower 3F": "宝可梦塔 3F", "Pokemon Tower 4F-5F": "宝可梦塔 4F-5F",
+    "Pokemon Tower 6F": "宝可梦塔 6F", "Pokemon Tower 7F": "宝可梦塔 7F",
+    "Power Plant": "无人发电厂",
+    "Mt Ember Exterior": "灯火山外部",
+    "Mt Ember Summit Path 1F/3F": "灯火山山顶路 1F/3F", "Mt Ember Summit Path 2F": "灯火山山顶路 2F",
+    "Mt Ember Ruby Path 1F": "灯火山红宝石路 1F", "Mt Ember Ruby Path B1F": "灯火山红宝石路 B1F",
+    "Mt Ember Ruby Path B2F": "灯火山红宝石路 B2F", "Mt Ember Ruby Path B3F": "灯火山红宝石路 B3F",
+    "Mt Ember Ruby Path B1F Stairs": "灯火山红宝石路 B1F楼梯",
+    "Mt Ember Ruby Path B2F Stairs": "灯火山红宝石路 B2F楼梯",
+    "Three Island Berry Forest": "三岛树果森林",
+    "Four Island Icefall Cave Entrance": "四岛冰瀑洞窟入口",
+    "Four Island Icefall Cave 1F/B1F": "四岛冰瀑洞窟 1F/B1F",
+    "Four Island Icefall Cave Back": "四岛冰瀑洞窟后方",
+    "Six Island Pattern Bush": "六岛花纹丛林",
+    "Five Island Lost Cave": "五岛遗失洞穴",
+    "Five Island Lost Cave Room 1": "五岛遗失洞穴 房间1",
+    "Five Island Lost Cave Room 2": "五岛遗失洞穴 房间2",
+    "Five Island Lost Cave Room 3": "五岛遗失洞穴 房间3",
+    "Five Island Lost Cave Room 4": "五岛遗失洞穴 房间4",
+    "Five Island Lost Cave Room 5": "五岛遗失洞穴 房间5",
+    "Five Island Lost Cave Room 6": "五岛遗失洞穴 房间6",
+    "Five Island Lost Cave Room 7": "五岛遗失洞穴 房间7",
+    "Five Island Lost Cave Room 8": "五岛遗失洞穴 房间8",
+    "Five Island Lost Cave Room 9": "五岛遗失洞穴 房间9",
+    "Five Island Lost Cave Room 10": "五岛遗失洞穴 房间10",
+    "Five Island Lost Cave Room 11": "五岛遗失洞穴 房间11",
+    "Five Island Lost Cave Room 12": "五岛遗失洞穴 房间12",
+    "Five Island Lost Cave Room 13": "五岛遗失洞穴 房间13",
+    "Five Island Lost Cave Room 14": "五岛遗失洞穴 房间14",
+    "Five Island Lost Cave Item Room": "五岛遗失洞穴 道具房间",
+    "One Island Kindle Road": "一岛火之路",
+    "One Island Treasure Beach": "一岛宝物海滩",
+    "Two Island Cape Brink": "二岛海角边缘",
+    "Three Island Bond Bridge": "三岛羁绊桥",
+    "Five Island Resort Gorgeous": "五岛豪华度假村",
+    "Five Island Water Labyrinth": "五岛水之迷宫",
+    "Five Island Meadow": "五岛草地",
+    "Five Island Memorial Pillar": "五岛纪念柱",
+    "Six Island Outcast Island": "六岛放逐岛",
+    "Six Island Green Path": "六岛绿色小径",
+    "Six Island Water Path": "六岛水之小径",
+    "Six Island Ruin Valley": "六岛遗迹山谷",
+    "Seven Island Trainer Tower": "七岛训练家塔",
+    "Seven Island Sevault Canyon Entrance": "七岛七宝峡谷入口",
+    "Seven Island Sevault Canyon": "七岛七宝峡谷",
+    "Seven Island Tanoby Ruins": "七岛塔诺比遗迹",
+    "Pallet Town": "真新镇", "Viridian City": "常青市",
+    "Cerulean City": "华蓝市", "Vermilion City": "枯叶市",
+    "Celadon City": "彩虹市", "Fuchsia City": "浅红市",
+    "Cinnabar Island": "红莲岛", "One Island": "一岛",
+    "Four Island": "四岛", "Five Island": "五岛",
+    "Six Island Altering Cave": "六岛变化洞穴",
+    "S.S Anne Exterior": "圣安努号外部",
+    "Three Island Port": "三岛港口",
+}
+_LOCATION_ZH_TO_EN = {v: k for k, v in _LOCATION_EN_TO_ZH.items()}
+
+
+def _location_to_zh(en_name: str) -> str:
+    return _LOCATION_EN_TO_ZH.get(en_name, en_name)
+
+
+def _location_to_en(zh_name: str) -> str:
+    return _LOCATION_ZH_TO_EN.get(zh_name, zh_name)
 
 
 def _read_calibration_limits():
@@ -411,7 +544,7 @@ class TextBox:
 
 
 class ComboBox:
-    """可搜索下拉选择框：支持文本输入 + 前缀匹配过滤 + 滚轮滚动"""
+    """可搜索下拉选择框：支持文本输入 + 前缀匹配过滤 + 滚轮滚动 + 键盘上下左右键交互"""
     def __init__(self, x: int, y: int, w: int, h: int, options: list = None,
                  screen_height: int = 600, placeholder: str = ""):
         self.rect = pygame.Rect(x, y, w, h)
@@ -421,6 +554,7 @@ class ComboBox:
         self.selected_index = -1  # 在 _all_options 中的索引
         self._opened = False
         self._scroll_offset = 0
+        self._highlight_idx = 0  # 键盘高亮项在 self.options 中的索引
         self._font = _get_font(14)
         self._on_change: Optional[Callable] = None
         self._screen_height = screen_height
@@ -478,6 +612,7 @@ class ComboBox:
                     self._filter_text = ""
                     self._apply_filter()
                     self._scroll_offset = 0
+                    self._highlight_idx = 0
                 else:
                     self._opened = False
                     self._editing = False
@@ -496,39 +631,82 @@ class ComboBox:
                 self._opened = False
                 self._editing = False
                 return True
-        if event.type == MOUSEWHEEL and self._opened:
-            self._scroll_offset = max(0, self._scroll_offset - event.y)
+        # 滚轮：下拉打开时翻页，关闭时切换选项
+        if event.type == MOUSEWHEEL and self.rect.collidepoint(pygame.mouse.get_pos()):
+            if self._opened:
+                self._scroll_offset = max(0, self._scroll_offset - event.y)
+            elif self._all_options:
+                delta = -1 if event.y > 0 else 1
+                new_idx = (self.selected_index + delta) % len(self._all_options)
+                self.selected_index = new_idx
+                self._filter_text = ""
+                self._apply_filter()
+                if self._on_change:
+                    self._on_change()
             return True
         if event.type == KEYDOWN and self._opened:
+            max_vis = self._get_max_visible()
+            total = len(self.options)
             if event.key == K_ESCAPE:
                 self._opened = False
                 self._editing = False
                 return True
             if event.key == K_RETURN:
-                if self.options:
-                    self._select_by_filtered_index(0)
+                if self.options and 0 <= self._highlight_idx < total:
+                    self._select_by_filtered_index(self._highlight_idx)
                 self._opened = False
                 self._editing = False
                 return True
             if event.key == K_DOWN:
-                self._scroll_offset = min(
-                    self._scroll_offset + 1,
-                    max(0, len(self.options) - self._get_max_visible())
-                )
+                # 下移一项，超出当前页自动翻页
+                if total == 0:
+                    return True
+                self._highlight_idx = (self._highlight_idx + 1) % total
+                if self._highlight_idx < self._scroll_offset:
+                    self._scroll_offset = self._highlight_idx
+                elif self._highlight_idx >= self._scroll_offset + max_vis:
+                    self._scroll_offset = self._highlight_idx - max_vis + 1
                 return True
             if event.key == K_UP:
-                self._scroll_offset = max(0, self._scroll_offset - 1)
+                # 上移一项，超出当前页自动翻页
+                if total == 0:
+                    return True
+                self._highlight_idx = (self._highlight_idx - 1) % total
+                if self._highlight_idx < self._scroll_offset:
+                    self._scroll_offset = self._highlight_idx
+                elif self._highlight_idx >= self._scroll_offset + max_vis:
+                    self._scroll_offset = max(0, self._highlight_idx - max_vis + 1)
+                return True
+            if event.key == K_RIGHT:
+                # 向右：向下翻一页
+                if total == 0:
+                    return True
+                self._highlight_idx = min(total - 1, self._highlight_idx + max_vis)
+                self._scroll_offset = min(
+                    max(0, total - max_vis),
+                    self._scroll_offset + max_vis
+                )
+                return True
+            if event.key == K_LEFT:
+                # 向左：向上翻一页
+                if total == 0:
+                    return True
+                self._highlight_idx = max(0, self._highlight_idx - max_vis)
+                self._scroll_offset = max(0, self._scroll_offset - max_vis)
                 return True
             if event.key == K_BACKSPACE:
                 self._filter_text = self._filter_text[:-1]
                 self._apply_filter()
+                self._highlight_idx = 0
                 self._scroll_offset = 0
                 return True
-            if event.unicode and event.unicode.isprintable():
-                self._filter_text += event.unicode
-                self._apply_filter()
-                self._scroll_offset = 0
-                return True
+        # TEXTINPUT 事件：正确处理所有文本输入（包括 IME 组合输入、中文等）
+        if event.type == pygame.TEXTINPUT and self._opened:
+            self._filter_text += event.text
+            self._apply_filter()
+            self._highlight_idx = 0
+            self._scroll_offset = 0
+            return True
         return False
 
     def _select_by_filtered_index(self, filtered_idx: int):
@@ -609,12 +787,20 @@ class ComboBox:
             item_rect = pygame.Rect(self.rect.x + 2, item_y, self.rect.width - 4, item_h)
 
             mouse_pos = pygame.mouse.get_pos()
-            if item_rect.collidepoint(mouse_pos):
-                pygame.draw.rect(screen, C_DROPDOWN_HOVER, item_rect, border_radius=2)
+            hovered = item_rect.collidepoint(mouse_pos)
+            key_hl = (i == self._highlight_idx)
+            is_selected = (self._all_options.index(opt) if opt in self._all_options else -1) == self.selected_index
 
-            # 高亮匹配的文本
-            actual_idx = self._all_options.index(opt) if opt in self._all_options else -1
-            color = C_ACCENT if actual_idx == self.selected_index else C_TEXT
+            if hovered:
+                pygame.draw.rect(screen, C_DROPDOWN_HOVER, item_rect, border_radius=2)
+            elif key_hl:
+                pygame.draw.rect(screen, C_BTN_HOVER, item_rect, border_radius=2)
+
+            # 选中项文字用白色在蓝色背景上，否则继承主题色
+            if is_selected:
+                color = C_WHITE if (hovered or key_hl) else C_ACCENT
+            else:
+                color = C_WHITE if hovered else C_TEXT
             txt = self._font.render(opt, True, color)
             screen.blit(txt, (item_rect.x + 6, item_rect.y + 3))
         screen.set_clip(None)
@@ -669,12 +855,14 @@ class Label:
 # ── 主 GUI ────────────────────────────────────────────
 
 class RNGGui:
-    def __init__(self):
+    def __init__(self, use_zh: bool = False):
+        self.use_zh = use_zh
         os.environ['SDL_VIDEO_CENTERED'] = '1'
         pygame.init()
         self.W, self.H = 720, 470
         self.screen = pygame.display.set_mode((self.W, self.H))
-        pygame.display.set_caption("EasyCon RNG 配置")
+        title = "EasyCon RNG 配置" if use_zh else "EasyCon RNG Configuration"
+        pygame.display.set_caption(title)
 
         icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "assets", "sprites", "shiny", "137.png")
@@ -700,6 +888,11 @@ class RNGGui:
             pygame.display.set_icon(icon_final)
 
         pygame.key.set_repeat(400, 40)
+        try:
+            pygame.key.start_text_input()
+            pygame.key.set_text_input_rect(pygame.Rect(0, 0, self.W, self.H))
+        except Exception:
+            pass  # 旧版 pygame 不支持
 
         self.clock = pygame.time.Clock()
         self.running = True
@@ -723,6 +916,8 @@ class RNGGui:
 
     def _apply_cache(self, data: dict):
         """将缓存数据填充到控件"""
+        zh = self.use_zh
+
         # Game
         game = data.get("game", "")
         if game in self.game_combo._all_options:
@@ -733,33 +928,42 @@ class RNGGui:
         self.sid_box.text = str(data.get("sid", "12232"))
 
         # Settings
-        self.settings_box.text = data.get("settings", DEFAULT_SETTINGS)
+        self.settings_box.text = data.get("settings", DEFAULT_SETTINGS_ZH if zh else DEFAULT_SETTINGS)
 
         # Method -> Category -> Location -> Pokemon 级联加载（不使用 on_change 回调以避免反复级联重置）
-        method = data.get("method", "")
-        if method in self.method_combo._all_options:
-            self.method_combo.selected_index = self.method_combo._all_options.index(method)
+        method_en = data.get("method", "")
+        method_display = METHOD_EN_TO_ZH.get(method_en, method_en) if zh else method_en
+        if method_display in self.method_combo._all_options:
+            self.method_combo.selected_index = self.method_combo._all_options.index(method_display)
         self.method_combo._filter_text = ""
         self.method_combo._apply_filter()
         # 手动填充 category 选项
-        cats = METHOD_OPTIONS.get(method, {}).get("categories", [])
-        self.category_combo.set_options(cats)
+        cats_en = METHOD_OPTIONS.get(method_en, {}).get("categories", [])
+        cats_display = [CATEGORY_EN_TO_ZH.get(c, c) for c in cats_en] if zh else cats_en
+        self.category_combo.set_options(cats_display)
 
-        category = data.get("category", "")
-        if category in self.category_combo._all_options:
-            self.category_combo.selected_index = self.category_combo._all_options.index(category)
+        category_en = data.get("category", "")
+        category_display = CATEGORY_EN_TO_ZH.get(category_en, category_en) if zh else category_en
+        if category_display in self.category_combo._all_options:
+            self.category_combo.selected_index = self.category_combo._all_options.index(category_display)
         self.category_combo._filter_text = ""
         self.category_combo._apply_filter()
         # 手动填充 location 选项
-        if method == "Wild" and category:
-            locs = self._all_locations.get(category, [])
+        if method_en == "Wild" and category_en:
+            locs = self._all_locations.get(category_en, [])
+            if zh:
+                locs = [_location_to_zh(l) for l in locs]
             self.location_combo.set_options(locs)
+        elif method_en == "Static" and category_en:
+            loc_val = CATEGORY_EN_TO_ZH.get(category_en, category_en) if zh else category_en
+            self.location_combo.set_options([loc_val])
         else:
             self.location_combo.set_options([])
 
-        location = data.get("location", "")
-        if location in self.location_combo._all_options:
-            self.location_combo.selected_index = self.location_combo._all_options.index(location)
+        location_en = data.get("location", "")
+        location_display = _location_to_zh(location_en) if zh else location_en
+        if location_display in self.location_combo._all_options:
+            self.location_combo.selected_index = self.location_combo._all_options.index(location_display)
         self.location_combo._filter_text = ""
         self.location_combo._apply_filter()
         # 手动刷新 pokemon
@@ -767,8 +971,9 @@ class RNGGui:
 
         # Pokemon / Seed / Advances
         pokemon_name = str(data.get("pokemon", "Pikachu"))
-        if pokemon_name in self.pokemon_combo._all_options:
-            self.pokemon_combo.selected_index = self.pokemon_combo._all_options.index(pokemon_name)
+        pokemon_display = get_species_zh_name(pokemon_name) if zh else pokemon_name
+        if pokemon_display in self.pokemon_combo._all_options:
+            self.pokemon_combo.selected_index = self.pokemon_combo._all_options.index(pokemon_display)
             self.pokemon_combo._filter_text = ""
             self.pokemon_combo._apply_filter()
         self.seed_box.text = str(data.get("seed", "B235"))
@@ -810,13 +1015,13 @@ class RNGGui:
         ROW_GAP = 14
         BOX_W = 150  # 统一输入框宽度
         LABEL_BOX_GAP = 4  # label 和 box 之间的间距
+        zh = self.use_zh
 
         y0 = 20
 
         # ── 第一行：Game | TID | SID ──
         y1 = y0
         labels1 = [("Game:", 50), ("TID:", 32), ("SID:", 32)]
-        # 每列宽度 = label_w + gap + BOX_W
         cols1 = [lw + LABEL_BOX_GAP + BOX_W for _, lw in labels1]
         total1 = sum(cols1)
         gap1 = (self.W - 2 * PAD - total1) // 2
@@ -836,44 +1041,61 @@ class RNGGui:
         self._make_label(x, y1 + 8, labels1[2][0])
         self.sid_box = self._make_textbox(x + labels1[2][1] + LABEL_BOX_GAP, y1, BOX_W, ROW_H - 2, "12232")
 
-        # ── 第二行：Settings ──
+        # ── 第二行：Settings (2/3) | Method (1/3) ──
         y2 = y1 + ROW_H + ROW_GAP
-        lbl_w = 65
-        self._make_label(PAD, y2 + 8, "Settings:")
+        settings_label = "Settings:" if not zh else "设置:"
+        method_label = "Method:" if not zh else "方法:"
+        settings_lbl_w = 65 if not zh else 50
+        method_lbl_w = 55 if not zh else 50
+
+        # Settings 占 2/3 宽度
+        total_w2 = self.W - 2 * PAD
+        settings_w = int(total_w2 * 2 / 3) - 10
+        method_w = total_w2 - settings_w - 10
+
+        self._make_label(PAD, y2 + 8, settings_label)
+        settings_placeholder = DEFAULT_SETTINGS if not zh else DEFAULT_SETTINGS_ZH
         self.settings_box = self._make_textbox(
-            PAD + lbl_w, y2, self.W - 2 * PAD - lbl_w, ROW_H - 2, DEFAULT_SETTINGS)
+            PAD + settings_lbl_w + LABEL_BOX_GAP, y2, settings_w - settings_lbl_w - LABEL_BOX_GAP, ROW_H - 2, settings_placeholder)
 
-        # ── 第三行：Method | Category | Location ──
-        y3 = y2 + ROW_H + ROW_GAP
-        labels3 = [("Method:", 55), ("Category:", 72), ("Location:", 65)]
-        cols3 = [lw + LABEL_BOX_GAP + BOX_W for _, lw in labels3]
-        total3 = sum(cols3)
-        gap3 = (self.W - 2 * PAD - total3) // 2
-        x = PAD
-
-        self._make_label(x, y3 + 8, labels3[0][0])
+        method_x = PAD + settings_w + 10
+        self._make_label(method_x, y2 + 8, method_label)
+        method_combo_options = list(METHOD_OPTIONS.keys())
+        if zh:
+            method_combo_options = [METHOD_EN_TO_ZH.get(m, m) for m in method_combo_options]
         self.method_combo = self._make_searchable_combo(
-            x + labels3[0][1] + LABEL_BOX_GAP, y3, BOX_W, ROW_H - 2,
-            list(METHOD_OPTIONS.keys()), placeholder="Wild")
+            method_x + method_lbl_w + LABEL_BOX_GAP, y2, method_w - method_lbl_w - LABEL_BOX_GAP, ROW_H - 2,
+            method_combo_options, placeholder="野生" if zh else "Wild")
         self.method_combo.set_on_change(self._on_method_change)
 
-        x += cols3[0] + gap3
-        self._make_label(x, y3 + 8, labels3[1][0])
+        # ── 第三行：Category (1/3) | Location (2/3) ──
+        y3 = y2 + ROW_H + ROW_GAP
+        cat_label = "Category:" if not zh else "分类:"
+        loc_label = "Location:" if not zh else "地点:"
+        cat_lbl_w = 72 if not zh else 50
+        loc_lbl_w = 65 if not zh else 50
+
+        cat_w = int(total_w2 / 3) - 10
+        loc_w = total_w2 - cat_w - 10
+
+        self._make_label(PAD, y3 + 8, cat_label)
         self.category_combo = self._make_searchable_combo(
-            x + labels3[1][1] + LABEL_BOX_GAP, y3, BOX_W, ROW_H - 2,
-            placeholder="Grass")
+            PAD + cat_lbl_w + LABEL_BOX_GAP, y3, cat_w - cat_lbl_w - LABEL_BOX_GAP, ROW_H - 2,
+            placeholder="草丛" if zh else "Grass")
         self.category_combo.set_on_change(self._on_category_change)
 
-        x += cols3[1] + gap3
-        self._make_label(x, y3 + 8, labels3[2][0])
+        loc_x = PAD + cat_w + 10
+        self._make_label(loc_x, y3 + 8, loc_label)
         self.location_combo = self._make_searchable_combo(
-            x + labels3[2][1] + LABEL_BOX_GAP, y3, BOX_W, ROW_H - 2,
-            placeholder="搜索地点...")
+            loc_x + loc_lbl_w + LABEL_BOX_GAP, y3, loc_w - loc_lbl_w - LABEL_BOX_GAP, ROW_H - 2,
+            placeholder="搜索地点..." if zh else "Search location...")
         self.location_combo.set_on_change(self._on_location_change)
 
         # ── 第四行：Pokemon | Seed | Advances ──
         y4 = y3 + ROW_H + ROW_GAP
-        labels4 = [("Pokemon:", 72), ("Seed:", 42), ("Advances:", 70)]
+        pokemon_label = "Pokemon:" if not zh else "宝可梦:"
+        pokemon_placeholder = "搜索宝可梦..." if zh else "Search Pokemon..."
+        labels4 = [(pokemon_label, 72 if not zh else 65), ("Seed:", 42), ("Advances:", 70)]
         cols4 = [lw + LABEL_BOX_GAP + BOX_W for _, lw in labels4]
         total4 = sum(cols4)
         gap4 = (self.W - 2 * PAD - total4) // 2
@@ -882,7 +1104,7 @@ class RNGGui:
         self._make_label(x, y4 + 8, labels4[0][0])
         self.pokemon_combo = self._make_searchable_combo(
             x + labels4[0][1] + LABEL_BOX_GAP, y4, BOX_W, ROW_H - 2,
-            placeholder="搜索宝可梦...")
+            placeholder=pokemon_placeholder)
 
         x += cols4[0] + gap4
         self._make_label(x, y4 + 8, labels4[1][0])
@@ -896,12 +1118,14 @@ class RNGGui:
 
         # ── 第五行：URL ──
         y5 = y4 + ROW_H + ROW_GAP
+        url_label = "URL (ten-lines calibration):" if not zh else "URL (ten-lines 校准):"
+        url_placeholder = "https://lincoln-lm.github.io/ten-lines/?..." if not zh else "https://www.xiaoyubook.net/ten-lines/?..."
         url_label_w = 165
         btn_w2 = 90
-        self._make_label(PAD, y5 + 8, "URL (ten-lines calibration):")
+        self._make_label(PAD, y5 + 8, url_label)
         self.url_box = self._make_textbox(
             PAD + url_label_w, y5, self.W - 2 * PAD - url_label_w - btn_w2 - 10, ROW_H - 2,
-            placeholder="https://lincoln-lm.github.io/ten-lines/?...")
+            placeholder=url_placeholder)
         self._make_button(self.W - PAD - btn_w2, y5, btn_w2, ROW_H - 2, "智能识别", self._on_parse_url)
 
         # ── 按钮行 ──
@@ -924,11 +1148,16 @@ class RNGGui:
     def _get_pokemon_options(self, method: str, category: str, location: str) -> list:
         """获取当前 method/category/location 下实际可选的宝可梦列表"""
         if method == "Static" and category:
-            return STATIC_POKEMON_MAP.get(category, [])
+            pokemon_list = STATIC_POKEMON_MAP.get(category, [])
+            if self.use_zh:
+                return [_STATIC_POKEMON_ZH.get(p, p) for p in pokemon_list]
+            return pokemon_list
         if method == "Wild" and location and category:
             game_label = self.game_combo.get_value()
             game_version = GAME_OPTIONS.get(game_label, "fr_nx")
             species_ids = get_encounter_species_list(location, category, game_version)
+            if self.use_zh:
+                return [get_species_zh_name(s) for s in species_ids]
             return [get_species_name(s) for s in species_ids]
         return []
 
@@ -947,14 +1176,17 @@ class RNGGui:
 
         if level <= 2:
             # 重置 location
-            method = self.method_combo.get_value()
-            cat = self.category_combo.get_value()
-            if method == "Wild" and cat:
-                locs = self._all_locations.get(cat, [])
+            method_en = self._get_method_en()
+            cat_en = self._get_category_en()
+            if method_en == "Wild" and cat_en:
+                locs = self._all_locations.get(cat_en, [])
+                if self.use_zh:
+                    locs = [_location_to_zh(l) for l in locs]
                 self.location_combo.set_options(locs, 0 if locs else -1)
-            elif method == "Static" and cat:
+            elif method_en == "Static" and cat_en:
                 # Static 方法下 Location 自动同步为 Category
-                self.location_combo.set_options([cat], 0)
+                loc_val = CATEGORY_EN_TO_ZH.get(cat_en, cat_en) if self.use_zh else cat_en
+                self.location_combo.set_options([loc_val], 0)
             else:
                 self.location_combo.set_options([])
 
@@ -963,15 +1195,38 @@ class RNGGui:
 
     def _refresh_pokemon_options(self):
         """根据当前 method/category/location 刷新 Pokemon 下拉选项"""
-        method = self.method_combo.get_value()
-        cat = self.category_combo.get_value()
-        loc = self.location_combo.get_value()
-        opts = self._get_pokemon_options(method, cat, loc)
+        method_en = self._get_method_en()
+        cat_en = self._get_category_en()
+        loc_en = self._get_location_en()
+        opts = self._get_pokemon_options(method_en, cat_en, loc_en)
         self.pokemon_combo.set_options(opts, 0 if opts else -1)
 
+    def _get_method_en(self) -> str:
+        """获取 Method 的英文值（内部使用）"""
+        val = self.method_combo.get_value()
+        if self.use_zh:
+            return METHOD_ZH_TO_EN.get(val, val)
+        return val
+
+    def _get_category_en(self) -> str:
+        """获取 Category 的英文值（内部使用）"""
+        val = self.category_combo.get_value()
+        if self.use_zh:
+            return CATEGORY_ZH_TO_EN.get(val, val)
+        return val
+
+    def _get_location_en(self) -> str:
+        """获取 Location 的英文值（内部使用）"""
+        val = self.location_combo.get_value()
+        if self.use_zh:
+            return _location_to_en(val)
+        return val
+
     def _on_method_change(self):
-        method = self.method_combo.get_value()
-        cats = METHOD_OPTIONS.get(method, {}).get("categories", [])
+        method_en = self._get_method_en()
+        cats = METHOD_OPTIONS.get(method_en, {}).get("categories", [])
+        if self.use_zh:
+            cats = [CATEGORY_EN_TO_ZH.get(c, c) for c in cats]
         self.category_combo.set_options(cats, 0 if cats else -1)
         self._cascade_reset(level=1)
 
@@ -1108,6 +1363,7 @@ class RNGGui:
 
     def _on_default(self):
         """填充所有字段的默认值"""
+        zh = self.use_zh
         self.game_combo.selected_index = 0
 
         self.tid_box.text = "58888"
@@ -1116,29 +1372,31 @@ class RNGGui:
         self.sid_box.text = "12232"
         self.sid_box.focused = False
 
-        self.settings_box.text = DEFAULT_SETTINGS
+        self.settings_box.text = DEFAULT_SETTINGS_ZH if zh else DEFAULT_SETTINGS
         self.settings_box.focused = False
 
-        self.method_combo.selected_index = 1  # Wild
+        self.method_combo.selected_index = 1  # Wild / 野生
         self.method_combo._filter_text = ""
         self.method_combo._apply_filter()
         self._on_method_change()
 
-        self.category_combo.selected_index = 0  # Grass
+        self.category_combo.selected_index = 0  # Grass / 草丛
         self.category_combo._filter_text = ""
         self.category_combo._apply_filter()
         self._on_category_change()
 
-        # 设置 Location 为 Viridian Forest
-        if "Viridian Forest" in self.location_combo._all_options:
-            self.location_combo.selected_index = self.location_combo._all_options.index("Viridian Forest")
+        # 设置 Location 为 Viridian Forest / 常青森林
+        default_loc = "常青森林" if zh else "Viridian Forest"
+        if default_loc in self.location_combo._all_options:
+            self.location_combo.selected_index = self.location_combo._all_options.index(default_loc)
             self.location_combo._filter_text = ""
             self.location_combo._apply_filter()
 
-        # 刷新 Pokemon 列表并默认选择 Pikachu
+        # 刷新 Pokemon 列表并默认选择 Pikachu / 皮卡丘
         self._refresh_pokemon_options()
-        if "Pikachu" in self.pokemon_combo._all_options:
-            self.pokemon_combo.selected_index = self.pokemon_combo._all_options.index("Pikachu")
+        default_pkm = "皮卡丘" if zh else "Pikachu"
+        if default_pkm in self.pokemon_combo._all_options:
+            self.pokemon_combo.selected_index = self.pokemon_combo._all_options.index(default_pkm)
             self.pokemon_combo._filter_text = ""
             self.pokemon_combo._apply_filter()
 
@@ -1251,21 +1509,24 @@ class RNGGui:
             return None
 
         settings_str = self.settings_box.get_value()
-        data["settings"] = settings_str if settings_str else DEFAULT_SETTINGS
+        data["settings"] = settings_str if settings_str else (DEFAULT_SETTINGS_ZH if self.use_zh else DEFAULT_SETTINGS)
 
-        data["method"] = self.method_combo.get_value()
+        data["method"] = self._get_method_en()
         if not data["method"]:
             return None
 
-        data["category"] = self.category_combo.get_value()
+        data["category"] = self._get_category_en()
         if not data["category"]:
             return None
 
-        data["location"] = self.location_combo.get_value()
-        if data["method"] == "Wild" and not data["location"]:
+        data["location"] = self._get_location_en()
+        if self._get_method_en() == "Wild" and not data["location"]:
             return None
 
-        data["pokemon"] = self.pokemon_combo.get_value()
+        pokemon_val = self.pokemon_combo.get_value()
+        if self.use_zh:
+            pokemon_val = get_species_en_name(pokemon_val)
+        data["pokemon"] = pokemon_val
         if not data["pokemon"]:
             return None
 
@@ -1523,7 +1784,8 @@ def _run_script():
 # ── 入口 ──────────────────────────────────────────────
 
 def main():
-    gui = RNGGui()
+    use_zh = "--zh" in sys.argv
+    gui = RNGGui(use_zh=use_zh)
     data = gui.run()
 
     if data is None:
