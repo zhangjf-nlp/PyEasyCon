@@ -27,6 +27,7 @@ from rng.tenlines_utils import (
     get_species_en_name,
     _load_frlg_encounters,
 )
+from script_utils.hit import EXTRA_A_PRESSES
 from easycon.config import get as config_get
 
 # ── 常量 ──────────────────────────────────────────────
@@ -1448,11 +1449,23 @@ class RNGGui:
 
 # ── 脚本生成与运行 ────────────────────────────────────
 
+def _compute_normal_ms_min(category: str, pokemon: str) -> int:
+    if category in ("OldRod", "GoodRod", "SuperRod"):
+        return 20000
+    if category == "Game Corner":
+        return 15000
+    if category in ("Gift", "Stationary", "Legend", "Fossil", "Event"):
+        extra = EXTRA_A_PRESSES.get(pokemon, 0)
+        return 10000 + 3000 * max(extra, 0)
+    return 10000
+
+
 def _generate_script(data: dict):
     game_version = GAME_OPTIONS[data["game"]]
     rng_method = METHOD_OPTIONS[data["method"]]["rng_method"]
     location = data["location"] if data["method"] == "Wild" else data["category"]
     seed_hex = data["seed"].upper()
+    normal_ms_min = _compute_normal_ms_min(data["category"], data["pokemon"])
 
     script = f'''# -*- coding: utf-8 -*-
 import sys, os
@@ -1475,7 +1488,7 @@ cfg = RNGConfig(
     target=RNGSlot(0x{seed_hex}, 0, {data['advances']}),
     seed_bias=-4000,
     advances_bias=-10000,
-    normal_ms_min=10000,
+    normal_ms_min={normal_ms_min},
 )
 state = SessionState()
 

@@ -125,16 +125,21 @@ def hit_game_corner(ctx: ScriptContext, cfg: RNGConfig) -> None:
     ctx.press("B")
 
 
+# Extra A presses needed before the timed interaction in hit_A.
+# Used externally to compute normal_ms_min = 10000 + 3000 * extra_as.
+EXTRA_A_PRESSES = {
+    "Lapras": 3, "Eevee": 0,                                    # Gift
+    "Snorlax": 1, "Electrode": 0, "Hypno": 6,                   # Stationary
+    "Zapdos": 0, "Articuno": 0, "Moltres": 0, "Mewtwo": -1,     # Legend
+    "Omanyte": 2, "Kabuto": 2, "Aerodactyl": 2,                 # Fossil
+    "Deoxys": 0,                                                 # Event
+}
+
+
 def hit_A(ctx: ScriptContext, cfg: RNGConfig) -> None:
     start = time.time()
     end = start + cfg.schedule.advances_ms_normal / 1000.0
-    extra_as = {
-        "Lapras": 3, "Eevee": 0, # Gift
-        "Snorlax": 1, "Electrode": 0, "Hypno": 6, # Stationary
-        "Zapdos": 0, "Articuno": 0, "Moltres": 0, "Mewtwo": -1, # Legend
-        "Omanyte": 2, "Kabuto": 2, "Aerodactyl": 2, # Fossil
-        "Deoxys": 0, # Event
-    }.get(cfg.pokemon_species, -1)
+    extra_as = EXTRA_A_PRESSES.get(cfg.pokemon_species, -1)
     if extra_as == -1:
         raise ValueError(f"{cfg.pokemon_species}暂未支持")
     for _ in range(extra_as):
