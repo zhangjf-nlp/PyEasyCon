@@ -1428,6 +1428,15 @@ class RNGGui:
             adv_min = int(p.get("advancesMin", "0"))
             adv_max = int(p.get("advancesMax", "0"))
             advances = (adv_min + adv_max) // 2
+            # Teachy TV mode: 总 advances = base + 312 * ttv_advances
+            if p.get("teachyTVMode", "").lower() == "true":
+                try:
+                    ttv_min = int(p.get("ttvAdvancesMin", "0"))
+                    ttv_max = int(p.get("ttvAdvancesMax", "0"))
+                    ttv_advances = (ttv_min + ttv_max) // 2
+                    advances = advances + 312 * ttv_advances
+                except ValueError:
+                    pass
             if advances < 0:
                 errors.append("advances 计算为负数")
             else:
