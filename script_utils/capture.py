@@ -5,7 +5,6 @@ from typing import Any, Optional, Tuple
 import cv2
 import numpy as np
 
-from assets.sprites.convert_to_il import label_name
 from easycon.context import ScriptContext, sleep
 from rng.config import RNGConfig, SessionState
 from script_utils.navigation import in_wild
