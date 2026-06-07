@@ -66,14 +66,11 @@ def hit_rod(ctx: ScriptContext, cfg: RNGConfig) -> None:
     for _ in range(30):
         if ctx.search_label(f"FRLG关键词选中CANCEL", 90):
             reversed = True
-        score = ctx.search_label(f"FRLG关键词{cfg.rng_category}选中", -1)
-        import cv2
-        cv2.imwrite(f"tmp-{_:0>2d}-{score}.png", ctx.get_frame().copy())
-        if score >= 80:
+        if ctx.search_label(f"FRLG关键词{cfg.rng_category}选中", 80):
             break
         else:
             ctx.press("DOWN" if not reversed else "UP", duration_ms=100)
-            sleep(0.5)
+            sleep(0.3)
     else:
         ctx.log(f'未找到{cfg.rng_category}')
         return
