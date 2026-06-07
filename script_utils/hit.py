@@ -36,8 +36,9 @@ def hit_tv_frame(ctx: ScriptContext, cfg: RNGConfig) -> None:
 def hit_sweet_scent(ctx: ScriptContext, cfg: RNGConfig, end: float) -> None:
     ctx.press("X")
     sleep(1.0)
-    ctx.press("DOWN")
-    sleep(0.5)
+    for _ in range(2 if cfg.rng_location.startswith("Safari Zone") else 1):
+        ctx.press("DOWN")
+        sleep(0.5)
     ctx.press("A")
     sleep(2.0)
     ctx.press("A")
