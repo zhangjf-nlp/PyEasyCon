@@ -1,6 +1,6 @@
 @echo off
 setlocal enabledelayedexpansion
-title EasyCon RNG (中文)
+title EasyCon RNG
 
 cd /d "%~dp0"
 

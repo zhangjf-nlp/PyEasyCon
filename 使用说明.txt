@@ -16,12 +16,15 @@
 7. 已经在乱数的位置保存完毕
 8. 回到NS主页、切换用户、选择好用户（只差按A进入游戏）
 
-### 暂不支持
+### 暂不支持以下情况
 
 1. 日版
 2. 碎岩
 3. 部分定点（可以群里告诉我让我支持）
 4. help以外的button mode
+5. NS浅色系主题
+6. 只有一个用户
+7. NS未充满电
 
 ### OCR提速
 
@@ -34,5 +37,7 @@
 
 ### 更新版本
 
-1. 打开命令行，切换到PyEasyCon目录
-2. 输入：Git\bin\git.exe fetch --all，自动下载最新代码，这一步可能需要重试多次才成功
+1. 双击PortableGit.7z.exe，安装PortableGit到当前目录
+2. 打开命令行，切换到PyEasyCon目录
+3. 输入：PortableGit\bin\git.exe fetch --all，自动下载最新代码，这一步可能需要重试多次才成功
+4. 输入：PortableGit\bin\git.exe reset --hard origin/master，将当前目录代码同步至最新版

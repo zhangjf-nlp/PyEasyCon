@@ -33,9 +33,7 @@ def hit_tv_frame(ctx: ScriptContext, cfg: RNGConfig) -> None:
     sleep(1.0)
 
 
-def hit_sweet_scent(ctx: ScriptContext, cfg: RNGConfig) -> None:
-    start = time.time()
-    end = start + cfg.schedule.advances_ms_normal / 1000.0
+def hit_sweet_scent(ctx: ScriptContext, cfg: RNGConfig, end: float) -> None:
     ctx.press("X")
     sleep(1.0)
     ctx.press("DOWN")
@@ -49,9 +47,7 @@ def hit_sweet_scent(ctx: ScriptContext, cfg: RNGConfig) -> None:
     ctx.press("A")
 
 
-def hit_rod(ctx: ScriptContext, cfg: RNGConfig) -> None:
-    start = time.time()
-    end = start + cfg.schedule.advances_ms_normal / 1000.0
+def hit_rod(ctx: ScriptContext, cfg: RNGConfig, end: float) -> None:
     ctx.press("X")
     sleep(1.0)
     for _ in range(3 if cfg.rng_location.startswith("Safari Zone") else 2):
@@ -80,9 +76,7 @@ def hit_rod(ctx: ScriptContext, cfg: RNGConfig) -> None:
     ctx.press("A")
 
 
-def hit_game_corner(ctx: ScriptContext, cfg: RNGConfig) -> None:
-    start = time.time()
-    end = start + cfg.schedule.advances_ms_normal / 1000.0
+def hit_game_corner(ctx: ScriptContext, cfg: RNGConfig, end: float) -> None:
     ctx.press("A")
     sleep(1.5)
     ctx.press("A")
@@ -118,9 +112,7 @@ EXTRA_A_PRESSES = {
 }
 
 
-def hit_A(ctx: ScriptContext, cfg: RNGConfig) -> None:
-    start = time.time()
-    end = start + cfg.schedule.advances_ms_normal / 1000.0
+def hit_A(ctx: ScriptContext, cfg: RNGConfig, end: float) -> None:
     extra_as = EXTRA_A_PRESSES.get(cfg.pokemon_species, -1)
     if extra_as == -1:
         raise ValueError(f"{cfg.pokemon_species}暂未支持")
@@ -136,26 +128,32 @@ def hit_A(ctx: ScriptContext, cfg: RNGConfig) -> None:
         ctx.press("B")
 
 
-def hit(ctx: ScriptContext, cfg: RNGConfig) -> bool:
-    ctx.log("--- RNG 流程启动 ---")
-    hit_init_seed(ctx, cfg)
-    if cfg.schedule.advances_ms_tv > 0:
-        hit_tv_frame(ctx, cfg)
-    
+def hit_normal_frame(ctx: ScriptContext, cfg: RNGConfig) -> bool:
+    start = time.time()
+    end = start + cfg.schedule.advances_ms_normal / 1000.0
+
     if cfg.rng_location.startswith("Safari Zone"):
         zone = cfg.rng_location.split()[-1].lower()
         category = "Rod" if cfg.rng_category.endswith("Rod") else cfg.rng_category
         navigate_safari_zone(ctx, f"{zone}_{category}")
 
     if cfg.rng_category in ["Grass", "Surfing"]:
-        hit_sweet_scent(ctx, cfg)
+        hit_sweet_scent(ctx, cfg, end)
     elif cfg.rng_category in ["OldRod", "GoodRod", "SuperRod"]:
-        hit_rod(ctx, cfg)
+        hit_rod(ctx, cfg, end)
     elif cfg.rng_category == "Game Corner":
-        hit_game_corner(ctx, cfg)
+        hit_game_corner(ctx, cfg, end)
     elif cfg.rng_category in ["Gift", "Stationary", "Legend", "Fossil", "Event"]:
-        hit_A(ctx, cfg)
+        hit_A(ctx, cfg, end)
     else:
         raise NotImplementedError(cfg.rng_category)
+
+
+def hit(ctx: ScriptContext, cfg: RNGConfig) -> bool:
+    ctx.log("--- RNG 流程启动 ---")
+    hit_init_seed(ctx, cfg)
+    if cfg.schedule.advances_ms_tv > 0:
+        hit_tv_frame(ctx, cfg)
+    hit_normal_frame(ctx, cfg)
     ctx.log("--- RNG 流程结束 ---")
     return True
