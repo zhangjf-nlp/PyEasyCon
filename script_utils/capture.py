@@ -174,12 +174,17 @@ def catch_with_safari_strategy(ctx: ScriptContext, pokemon_en: str):
         raise NotImplementedError(pokemon_en)
     
     ctx.log(f"捕获策略：{strategy}")
-    for action in strategy:
-        button_a, button_b, label = {
+    while len(strategy) > 0:
+        for action, (button_a, button_b, label) in {
             "⚾️": ("UP", "LEFT", "FRLG狩猎区选中Ball"),
             "🍯": ("UP", "RIGHT", "FRLG狩猎区选中Bait"),
             "🪨": ("DOWN", "LEFT", "FRLG狩猎区选中Rock"),
-        }[action]
+        }.items():
+            if strategy.startswith(action):
+                strategy = strategy[len(action):]
+                break
+        else:
+            raise ValueError(f"Failed to parse the remaining strategy: {strategy}")
         for _ in range(30):
             ctx.press("B")
             sleep(0.3)

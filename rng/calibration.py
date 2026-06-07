@@ -9,7 +9,7 @@ from rng.tenlines_utils import (
 from rng.config import RNGConfig, SessionState, RNGSlot, SEED_PERIOD, ADV_PERIOD
 
 WIDE_SEED_BIAS = 3000
-WIDE_ADV_BIAS = 20000
+WIDE_ADV_BIAS = 30000
 
 _NATURES_LOWER = {n.lower(): n for n in NATURES}
 
