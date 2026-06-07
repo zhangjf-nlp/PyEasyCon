@@ -79,7 +79,7 @@ def launch(cfg: RNGConfig, state: SessionState = None) -> None:
                     ctx.screen_record_save()
                 elif state.fast_attempts:
                     state.fast_attempts -= 1
-                else:
+                elif pokemon_en:
                     if catch_with_safari_strategy(ctx, pokemon_en):
                         check_last_pokemon(ctx)
                         observe_pokemon(ctx, state, cfg, state.attempt_index, pokemon_en)
