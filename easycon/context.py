@@ -1,14 +1,27 @@
-import time
 import json
 import base64
 import os
+import time
+import threading
 from typing import Optional, Callable, Any
 
 import cv2
 import numpy as np
 
-from .controller import EasyConController
+from .controller import EasyConController, sleep
 from .protocol import GamePadKey
+
+
+class _HoldContext:
+    def __init__(self, ctx: "ScriptContext", button: str):
+        self._ctx = ctx
+        self._button = button
+
+    def __enter__(self):
+        pass
+
+    def __exit__(self, *args):
+        self._ctx.release(self._button)
 
 
 class ScriptContext:
@@ -43,6 +56,11 @@ class ScriptContext:
         self._labels_dir = labels_dir
         self._label_cache = {}
 
+        # 屏幕录制
+        self._recording = False
+        self._record_thread: Optional[threading.Thread] = None
+        self._record_frames: list = []
+
         self._button_map = {
             'A': GamePadKey.A, 'B': GamePadKey.B, 'X': GamePadKey.X, 'Y': GamePadKey.Y,
             'L': GamePadKey.L, 'R': GamePadKey.R, 'ZL': GamePadKey.ZL, 'ZR': GamePadKey.ZR,
@@ -63,6 +81,7 @@ class ScriptContext:
             key = self._button_map.get(button.upper())
             if key:
                 self._controller.press(key)
+        return _HoldContext(self, button)
 
     def release(self, button: str):
         if self._controller and self._controller.is_connected:
@@ -77,13 +96,6 @@ class ScriptContext:
     def capture(self):
         if self._controller and self._controller.is_connected:
             self._controller.capture()
-
-    def wait(self, ms: int):
-        deadline = time.time() + ms / 1000.0
-        while time.time() < deadline:
-            if self._is_running_func and not self._is_running_func():
-                raise SystemExit("脚本已停止")
-            time.sleep(0.05)
 
     def log(self, msg: str):
         if self._log_func:
@@ -256,3 +268,52 @@ class ScriptContext:
 
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
         cv2.imwrite(save_path, annotated)
+
+    def screen_record_start(self):
+        """开始录制GUI显示的游戏画面"""
+        if self._recording:
+            return
+        self._recording = True
+        self._record_frames = []
+        self._record_thread = threading.Thread(target=self._record_worker, daemon=True)
+        self._record_thread.start()
+
+    def _record_worker(self):
+        """录制线程：持续抓取画面帧"""
+        while self._recording:
+            frame = self.get_frame()
+            if frame is not None:
+                self._record_frames.append(frame.copy())
+            time.sleep(1 / 30.0)
+
+    def screen_record_end(self):
+        """结束录制"""
+        self._recording = False
+        if self._record_thread:
+            self._record_thread.join(timeout=2.0)
+            self._record_thread = None
+
+    def screen_record_save(self, save_path: str = None):
+        """保存录制的视频，默认保存至 screen_record/{timestamp}.mp4"""
+        if not self._record_frames:
+            self.log("没有录制帧可保存")
+            return
+
+        if save_path is None:
+            ts = time.strftime("%Y%m%d_%H%M%S")
+            save_path = f"screen_record/{ts}.mp4"
+
+        save_dir = os.path.dirname(save_path)
+        if save_dir:
+            os.makedirs(save_dir, exist_ok=True)
+
+        h, w = self._record_frames[0].shape[:2]
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        out = cv2.VideoWriter(save_path, fourcc, 30.0, (w, h))
+
+        for frame in self._record_frames:
+            out.write(frame)
+        out.release()
+
+        self.log(f"视频已保存: {save_path} ({len(self._record_frames)} 帧)")
+        self._record_frames.clear()

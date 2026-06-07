@@ -5,11 +5,10 @@ from typing import Any, Optional, Tuple
 import cv2
 import numpy as np
 
-from easycon.context import ScriptContext
+from easycon.context import ScriptContext, sleep
 from rng.config import RNGConfig, SessionState
 from vision.sprite import identify_pokemon as _identify, detect_gba_area, SPRITE_NATIVE
 from rng.tenlines_utils import get_species_en_name, get_species_id, get_species_zh_name, get_encounter_species_list
-from script_utils.hit import sleep
 
 
 def check_shiny(

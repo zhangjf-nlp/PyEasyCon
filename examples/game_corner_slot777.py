@@ -3,7 +3,7 @@ import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from gui import run_script
-from script_utils.hit import sleep
+from easycon.context import ScriptContext, sleep
 
 delay = 0.860
 
@@ -14,7 +14,7 @@ COLUMN_LABELS = {
 }
 
 
-def main(ctx):
+def main(ctx: ScriptContext):
     labels = COLUMN_LABELS[VERSION]
 
     while ctx.is_running():

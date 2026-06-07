@@ -197,6 +197,8 @@ class EasyConGUI:
                 
                 self.controller = EasyConController()
                 self.video_module.set_controller(self.controller)
+                if hasattr(self, 'ctx') and self.ctx is not None:
+                    self.ctx._controller = self.controller
                 
                 ports = list(serial.tools.list_ports.comports())
                 
@@ -262,6 +264,8 @@ class EasyConGUI:
         self._text_editor.is_running = is_running
     
     def _run_script(self):
+        if self.ctx._controller is None and self.controller is not None:
+            self.ctx._controller = self.controller
         frame = self.video_module.get_raw_frame()
         if frame is not None:
             cap_w = get("capture", {}).get("width", 1920)

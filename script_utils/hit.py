@@ -1,23 +1,9 @@
 import time
 from typing import Optional
 
-from easycon.context import ScriptContext
+from easycon.context import ScriptContext, sleep
 from rng.config import RNGConfig
-
-
-def sleep(seconds: float, end: Optional[float] = None) -> None:
-    start = time.time()
-    if end is None:
-        mid = start + seconds - 0.1
-        end = start + seconds
-    else:
-        mid = end - 0.1
-    while True:
-        if time.time() >= mid:
-            if time.time() >= end:
-                return
-        else:
-            time.sleep(0.05)
+from script_utils.navigation import navigate_safari_zone
 
 
 def hit_init_seed(ctx: ScriptContext, cfg: RNGConfig) -> None:
@@ -159,6 +145,12 @@ def hit(ctx: ScriptContext, cfg: RNGConfig) -> bool:
     hit_init_seed(ctx, cfg)
     if cfg.schedule.advances_ms_tv > 0:
         hit_tv_frame(ctx, cfg)
+    
+    if cfg.rng_location.startswith("Safari Zone"):
+        zone = cfg.rng_location.split()[-1].lower()
+        category = "Rod" if category.endswith("Rod") else category
+        navigate_safari_zone(ctx, f"{zone}_{category}")
+
     if cfg.rng_category in ["Grass", "Surfing"]:
         hit_sweet_scent(ctx, cfg)
     elif cfg.rng_category in ["OldRod", "GoodRod", "SuperRod"]:

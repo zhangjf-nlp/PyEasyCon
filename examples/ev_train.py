@@ -11,9 +11,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from dataclasses import dataclass
 from typing import List
 
-from easycon.context import ScriptContext
+from easycon.context import ScriptContext, sleep
 from gui import run_script
-from script_utils.hit import sleep
 from rng.tenlines_utils import get_encounter
 from vision.sprite import identify_pokemon, preload_sprites
 from script_utils.navigation import run_away, in_wild

@@ -4,11 +4,10 @@ import time
 from typing import Any, Dict, List, Optional, Tuple
 
 from easycon.config import get
-from easycon.context import ScriptContext
+from easycon.context import ScriptContext, sleep
 from rng.calibration import calibrate, RNGAttempt
 from rng.config import RNGConfig, SessionState, RNGSlot, RNGDisplacement
 from rng.tenlines_utils import IVsObservation, get_species_id, get_personal, iv_calculator
-from script_utils.hit import sleep
 
 
 def n_combos(lo: List[int], hi: List[int]) -> int:

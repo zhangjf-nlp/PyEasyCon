@@ -71,7 +71,7 @@ CATEGORY_ZH_TO_EN = {
 CATEGORY_EN_TO_ZH = {v: k for k, v in CATEGORY_ZH_TO_EN.items()}
 
 # 静态宝可梦中英文映射
-_STATIC_POKEMON_ZH = {
+STATIC_POKEMON_ZH = {
     "Omanyte": "菊石兽", "Kabuto": "化石盔", "Aerodactyl": "化石翼龙",
     "Eevee": "伊布", "Lapras": "拉普拉斯",
     "Abra": "凯西", "Clefairy": "皮皮", "Scyther": "飞天螳螂",
@@ -137,7 +137,7 @@ def _get_all_locations() -> dict:
 
 
 # 地点中英文映射（严格对齐 ten-lines 汉化版 PokeFinder frlg_zh.txt）
-_LOCATION_EN_TO_ZH = {
+LOCATION_EN_TO_ZH = {
     # 道路
     "Route 1": "1号道路", "Route 2": "2号道路", "Route 3": "3号道路",
     "Route 4": "4号道路", "Route 5": "5号道路", "Route 6": "6号道路",
@@ -236,15 +236,15 @@ _LOCATION_EN_TO_ZH = {
     "One Island": "第1岛", "Four Island": "第4岛", "Five Island": "第5岛",
     "Six Island Altering Cave": "变幻洞窟",
 }
-_LOCATION_ZH_TO_EN = {v: k for k, v in _LOCATION_EN_TO_ZH.items()}
+LOCATION_ZH_TO_EN = {v: k for k, v in LOCATION_EN_TO_ZH.items()}
 
 
 def _location_to_zh(en_name: str) -> str:
-    return _LOCATION_EN_TO_ZH.get(en_name, en_name)
+    return LOCATION_EN_TO_ZH.get(en_name, en_name)
 
 
 def _location_to_en(zh_name: str) -> str:
-    return _LOCATION_ZH_TO_EN.get(zh_name, zh_name)
+    return LOCATION_ZH_TO_EN.get(zh_name, zh_name)
 
 
 def _read_calibration_limits():
@@ -1206,7 +1206,7 @@ class RNGGui:
         if method == "Static" and category:
             pokemon_list = STATIC_POKEMON_MAP.get(category, [])
             if self.use_zh:
-                return [_STATIC_POKEMON_ZH.get(p, p) for p in pokemon_list]
+                return [STATIC_POKEMON_ZH.get(p, p) for p in pokemon_list]
             return pokemon_list
         if method == "Wild" and location and category:
             game_label = self.game_combo.get_value()
@@ -1804,6 +1804,7 @@ class RNGGui:
                 target=RNGSlot(seed_int, 0, data["advances"]),
                 seed_bias=-4000,
                 advances_bias=-10000,
+                normal_ms_min=_compute_normal_ms_min(data["category"], data["pokemon"], location),
             )
         except KeyError as e:
             errors.append(f"Seed {data['seed']} 不在种子表中")
@@ -1859,7 +1860,7 @@ class RNGGui:
 
         # 标题
         title_font = _get_font(11)
-        title = title_font.render("EasyCon RNG 配置", True, C_TEXT_DIM)
+        title = title_font.render("PyEasyCon RNG Configuration", True, C_TEXT_DIM)
         self.screen.blit(title, (self.W - title.get_width() - 20, self.H - 28))
 
         pygame.display.flip()
@@ -1888,17 +1889,38 @@ class RNGGui:
 
 # ── 脚本生成与运行 ────────────────────────────────────
 
-def _compute_normal_ms_min(category: str, pokemon: str) -> int:
-    if category in ("OldRod", "GoodRod", "SuperRod"):
+SAFARI_ZONE_EXTRA_MS = {
+    ("Safari Zone Center", "Grass"):   16000,
+    ("Safari Zone Center", "Surfing"): 23000,
+    ("Safari Zone Center", "Rod"):     18000,
+    ("Safari Zone East", "Grass"):     27000,
+    ("Safari Zone East", "Surfing"):   39000,
+    ("Safari Zone East", "Rod"):       33000,
+    ("Safari Zone North", "Grass"):    31000,
+    ("Safari Zone North", "Surfing"):  41000,
+    ("Safari Zone North", "Rod"):      36000,
+    ("Safari Zone West", "Grass"):     38000,
+    ("Safari Zone West", "Surfing"):   45000,
+    ("Safari Zone West", "Rod"):       40000,
+}
+
+
+def _compute_normal_ms_min(category: str, pokemon: str, location: str = "") -> int:
+    if location.startswith("Safari Zone"):
+        category = "Rod" if category.endswith("Rod") else category
+        safari_extra = SAFARI_ZONE_EXTRA_MS[(location, category)]
+        return (20000 if category == "Rod" else 10000) + safari_extra
+    elif category in ("OldRod", "GoodRod", "SuperRod"):
         return 20000
-    if category == "Game Corner":
+    elif category == "Game Corner":
         return 15000
-    if category in ("Gift", "Stationary", "Legend", "Fossil", "Event"):
+    elif category in ("Gift", "Stationary", "Legend", "Fossil", "Event"):
         extra = EXTRA_A_PRESSES.get(pokemon, 0)
         if pokemon == "Ho-Oh":
             extra += 2
         return 10000 + 3000 * max(extra, 0)
-    return 10000
+    else:
+        raise NotImplementedError(category)
 
 
 def _generate_script(data: dict):
@@ -1906,7 +1928,7 @@ def _generate_script(data: dict):
     rng_method = METHOD_OPTIONS[data["method"]]["rng_method"]
     location = data["location"] if data["method"] == "Wild" else data["category"]
     seed_hex = data["seed"].upper()
-    normal_ms_min = _compute_normal_ms_min(data["category"], data["pokemon"])
+    normal_ms_min = _compute_normal_ms_min(data["category"], data["pokemon"], location)
 
     script = f'''# -*- coding: utf-8 -*-
 import sys, os

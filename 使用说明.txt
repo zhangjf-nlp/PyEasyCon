@@ -31,3 +31,8 @@
 3. 双击start_vllm.bat，配置vllm环境，下载并部署OCR模型（大约15分钟）
 
 上述安装成功后，后续只需要双击start_vllm.bat，即可快速启动OCR模型，秒出OCR结果
+
+### 更新版本
+
+1. 打开命令行，切换到PyEasyCon目录
+2. 输入：Git\bin\git.exe fetch --all，自动下载最新代码，这一步可能需要重试多次才成功

@@ -9,6 +9,21 @@ from .protocol import GamePadKey, Direction, SwitchButton, SwitchHAT, SwitchStic
 from .serial_transport import EzDvCommand, Reply
 
 
+def sleep(seconds: float, end: Optional[float] = None) -> None:
+    start = time.time()
+    if end is None:
+        mid = start + seconds - 0.1
+        end = start + seconds
+    else:
+        mid = end - 0.1
+    while True:
+        if time.time() >= mid:
+            if time.time() >= end:
+                return
+        else:
+            time.sleep(0.05)
+
+
 class EasyConController:
     MINIMAL_INTERVAL = 30
 
@@ -240,7 +255,7 @@ class EasyConController:
 
     def click(self, key: GamePadKey, duration_ms: int = 50):
         self.press(key)
-        self._delay(duration_ms)
+        sleep(duration_ms / 1000)
         self.release(key)
 
     def set_stick(self, stick: GamePadKey, x: int, y: int):
@@ -260,7 +275,7 @@ class EasyConController:
 
     def click_stick(self, stick: GamePadKey, x: int, y: int, duration_ms: int = 50):
         self.set_stick(stick, x, y)
-        self._delay(duration_ms)
+        sleep(duration_ms / 1000)
         self.set_stick(stick, SwitchStick.STICK_CENTER, SwitchStick.STICK_CENTER)
 
     def push_direction(self, direction: Direction, duration_ms: int = 50):
@@ -268,11 +283,6 @@ class EasyConController:
 
     def reset(self):
         self.release_all()
-
-    def _delay(self, ms: int):
-        if ms <= 0:
-            return
-        time.sleep(ms / 1000.0)
 
     def a(self, duration_ms: int = 50): self.click(GamePadKey.A, duration_ms)
     def b(self, duration_ms: int = 50): self.click(GamePadKey.B, duration_ms)
@@ -299,9 +309,6 @@ class EasyConController:
 
     def rstick(self, x: int, y: int, duration_ms: int = 50):
         self.click_stick(GamePadKey.RS, x, y, duration_ms)
-
-    def wait(self, ms: int):
-        time.sleep(ms / 1000.0)
 
     # ============== 高级控制器命令 ==============
 
