@@ -1906,19 +1906,19 @@ SAFARI_ZONE_EXTRA_MS = {
 
 
 def _compute_normal_ms_min(category: str, pokemon: str, location: str = "") -> int:
+    category = "Rod" if category.endswith("Rod") else category
     if location.startswith("Safari Zone"):
-        category = "Rod" if category.endswith("Rod") else category
         safari_extra = SAFARI_ZONE_EXTRA_MS[(location, category)]
-        return (12000 if category == "Rod" else 10000) + safari_extra
-    elif category in ("OldRod", "GoodRod", "SuperRod"):
-        return 12000
-    elif category == "Game Corner":
+        return (15000 if category == "Rod" else 10000) + safari_extra
+    elif category in ("Rod", "Game Corner"):
         return 15000
     elif category in ("Gift", "Stationary", "Legend", "Fossil", "Event"):
         extra = EXTRA_A_PRESSES.get(pokemon, 0)
         if pokemon == "Ho-Oh":
             extra += 2
         return 10000 + 3000 * max(extra, 0)
+    elif category in ("Grass", "Surfing"):
+        return 10000
     else:
         raise NotImplementedError(category)
 
