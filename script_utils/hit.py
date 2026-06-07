@@ -54,10 +54,9 @@ def hit_rod(ctx: ScriptContext, cfg: RNGConfig) -> None:
     end = start + cfg.schedule.advances_ms_normal / 1000.0
     ctx.press("X")
     sleep(1.0)
-    ctx.press("DOWN")
-    sleep(0.5)
-    ctx.press("DOWN")
-    sleep(0.5)
+    for _ in range(3 if cfg.rng_location.startswith("Safari Zone") else 2):
+        ctx.press("DOWN")
+        sleep(0.5)
     ctx.press("A")
     sleep(1.0)
     ctx.press("RIGHT")
@@ -145,7 +144,7 @@ def hit(ctx: ScriptContext, cfg: RNGConfig) -> bool:
     
     if cfg.rng_location.startswith("Safari Zone"):
         zone = cfg.rng_location.split()[-1].lower()
-        category = "Rod" if category.endswith("Rod") else category
+        category = "Rod" if cfg.rng_category.endswith("Rod") else cfg.rng_category
         navigate_safari_zone(ctx, f"{zone}_{category}")
 
     if cfg.rng_category in ["Grass", "Surfing"]:

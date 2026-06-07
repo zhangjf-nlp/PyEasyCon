@@ -179,6 +179,6 @@ def navigate_safari_zone(ctx: ScriptContext, target: str):
     
     navigate(
         ctx=ctx,
-        route_map=target_route_map[target],
+        route_map=target_route_map[target.lower()],
         current_direction=current_direction
     )

@@ -20,7 +20,6 @@ def main(ctx: ScriptContext) -> None:
             start = time.time()
             navigate_safari_zone(ctx, f"{zone}_{category}")
             end = time.time()
-            ctx.screen_record_end()
             seconds = int(end - start)
             save_path = f"screen_records/{zone}_{category}_{seconds}s.mp4"
             ctx.screen_record_save(save_path)

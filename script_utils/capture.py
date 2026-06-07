@@ -5,8 +5,10 @@ from typing import Any, Optional, Tuple
 import cv2
 import numpy as np
 
+from assets.sprites.convert_to_il import label_name
 from easycon.context import ScriptContext, sleep
 from rng.config import RNGConfig, SessionState
+from script_utils.navigation import in_wild
 from vision.sprite import identify_pokemon as _identify, detect_gba_area, SPRITE_NATIVE
 from rng.tenlines_utils import get_species_en_name, get_species_id, get_species_zh_name, get_encounter_species_list
 
@@ -140,7 +142,7 @@ def catch_with_ball(ctx: ScriptContext) -> bool:
             sleep(1.0)
             if ctx.search_label("FRLG关键词Bag", 90):
                 break
-            if ctx.search_label("FRLG关键词Gotcha", 90):
+            if ctx.search_label("FRLG关键词Gotcha", 80):
                 return True
         else:
             ctx.log("界面异常退出")
@@ -148,8 +150,72 @@ def catch_with_ball(ctx: ScriptContext) -> bool:
     return False
 
 
-def check_last_pokemon(ctx: ScriptContext) -> None:
-    ctx.log("查看末位精灵...")
+def catch_with_safari_strategy(ctx: ScriptContext, pokemon_en: str):
+    ctx.log(f"尝试捕获{pokemon_en}...")
+    for _ in range(30):
+        ctx.press("B")
+        sleep(0.5)
+        if ctx.search_label("FRLG狩猎区选中Ball"):
+            break
+    
+    if pokemon_en in ["Chansey", "Kangaskhan", "Dragonair", "Pinsir", "Scyther", "Tauros"]:
+        strategy = "🍯🍯⚾️⚾️⚾️🍯⚾️⚾️🍯⚾️⚾️⚾️🍯⚾️⚾️🍯⚾️⚾️⚾️🍯⚾️⚾️🍯⚾️⚾️⚾️🍯⚾️⚾️🍯⚾️⚾️⚾️🍯⚾️⚾️🍯⚾️⚾️⚾️⚾️🪨⚾️"
+    elif pokemon_en in ["Dratini"]:
+        strategy = "🍯🍯⚾️⚾️🍯⚾️⚾️⚾️🍯⚾️⚾️🍯⚾️⚾️🍯⚾️⚾️🍯⚾️⚾️⚾️🍯⚾️⚾️🍯⚾️⚾️🍯⚾️⚾️🍯⚾️⚾️⚾️🍯⚾️⚾️🍯⚾️⚾️⚾️⚾️🪨⚾️"
+    elif pokemon_en in ["Seaking", "Parasect", "Venomoth"]:
+        strategy = "🍯🍯⚾️⚾️🍯⚾️⚾️⚾️🍯⚾️⚾️🍯⚾️⚾️🍯⚾️⚾️⚾️🍯⚾️⚾️🍯⚾️⚾️🍯⚾️⚾️⚾️🍯⚾️⚾️🍯⚾️⚾️🍯⚾️⚾️⚾️🍯⚾️⚾️🪨⚾️⚾️"
+    elif pokemon_en in ["Exeggcute", "Nidorino", "Nidorina", "Rhyhorn"]:
+        strategy = "⚾️⚾️⚾️⚾️⚾️⚾️⚾️⚾️⚾️⚾️⚾️⚾️⚾️⚾️⚾️⚾️⚾️⚾️⚾️⚾️⚾️⚾️⚾️⚾️⚾️⚾️⚾️⚾️🪨⚾️⚾️"
+    elif pokemon_en in ["Psyduck", "Slowpoke", "Paras", "Venonat", "Doduo"]:
+        strategy = "⚾️⚾️⚾️⚾️⚾️⚾️⚾️⚾️⚾️⚾️⚾️⚾️⚾️⚾️⚾️⚾️⚾️⚾️⚾️⚾️⚾️⚾️⚾️⚾️⚾️⚾️⚾️⚾️⚾️🪨⚾️"
+    elif pokemon_en in ["Magikarp", "Goldeen", "Nidoran♀", "Nidoran♂", "Poliwag"]:
+        strategy = "⚾️⚾️⚾️⚾️⚾️⚾️⚾️⚾️⚾️⚾️⚾️⚾️⚾️⚾️⚾️⚾️⚾️⚾️⚾️⚾️⚾️⚾️⚾️⚾️⚾️⚾️⚾️⚾️⚾️⚾️"
+    else:
+        raise NotImplementedError(pokemon_en)
+    
+    ctx.log(f"捕获策略：{strategy}")
+    for action in strategy:
+        button_a, button_b, label = {
+            "⚾️": ("UP", "LEFT", "FRLG狩猎区选中Ball"),
+            "🍯": ("UP", "RIGHT", "FRLG狩猎区选中Bait"),
+            "🪨": ("DOWN", "LEFT", "FRLG狩猎区选中Rock"),
+        }[action]
+        for _ in range(30):
+            ctx.press("B")
+            sleep(0.3)
+            ctx.press(button_a)
+            sleep(0.3)
+            ctx.press(button_b)
+            sleep(0.3)
+            if ctx.search_label(label, 80):
+                break
+        else:
+            ctx.log("异常画面退出")
+            return False
+        
+        sleep(0.3)
+        ctx.press("A")
+        for _ in range(5):
+            sleep(1.0)
+            if not ctx.search_label(label, 80):
+                break
+        
+        for _ in range(30):
+            sleep(1.0)
+            if ctx.search_label("FRLG关键词Gotcha", 80):
+                return True
+            if in_wild(ctx):
+                return False
+            if ctx.search_label(label, 80):
+                break
+        else:
+            ctx.log("异常画面")
+            return False
+    
+    return False
+
+
+def open_pokemon_menu(ctx: ScriptContext) -> None:
     for _ in range(20):
         ctx.press("B")
         sleep(0.5)
@@ -157,19 +223,23 @@ def check_last_pokemon(ctx: ScriptContext) -> None:
         sleep(0.5)
         ctx.press("X")
         sleep(1.0)
-        if ctx.search_label("FRLG菜单", 95):
+        if ctx.search_label("FRLG菜单", 90):
             break
-    if ctx.search_label("FRLG关键词BAG选中", 95):
-        ctx.press("UP")
-        sleep(0.5)
     for _ in range(20):
-        if ctx.search_label("FRLG关键词POKeMON选中", 90):
-            break
-        ctx.press("DOWN")
         sleep(0.5)
-    sleep(2.0)
+        if ctx.search_label("FRLG关键词BAG选中", 90):
+            break
+        else:
+            ctx.press("DOWN")
+    ctx.press("UP")
+    sleep(1.0)
     ctx.press("A")
-    sleep(1.8)
+
+
+def check_last_pokemon(ctx: ScriptContext) -> None:
+    ctx.log("查看末位精灵...")
+    open_pokemon_menu(ctx)
+    sleep(2.0)
     ctx.press("UP")
     sleep(1.0)
     ctx.press("UP")

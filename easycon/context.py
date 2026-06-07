@@ -294,7 +294,11 @@ class ScriptContext:
             self._record_thread = None
 
     def screen_record_save(self, save_path: str = None):
-        """保存录制的视频，默认保存至 screen_record/{timestamp}.mp4"""
+        """结束录制，保存录制的视频，默认保存至 screen_record/{timestamp}.mp4"""
+        self._recording = False
+        if self._record_thread:
+            self._record_thread.join(timeout=2.0)
+            self._record_thread = None
         if not self._record_frames:
             self.log("没有录制帧可保存")
             return

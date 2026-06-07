@@ -16,6 +16,7 @@ from gui import run_script
 from rng.tenlines_utils import get_encounter
 from vision.sprite import identify_pokemon, preload_sprites
 from script_utils.navigation import run_away, in_wild
+from script_utils.capture import open_pokemon_menu
 
 _BASEPOINTS_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
@@ -157,19 +158,7 @@ def search_and_take_meowth_items(ctx: ScriptContext, item_counts: dict) -> None:
 
 
 def navigate_to_sweet_scent(ctx: ScriptContext, item_counts: dict) -> bool:
-    ctx.press("X")
-    sleep(1.0)
-
-    for _ in range(10):
-        if ctx.search_label("FRLG关键词POKeMON选中", 98):
-            break
-        ctx.press("DOWN")
-        sleep(0.8)
-    else:
-        ctx.log("无法定位到POKeMON菜单")
-        return False
-
-    ctx.press("A")
+    open_pokemon_menu(ctx)
     sleep(2.0)
 
     # 判断是否有喵喵携带物品
@@ -293,19 +282,7 @@ def heal_pokemon(ctx: ScriptContext, cfg: EVTrainConfig) -> bool:
     if not in_wild(ctx):
         return False
     
-    ctx.press("X")
-    sleep(1.0)
-
-    for _ in range(10):
-        if ctx.search_label("FRLG关键词POKeMON选中", 98):
-            break
-        ctx.press("DOWN")
-        sleep(0.8)
-    else:
-        ctx.log("无法定位到POKeMON菜单")
-        return False
-
-    ctx.press("A")
+    open_pokemon_menu(ctx)
     sleep(2.0)
 
     ctx.press("UP")
