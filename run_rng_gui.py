@@ -1909,9 +1909,9 @@ def _compute_normal_ms_min(category: str, pokemon: str, location: str = "") -> i
     if location.startswith("Safari Zone"):
         category = "Rod" if category.endswith("Rod") else category
         safari_extra = SAFARI_ZONE_EXTRA_MS[(location, category)]
-        return 10000 + safari_extra
+        return (12000 if category == "Rod" else 10000) + safari_extra
     elif category in ("OldRod", "GoodRod", "SuperRod"):
-        return 10000
+        return 12000
     elif category == "Game Corner":
         return 15000
     elif category in ("Gift", "Stationary", "Legend", "Fossil", "Event"):
