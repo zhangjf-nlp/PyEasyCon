@@ -4,18 +4,18 @@ import numpy as np
 
 from rng.tenlines_utils import (
     calibration as tenlines_calibration,
-    GameSettings, IVsObservation, NATURES, METHOD_NAMES,
+    IVsObservation, NATURES, METHOD_NAMES,
 )
 from rng.config import RNGConfig, SessionState, RNGSlot, SEED_PERIOD, ADV_PERIOD
 
 WIDE_SEED_BIAS = 3000
 WIDE_ADV_BIAS = 30000
 
-_NATURES_LOWER = {n.lower(): n for n in NATURES}
+NATURES_LOWER = {n.lower(): n for n in NATURES}
 
 
-def _make_slots(results: List) -> List[RNGSlot]:
-    return [RNGSlot(int(r.seed, 16), r.seed_time, r.advances) for r in results]
+def make_slots(results: List) -> List[RNGSlot]:
+    return [RNGSlot(int(r.seed, 16), r.seed_time, r.advances, METHOD_NAMES.get(r.method, f"Method {r.method}")) for r in results]
 
 
 def parse_entries(
@@ -35,7 +35,7 @@ def parse_entries(
         if st == "CAUGHT_INFO":
             n = (ocr.get("nature") or "").strip()
             if n:
-                nature = _NATURES_LOWER.get(n.lower(), n)
+                nature = NATURES_LOWER.get(n.lower(), n)
             g = (ocr.get("gender") or "").strip().lower()
             if g in ("male", "m"):
                 gender = "M"
@@ -79,23 +79,17 @@ class RNGAttempt:
             location=self.cfg.rng_location, category=self.cfg.rng_category,
             ivs_observations=self.obs_list, pokemon=self.pokemon, level=self.caught_level,
         )
-        self.slots = _make_slots(results)
-        self._method_of = {}
-        for r in results:
-            key = (int(r.seed, 16), r.seed_time, r.advances)
-            self._method_of[key] = METHOD_NAMES.get(r.method, f"Method {r.method}")
+        self.slots = make_slots(results)
 
         if len(self.slots) == 0:
             print(f"[classify] #{self.id} -> empty")
         elif self.is_precise:
-            method_name = self._method_of.get((self.slots[0].seed_hex, self.slots[0].seed_time, self.slots[0].advances), "?")
-            print(f"[classify] #{self.id} -> precise ({method_name}) | unique {self.slots[0] - self.target}")
+            print(f"[classify] #{self.id} -> precise ({self.slots[0].method}) | unique {self.slots[0] - self.target}")
         else:
             for r in results:
                 print(f"[classify] #{self.id} {r}")
             nearest = self.find_nearest(self.target)
-            method_name = self._method_of.get((nearest.seed_hex, nearest.seed_time, nearest.advances), "?")
-            print(f"[classify] #{self.id} -> vague ({method_name}) | nearest (1/{len(self.slots)}) {nearest - self.target}")
+            print(f"[classify] #{self.id} -> vague ({nearest.method}) | nearest (1/{len(self.slots)}) {nearest - self.target}")
 
     @property
     def is_precise(self) -> bool:
@@ -116,6 +110,30 @@ class RNGAttempt:
         if not self.slots:
             return None
         return self.find_nearest(self.target)
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "nature": self.nature,
+            "gender": self.gender,
+            "ability": self.ability,
+            "caught_level": self.caught_level,
+            "pokemon": self.pokemon,
+            "target": {
+                "seed_hex": f"{self.target.seed_hex:04X}",
+                "seed_time": self.target.seed_time,
+                "advances": self.target.advances,
+            },
+            "slots": [
+                {
+                    "seed_hex": f"{s.seed_hex:04X}",
+                    "seed_time": s.seed_time,
+                    "advances": s.advances,
+                    "method": s.method,
+                }
+                for s in self.slots
+            ],
+        }
 
 
 def calibrate(cfg: RNGConfig, state: SessionState) -> dict:
@@ -163,14 +181,14 @@ def calibrate(cfg: RNGConfig, state: SessionState) -> dict:
     )
 
     observed_slots: List[RNGSlot] = []
+    calibration_lines: List[str] = []
     for attempt in attempts:
         nearest = attempt.find_nearest(anchor)
         observed_slots.append(nearest)
         disp = nearest - target
-        method_name = attempt._method_of.get((nearest.seed_hex, nearest.seed_time, nearest.advances), "?")
-        print(
-            f"[calibrate] #{attempt.id}: {nearest} ({method_name}) -> {disp}"
-        )
+        line = f"[calibrate] #{attempt.id}: {nearest} ({nearest.method}) -> {disp}"
+        print(line)
+        calibration_lines.append(line)
 
     deltas = np.array([(obs - target).to_array() for obs in observed_slots])
     median_deltas = np.median(deltas, axis=0)
@@ -205,4 +223,5 @@ def calibrate(cfg: RNGConfig, state: SessionState) -> dict:
         "ds": ds,
         "dt": dt,
         "dn": dn,
+        "calibration_lines": calibration_lines,
     }

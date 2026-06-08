@@ -14,20 +14,20 @@ from .tenlines import (
 # ============================================================
 # Data loading: personal info, species/ability names
 # ============================================================
-_personal_data: Optional[List[dict]] = None
-_species_names: Optional[List[str]] = None
-_ability_names: Optional[List[str]] = None
+personal_data: Optional[List[dict]] = None
+species_names_cache: Optional[List[str]] = None
+ability_names_cache: Optional[List[str]] = None
 
-def _get_data_dir() -> str:
+def get_data_dir() -> str:
     import os
     return os.path.join(os.path.dirname(os.path.abspath(__file__)), "resources")
 
-def _load_personal() -> List[dict]:
-    global _personal_data
-    if _personal_data is not None:
-        return _personal_data
+def load_personal_internal() -> List[dict]:
+    global personal_data
+    if personal_data is not None:
+        return personal_data
     import os
-    data_dir = _get_data_dir()
+    data_dir = get_data_dir()
     bin_path = os.path.join(data_dir, "Personal", "Gen3", "personal_rsefrlg.bin")
     with open(bin_path, 'rb') as f:
         data = f.read()
@@ -42,35 +42,35 @@ def _load_personal() -> List[dict]:
             "gender": gender,
             "abilities": (ability1, ability2),
         })
-    _personal_data = entries
-    return _personal_data
+    personal_data = entries
+    return personal_data
 
-def _load_species_names() -> List[str]:
-    global _species_names
-    if _species_names is not None:
-        return _species_names
+def load_species_names_internal() -> List[str]:
+    global species_names_cache
+    if species_names_cache is not None:
+        return species_names_cache
     import os
-    data_dir = _get_data_dir()
+    data_dir = get_data_dir()
     txt_path = os.path.join(data_dir, "i18n", "en", "species_en.txt")
     with open(txt_path, 'r', encoding='utf-8-sig') as f:
         names = [line.strip() for line in f if line.strip()]
-    _species_names = ["Egg"] + names
-    return _species_names
+    species_names_cache = ["Egg"] + names
+    return species_names_cache
 
-def _load_ability_names() -> List[str]:
-    global _ability_names
-    if _ability_names is not None:
-        return _ability_names
+def load_ability_names_internal() -> List[str]:
+    global ability_names_cache
+    if ability_names_cache is not None:
+        return ability_names_cache
     import os
-    data_dir = _get_data_dir()
+    data_dir = get_data_dir()
     txt_path = os.path.join(data_dir, "i18n", "en", "abilities_en.txt")
     with open(txt_path, 'r') as f:
         names = [line.strip() for line in f if line.strip()]
-    _ability_names = names
-    return _ability_names
+    ability_names_cache = names
+    return ability_names_cache
 
 def get_species_name(species: int) -> str:
-    names = _load_species_names()
+    names = load_species_names_internal()
     return names[species] if 0 <= species < len(names) else str(species)
 
 def get_species_id(name_or_id: str) -> int:
@@ -78,7 +78,7 @@ def get_species_id(name_or_id: str) -> int:
         return int(name_or_id)
     except ValueError:
         pass
-    names = _load_species_names()
+    names = load_species_names_internal()
     lower = name_or_id.lower()
     for i, n in enumerate(names):
         if n.lower() == lower:
@@ -86,24 +86,24 @@ def get_species_id(name_or_id: str) -> int:
     raise ValueError(f"Unknown species: {name_or_id}")
 
 def get_ability_name(ability_id: int) -> str:
-    names = _load_ability_names()
+    names = load_ability_names_internal()
     idx = ability_id - 1
     return names[idx] if 0 <= idx < len(names) else str(ability_id)
 
 # Deoxys form-specific base stats. In FR, Deoxys is viewed as Attack Form;
 # in LG, as Defense Form. The personal data file stores one form only.
-_DEOXYS_ATTACK_STATS = (50, 180, 20, 180, 20, 150)
-_DEOXYS_DEFENSE_STATS = (50, 70, 160, 70, 160, 90)
+DEOXYS_ATTACK_STATS = (50, 180, 20, 180, 20, 150)
+DEOXYS_DEFENSE_STATS = (50, 70, 160, 70, 160, 90)
 
 def get_personal(species: int, game: str = None) -> dict:
-    entries = _load_personal()
+    entries = load_personal_internal()
     if 0 <= species < len(entries):
         entry = entries[species]
     else:
         return {"stats": (0,0,0,0,0,0), "gender": 127, "abilities": (0,0)}
     # Deoxys (386): FR uses Attack Form stats, LG uses Defense Form stats for IV calc
     if species == 386 and game is not None:
-        stats = _DEOXYS_ATTACK_STATS if game.startswith("fr") else _DEOXYS_DEFENSE_STATS
+        stats = DEOXYS_ATTACK_STATS if game.startswith("fr") else DEOXYS_DEFENSE_STATS
         return {
             "stats": stats,
             "gender": entry["gender"],
@@ -145,7 +145,7 @@ def get_seed_time(seed_hex: str, game: str = "fr_nx", game_settings = None) -> i
     return sm[unoffset_seed][0]['seed_time']
 
 
-from modules.species_zh import _SPECIES_EN_TO_ZH
+from modules.species_zh import _SPECIES_EN_TO_ZH as SPECIES_EN_TO_ZH
 
 
 def get_species_zh_name(species_or_name) -> str:
@@ -154,17 +154,17 @@ def get_species_zh_name(species_or_name) -> str:
         en_name = get_species_name(species_or_name)
     else:
         en_name = species_or_name
-    if en_name in _SPECIES_EN_TO_ZH:
-        return _SPECIES_EN_TO_ZH[en_name]
+    if en_name in SPECIES_EN_TO_ZH:
+        return SPECIES_EN_TO_ZH[en_name]
     return en_name
 
 
 # 反向映射：中文名 → 英文名
-_ZH_TO_EN = {zh: en for en, zh in _SPECIES_EN_TO_ZH.items()}
+ZH_TO_EN = {zh: en for en, zh in SPECIES_EN_TO_ZH.items()}
 
 def get_species_en_name(zh_name: str) -> str:
     """中文名 → 英文名，查找失败返回原值。"""
-    return _ZH_TO_EN.get(zh_name, zh_name)
+    return ZH_TO_EN.get(zh_name, zh_name)
 
 
 def get_encounter_species_list(location: str, category: str, game_version: str = "fr_nx") -> list:
@@ -184,9 +184,9 @@ def get_encounter_species_list(location: str, category: str, game_version: str =
 # Encounter data (wild encounters)
 # ============================================================
 import json, os
-_encounter_cache: dict = {}
+encounter_cache: dict = {}
 
-_FRLG_MAP_TO_LOCATION = {
+FRLG_MAP_TO_LOCATION = {
     "MAP_ROUTE1": "Route 1", "MAP_ROUTE2": "Route 2", "MAP_ROUTE3": "Route 3",
     "MAP_ROUTE4": "Route 4", "MAP_ROUTE5": "Route 5", "MAP_ROUTE6": "Route 6",
     "MAP_ROUTE7": "Route 7", "MAP_ROUTE8": "Route 8", "MAP_ROUTE9": "Route 9",
@@ -269,8 +269,8 @@ _FRLG_MAP_TO_LOCATION = {
     "MAP_FIVE_ISLAND_LOST_CAVE_ITEM_ROOM": "Five Island Lost Cave Item Room",
 }
 
-def _load_frlg_encounters(game_version: str = "fr_nx") -> dict:
-    data_dir = _get_data_dir()
+def load_frlg_encounters(game_version: str = "fr_nx") -> dict:
+    data_dir = get_data_dir()
     json_path = os.path.join(data_dir, "EncounterTables", "Gen3", "frlg", "wild_encounters.json")
     with open(json_path, 'r') as f:
         encounters = json.load(f)
@@ -281,7 +281,7 @@ def _load_frlg_encounters(game_version: str = "fr_nx") -> dict:
         if version_filter not in base:
             continue
         map_name = enc.get("map", "")
-        location_name = _FRLG_MAP_TO_LOCATION.get(map_name)
+        location_name = FRLG_MAP_TO_LOCATION.get(map_name)
         if location_name is None:
             continue
         for enc_type, key_suffix in [("land_mons", "Grass"), ("water_mons", "Surfing")]:
@@ -315,11 +315,11 @@ def _load_frlg_encounters(game_version: str = "fr_nx") -> dict:
 
 def get_encounter(location: str, category: str, game_version: str = "fr_nx") -> Optional[dict]:
     cache_key = (location, category, game_version)
-    if cache_key in _encounter_cache:
-        return _encounter_cache[cache_key]
-    all_encounters = _load_frlg_encounters(game_version)
+    if cache_key in encounter_cache:
+        return encounter_cache[cache_key]
+    all_encounters = load_frlg_encounters(game_version)
     result = all_encounters.get((location, category))
-    _encounter_cache[cache_key] = result
+    encounter_cache[cache_key] = result
     return result
 
 
@@ -372,21 +372,21 @@ class IVsObservation:
     sp_defense: int = 0
     speed: int = 0
 
-_SOUND_LABEL_TO_VALUE = {"Mono": "mono", "Stereo": "stereo"}
-_SOUND_VALUE_TO_LABEL = {v: k for k, v in _SOUND_LABEL_TO_VALUE.items()}
+SOUND_LABEL_TO_VALUE = {"Mono": "mono", "Stereo": "stereo"}
+SOUND_VALUE_TO_LABEL = {v: k for k, v in SOUND_LABEL_TO_VALUE.items()}
 
-_BUTTON_MODE_LABEL_TO_VALUE = {"L=A": "a", "Help": "h", "LR": "r"}
-_BUTTON_MODE_VALUE_TO_LABEL = {v: k for k, v in _BUTTON_MODE_LABEL_TO_VALUE.items()}
+BUTTON_MODE_LABEL_TO_VALUE = {"L=A": "a", "Help": "h", "LR": "r"}
+BUTTON_MODE_VALUE_TO_LABEL = {v: k for k, v in BUTTON_MODE_LABEL_TO_VALUE.items()}
 
-_SEED_BUTTON_LABEL_TO_VALUE = {"A": "a", "Start": "start", "L (L=A)": "l"}
-_SEED_BUTTON_VALUE_TO_LABEL = {v: k for k, v in _SEED_BUTTON_LABEL_TO_VALUE.items()}
+SEED_BUTTON_LABEL_TO_VALUE = {"A": "a", "Start": "start", "L (L=A)": "l"}
+SEED_BUTTON_VALUE_TO_LABEL = {v: k for k, v in SEED_BUTTON_LABEL_TO_VALUE.items()}
 
-_EXTRA_BUTTON_LABEL_TO_VALUE = {
+EXTRA_BUTTON_LABEL_TO_VALUE = {
     "None": "none", "Startup Select": "startup_select", "Startup A": "startup_a",
     "Blackout R": "blackout_r", "Blackout A": "blackout_a", "Blackout L": "blackout_l",
     "Blackout A+L": "blackout_al",
 }
-_EXTRA_BUTTON_VALUE_TO_LABEL = {v: k for k, v in _EXTRA_BUTTON_LABEL_TO_VALUE.items()}
+EXTRA_BUTTON_VALUE_TO_LABEL = {v: k for k, v in EXTRA_BUTTON_LABEL_TO_VALUE.items()}
 
 
 @dataclass
@@ -423,19 +423,19 @@ class GameSettings:
             raise ValueError(f"Expected 'Extra Button: ...', got {extra_button_raw!r}")
         extra_button_label = extra_button_raw[len("Extra Button: "):]
 
-        sound = _SOUND_LABEL_TO_VALUE.get(sound_label)
+        sound = SOUND_LABEL_TO_VALUE.get(sound_label)
         if sound is None:
             raise ValueError(f"Unknown sound: {sound_label!r}")
 
-        button_mode = _BUTTON_MODE_LABEL_TO_VALUE.get(button_mode_label)
+        button_mode = BUTTON_MODE_LABEL_TO_VALUE.get(button_mode_label)
         if button_mode is None:
             raise ValueError(f"Unknown button mode: {button_mode_label!r}")
 
-        seed_button = _SEED_BUTTON_LABEL_TO_VALUE.get(seed_button_label)
+        seed_button = SEED_BUTTON_LABEL_TO_VALUE.get(seed_button_label)
         if seed_button is None:
             raise ValueError(f"Unknown seed button: {seed_button_label!r}")
 
-        extra_button = _EXTRA_BUTTON_LABEL_TO_VALUE.get(extra_button_label)
+        extra_button = EXTRA_BUTTON_LABEL_TO_VALUE.get(extra_button_label)
         if extra_button is None:
             raise ValueError(f"Unknown extra button: {extra_button_label!r}")
 
@@ -510,7 +510,7 @@ def parse_method(method_str: str):
 # ============================================================
 # Internal helpers
 # ============================================================
-def _resolve_ability_idx(ability_name: str, species_id: int) -> Optional[int]:
+def resolve_ability_idx(ability_name: str, species_id: int) -> Optional[int]:
     """Resolve an ability name to slot index (0 or 1) for the given species."""
     if not ability_name or ability_name.lower() == "any":
         return None
@@ -521,7 +521,7 @@ def _resolve_ability_idx(ability_name: str, species_id: int) -> Optional[int]:
     return None
 
 
-def _build_filter(ivs_range, shiny, nature, gender, hidden_type, ability_idx=None):
+def build_filter(ivs_range, shiny, nature, gender, hidden_type, ability_idx=None):
     filter_iv_min = [0]*6
     filter_iv_max = [31]*6
     if ivs_range is not None:
@@ -550,7 +550,7 @@ def _build_filter(ivs_range, shiny, nature, gender, hidden_type, ability_idx=Non
     return filter_iv_min, filter_iv_max, filter_shiny, filter_nature, filter_gender, filter_hidden_type, ability_idx
 
 
-def _enrich_slots_with_gender(encounter_data):
+def enrich_slots_with_gender(encounter_data):
     """Add gender_ratio to each slot from personal data if missing."""
     if encounter_data is None:
         return None
@@ -562,7 +562,7 @@ def _enrich_slots_with_gender(encounter_data):
     return encounter_data
 
 
-def _make_searcher_result(g, target_seed, method_name, species_name, level):
+def make_searcher_result(g, target_seed, method_name, species_name, level):
     ivs = g['ivs']
     personal = get_personal(g.get('species', 0))
     ability_id = personal["abilities"][g['ability']]
@@ -583,7 +583,7 @@ def _make_searcher_result(g, target_seed, method_name, species_name, level):
     )
 
 
-def _make_calibration_result(g, seed):
+def make_calibration_result(g, seed):
     ivs = g['ivs']
     personal = get_personal(g.get('species', 0))
     ability_id = personal["abilities"][g['ability']]
@@ -638,14 +638,14 @@ def searcher(
         seed_data = load_frlg_seed_data(game)
     methods, is_wild = parse_method(method)
     filter_iv_min, filter_iv_max, filter_shiny, filter_nature, filter_gender, filter_hidden_type, _ = \
-        _build_filter(ivs_range, shiny, nature, gender, hidden_type)
+        build_filter(ivs_range, shiny, nature, gender, hidden_type)
     encounter_data = None
     encounter_type = 0
     if is_wild:
         encounter_data = get_encounter(location, category, game)
         if encounter_data is None:
             raise ValueError(f"No encounter data for location={location} category={category}")
-        _enrich_slots_with_gender(encounter_data)
+        enrich_slots_with_gender(encounter_data)
         encounter_type = ENCOUNTER_TYPE_MAP.get(category, 0)
     filter_obj = SearcherFilter(
         natures={filter_nature} if filter_nature is not None else None,
@@ -675,7 +675,7 @@ def searcher(
             method_name = METHOD_NAMES.get(m + (4 if is_wild else 0), f"Method {m}")
             species_name = get_species_name(g.get('species', 0)) if is_wild else ""
             level = g.get('level', 0) if is_wild else 0
-            results.append(_make_searcher_result(g, target_seed, method_name, species_name, level))
+            results.append(make_searcher_result(g, target_seed, method_name, species_name, level))
     return results
 
 
@@ -846,7 +846,7 @@ def calibration(
     personal = get_personal(species_id, game)
     base_stats: Tuple[int, int, int, int, int, int] = personal["stats"]
     gender_ratio: int = personal["gender"]
-    ability_idx = _resolve_ability_idx(ability, species_id) if ability else None
+    ability_idx = resolve_ability_idx(ability, species_id) if ability else None
     # 转换为实际的 ability ID（pybind 需要 ID 而非 slot index）
     # ability 过滤在 calibration 中不可靠，始终通配
     _ = ability_idx  # 保留变量但不用
@@ -890,7 +890,7 @@ def calibration(
         encounter_data = get_encounter(location, category, game)
         if encounter_data is None:
             raise ValueError(f"No encounter data for location={location} category={category}")
-        _enrich_slots_with_gender(encounter_data)
+        enrich_slots_with_gender(encounter_data)
         encounter_type = ENCOUNTER_TYPE_MAP.get(category, 0)
         # 计算目标宝可梦对应的 encounter slot 编号
         if species_id:
@@ -899,7 +899,7 @@ def calibration(
             if matching:
                 matching_slots = matching
     filter_iv_min, filter_iv_max, filter_shiny, filter_nature, filter_gender, _, _ = \
-        _build_filter(ivs_range, shiny, nature, gender, None, ability_id)
+        build_filter(ivs_range, shiny, nature, gender, None, ability_id)
     filter_obj = SearcherFilter(
         natures={filter_nature} if filter_nature is not None else None,
         shiny=filter_shiny, gender=filter_gender,
@@ -927,5 +927,5 @@ def calibration(
                     gender_ratio=gender_ratio, filter_obj=filter_obj,
                     ttv_advances_range=ttv_range)
             for g in raw:
-                results.append(_make_calibration_result(g, s))
+                results.append(make_calibration_result(g, s))
     return results

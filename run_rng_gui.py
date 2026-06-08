@@ -19,7 +19,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import pygame
 from pygame.locals import *
 
-from rng.config import RNGConfig, RNGSlot, GameSettings, SessionState
+from rng.config import RNGConfig, RNGSlot, GameSettings
 from rng.tenlines_utils import (
     calibration as calibration_api,
     get_encounter_species_list,
@@ -27,7 +27,7 @@ from rng.tenlines_utils import (
     get_species_name,
     get_species_en_name,
     get_species_zh_name,
-    _load_frlg_encounters,
+    load_frlg_encounters,
 )
 from script_utils.hit import EXTRA_A_PRESSES
 from easycon.config import get as config_get
@@ -126,7 +126,7 @@ def _get_all_locations() -> dict:
     """合并火红和叶绿的遇敌地点列表"""
     cat_to_locs = {}
     for gv in ("fr_nx", "lg_nx"):
-        encounters = _load_frlg_encounters(gv)
+        encounters = load_frlg_encounters(gv)
         for (loc, cat), data in encounters.items():
             if cat not in cat_to_locs:
                 cat_to_locs[cat] = set()

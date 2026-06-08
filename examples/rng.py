@@ -71,12 +71,13 @@ def launch(cfg: RNGConfig, state: SessionState = None) -> None:
                     ctx.press("CAPTURE", 3000)
                     ctx.screen_record_start()
                     if catch_with_safari_strategy(ctx, pokemon_en):
+                        ctx.screen_record_save()
                         ctx.log("捕获成功!")
                         break
                     else:
+                        ctx.screen_record_save()
                         ctx.log("捕获失败...")
-                    ctx.press("CAPTURE", 3000)
-                    ctx.screen_record_save()
+                        ctx.press("CAPTURE", 3000)
                 elif state.fast_attempts:
                     state.fast_attempts -= 1
                 elif pokemon_en:

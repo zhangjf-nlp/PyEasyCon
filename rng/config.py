@@ -40,12 +40,13 @@ class RNGDisplacement:
 
 
 class RNGSlot:
-    __slots__ = ("seed_hex", "seed_time", "advances")
+    __slots__ = ("seed_hex", "seed_time", "advances", "method")
 
-    def __init__(self, seed_hex: int, seed_time: int, advances: int) -> None:
+    def __init__(self, seed_hex: int, seed_time: int, advances: int, method: str = "?") -> None:
         self.seed_hex = seed_hex
         self.seed_time = seed_time
         self.advances = advances
+        self.method = method
 
     def __sub__(self, other: "RNGSlot") -> RNGDisplacement:
         delta_s = round((self.seed_time - other.seed_time) / SEED_PERIOD)

@@ -17,7 +17,7 @@ def n_combos(lo: List[int], hi: List[int]) -> int:
     return result
 
 
-def _obs_to_iv_range(
+def obs_to_iv_range(
     obs_list: List[IVsObservation],
     base_stats: Tuple[int, int, int, int, int, int],
 ) -> Optional[Tuple[List[int], List[int]]]:
@@ -36,6 +36,7 @@ def init_log_dir(ctx: ScriptContext, state: SessionState, cfg: RNGConfig) -> str
     d = f"rng_logs/{ts}_{cfg.pokemon_species}"
     os.makedirs(d, exist_ok=True)
     os.makedirs(f"{d}/screens", exist_ok=True)
+    os.makedirs(f"{d}/attempts", exist_ok=True)
     state.log_dir = d
     ctx.log(f"新建日志目录: {d}")
 
@@ -76,7 +77,7 @@ def save_ocr(state: SessionState, ocr_result: Dict[str, Any], attempt: int, poke
     state.attempts_ocr_data.setdefault(attempt, []).append(entry)
 
 
-def _make_obs(ocr: Dict[str, Any], nature: str) -> IVsObservation:
+def make_obs(ocr: Dict[str, Any], nature: str) -> IVsObservation:
     return IVsObservation(
         nature=nature,
         level=ocr["level"],
@@ -100,6 +101,12 @@ def run_calibration(ctx: ScriptContext, state: SessionState, cfg: RNGConfig) -> 
         return
 
     result = calibrate(cfg, state)
+
+    if state.log_dir and "calibration_lines" in result:
+        results_path = f"{state.log_dir}/results.txt"
+        with open(results_path, "w", encoding="utf-8") as f:
+            for line in result["calibration_lines"]:
+                f.write(line + "\n")
 
     ds = result["ds"]
     dt = result["dt"]
@@ -180,7 +187,7 @@ def observe_pokemon(ctx: ScriptContext, state: SessionState, cfg: RNGConfig, att
     save_ocr(state, ocr_caught_iv, attempt, pokemon)
     sleep(0.5)
 
-    obs_list = [_make_obs(ocr_caught_iv, nature)]
+    obs_list = [make_obs(ocr_caught_iv, nature)]
 
     for i in range(cfg.max_candies):
         if i == 0:
@@ -237,10 +244,10 @@ def observe_pokemon(ctx: ScriptContext, state: SessionState, cfg: RNGConfig, att
         ctx.save_ocr_screenshot(f"{state.log_dir}/screens/{attempt:03d}-ELEVATEDx{i+1}.png", "ELEVATED")
         save_ocr(state, ocr_elevated, attempt, pokemon, candy_num=i + 1)
 
-        obs_list.append(_make_obs(ocr_elevated, nature))
+        obs_list.append(make_obs(ocr_elevated, nature))
         try:
             base_stats = get_personal(get_species_id(pokemon), cfg.game_version)["stats"]
-            iv_range = _obs_to_iv_range(obs_list, base_stats)
+            iv_range = obs_to_iv_range(obs_list, base_stats)
             if iv_range is not None:
                 current_n_combos = n_combos(*iv_range)
                 ctx.log(f"{len(obs_list)} IVs observations | {current_n_combos} IVs combos")
@@ -270,6 +277,11 @@ def observe_pokemon(ctx: ScriptContext, state: SessionState, cfg: RNGConfig, att
         return
 
     state.attempts[attempt] = rng_attempt
+
+    if state.log_dir:
+        attempt_path = f"{state.log_dir}/attempts/{attempt:03d}.json"
+        with open(attempt_path, "w", encoding="utf-8") as f:
+            json.dump(rng_attempt.to_dict(), f, ensure_ascii=False, indent=2)
 
     precise_count = sum(1 for a in state.attempts.values() if a.is_precise)
     vague_count = sum(1 for a in state.attempts.values() if not a.is_precise)

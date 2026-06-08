@@ -63,7 +63,7 @@ def pokerng_distance(start: int, end: int) -> int:
 # ============================================================
 # LCRNGReverse - recover seeds from IVs
 # ============================================================
-def _recover_pokerng_iv_method12(hp, atk, def_, spa, spd, spe):
+def recover_pokerng_iv_method12(hp, atk, def_, spa, spd, spe):
     add, mult = 0x6073, 0x41c64e6d
     mod, pat, inc = 0x67d3, 0xd3e, 0x4034
     first = ((hp | (atk << 5) | (def_ << 10)) << 16) & 0xFFFFFFFF
@@ -85,7 +85,7 @@ def _recover_pokerng_iv_method12(hp, atk, def_, spa, spd, spe):
     return seeds
 
 
-def _recover_pokerng_iv_method4(hp, atk, def_, spa, spd, spe):
+def recover_pokerng_iv_method4(hp, atk, def_, spa, spd, spe):
     add, mult = 0xe97e7b6a, 0xc2a29a69
     mod, pat, inc = 0x3a89, 0x2e4c, 0x5831
     first = ((hp | (atk << 5) | (def_ << 10)) << 16) & 0xFFFFFFFF
@@ -109,8 +109,8 @@ def _recover_pokerng_iv_method4(hp, atk, def_, spa, spd, spe):
 
 def recover_pokerng_iv(hp, atk, def_, spa, spd, spe, method):
     if method == METHOD_4:
-        return _recover_pokerng_iv_method4(hp, atk, def_, spa, spd, spe)
-    return _recover_pokerng_iv_method12(hp, atk, def_, spa, spd, spe)
+        return recover_pokerng_iv_method4(hp, atk, def_, spa, spd, spe)
+    return recover_pokerng_iv_method12(hp, atk, def_, spa, spd, spe)
 
 
 # ============================================================
@@ -148,23 +148,23 @@ def get_hidden_power(ivs):
 # ============================================================
 # Encounter slot tables (Gen3 hSlot)
 # ============================================================
-_GRASS_SLOT_TABLE = [0]*20 + [1]*20 + [2]*10 + [3]*10 + [4]*10 + [5]*10 + [6]*5 + [7]*5 + [8]*4 + [9]*4 + [10]*1 + [11]*1
-_SURFING_SLOT_TABLE = [0]*60 + [1]*30 + [2]*5 + [3]*4 + [4]*1
-_OLD_ROD_SLOT_TABLE = [0]*70 + [1]*30
-_GOOD_ROD_SLOT_TABLE = [0]*60 + [1]*30 + [2]*7 + [3]*3
-_SUPER_ROD_SLOT_TABLE = [0]*40 + [1]*40 + [2]*15 + [3]*4 + [4]*1
+GRASS_SLOT_TABLE = [0]*20 + [1]*20 + [2]*10 + [3]*10 + [4]*10 + [5]*10 + [6]*5 + [7]*5 + [8]*4 + [9]*4 + [10]*1 + [11]*1
+SURFING_SLOT_TABLE = [0]*60 + [1]*30 + [2]*5 + [3]*4 + [4]*1
+OLD_ROD_SLOT_TABLE = [0]*70 + [1]*30
+GOOD_ROD_SLOT_TABLE = [0]*60 + [1]*30 + [2]*7 + [3]*3
+SUPER_ROD_SLOT_TABLE = [0]*40 + [1]*40 + [2]*15 + [3]*4 + [4]*1
 
-_ENCOUNTER_SLOT_TABLES = {
-    0: _GRASS_SLOT_TABLE,     # Grass
-    1: _SURFING_SLOT_TABLE,   # Surfing
-    2: _OLD_ROD_SLOT_TABLE,   # OldRod
-    3: _GOOD_ROD_SLOT_TABLE,  # GoodRod
-    4: _SUPER_ROD_SLOT_TABLE, # SuperRod
-    5: _SURFING_SLOT_TABLE,   # RockSmash
+ENCOUNTER_SLOT_TABLES = {
+    0: GRASS_SLOT_TABLE,     # Grass
+    1: SURFING_SLOT_TABLE,   # Surfing
+    2: OLD_ROD_SLOT_TABLE,   # OldRod
+    3: GOOD_ROD_SLOT_TABLE,  # GoodRod
+    4: SUPER_ROD_SLOT_TABLE, # SuperRod
+    5: SURFING_SLOT_TABLE,   # RockSmash
 }
 
 # String aliases for convenience
-_ENCOUNTER_TYPE_ALIASES = {
+ENCOUNTER_TYPE_ALIASES = {
     "Grass": 0, "Surfing": 1, "OldRod": 2, "GoodRod": 3,
     "SuperRod": 4, "RockSmash": 5,
 }
@@ -172,8 +172,8 @@ _ENCOUNTER_TYPE_ALIASES = {
 
 def hslot(rand_val, encounter_type):
     if isinstance(encounter_type, str):
-        encounter_type = _ENCOUNTER_TYPE_ALIASES.get(encounter_type, 0)
-    table = _ENCOUNTER_SLOT_TABLES.get(encounter_type)
+        encounter_type = ENCOUNTER_TYPE_ALIASES.get(encounter_type, 0)
+    table = ENCOUNTER_SLOT_TABLES.get(encounter_type)
     if table is None:
         return 0
     return table[rand_val % len(table)]
@@ -273,7 +273,7 @@ def search_wild(iv_min, iv_max, method, tsv, encounter_slots,
     """Yields dicts: seed, pid, ivs, ability, gender, level, nature, shiny,
     hidden_type, hidden_power, encounter_slot, species, form"""
     if isinstance(encounter_type, str):
-        encounter_type = _ENCOUNTER_TYPE_ALIASES.get(encounter_type, 0)
+        encounter_type = ENCOUNTER_TYPE_ALIASES.get(encounter_type, 0)
     iv_advance = (method == METHOD_2)
     for hp in range(iv_min[0], iv_max[0] + 1):
         for atk in range(iv_min[1], iv_max[1] + 1):
@@ -340,24 +340,24 @@ def search_wild(iv_min, iv_max, method, tsv, encounter_slots,
 # ============================================================
 # Sorted initial seeds table (lazy init)
 # ============================================================
-_sorted_initial_seeds: Optional[List[Tuple[int, int]]] = None
+sorted_initial_seeds_table: Optional[List[Tuple[int, int]]] = None
 
 
-def _build_sorted_initial_seeds():
-    global _sorted_initial_seeds
-    if _sorted_initial_seeds is not None:
-        return _sorted_initial_seeds
+def build_sorted_initial_seeds():
+    global sorted_initial_seeds_table
+    if sorted_initial_seeds_table is not None:
+        return sorted_initial_seeds_table
     data = []
     for seed in range(0x10000):
         dist = pokerng_distance(seed, 0)
         data.append((dist, seed))
     data.sort(key=lambda x: x[0])
-    _sorted_initial_seeds = data
-    return _sorted_initial_seeds
+    sorted_initial_seeds_table = data
+    return sorted_initial_seeds_table
 
 
 def find_closest_initial_seed_index(target_seed):
-    data = _build_sorted_initial_seeds()
+    data = build_sorted_initial_seeds()
     distance_from_base = pokerng_distance(0, target_seed)
     target = 0xFFFFFFFF - distance_from_base
     left, right = 0, len(data) - 1
@@ -380,7 +380,7 @@ def painting_seeds(target_seed, result_count=10, offset=0):
     target_seed = pokerng_jump(target_seed, -offset & 0xFFFFFFFF)
     distance_from_base = pokerng_distance(0, target_seed)
     result_index = find_closest_initial_seed_index(target_seed)
-    data = _build_sorted_initial_seeds()
+    data = build_sorted_initial_seeds()
     results = []
     n = len(data)
     for i in range(result_count):
@@ -503,7 +503,7 @@ def parse_frlg_seed_data(data: bytes, is_nx_format: bool):
 SEED_BASE_URL = "https://lincoln-lm.github.io/ten-lines/generated"
 
 
-def _download_seed_file(filename, local_path):
+def download_seed_file(filename, local_path):
     import os
     import urllib.request
     url = f"{SEED_BASE_URL}/{filename}"
@@ -533,7 +533,7 @@ def load_frlg_seed_data(game: str = "fr_nx"):
         return {}, {}
     filename = seed_files[game]
     local_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "resources", filename)
-    data = _download_seed_file(filename, local_path)
+    data = download_seed_file(filename, local_path)
     if data is None:
         with open(local_path, 'rb') as f:
             data = f.read()
@@ -550,7 +550,7 @@ def frlg_seeds(target_seed, result_count=10, offset=0, game_version="fr",
     held_button_offsets = HELD_BUTTON_OFFSETS.get(game_version, [('a', "none", 0), ('h', "none", 0), ('r', "none", 0)])
     distance_from_base = pokerng_distance(0, target_seed)
     result_index = find_closest_initial_seed_index(target_seed)
-    data = _build_sorted_initial_seeds()
+    data = build_sorted_initial_seeds()
     results = []
     n = len(data)
     valid_results = 0
@@ -587,7 +587,7 @@ def frlg_seeds(target_seed, result_count=10, offset=0, game_version="fr",
 # ============================================================
 # Calibration - StaticGenerator3 / WildGenerator3
 # ============================================================
-def _extract_ivs(iv1, iv2):
+def extract_ivs(iv1, iv2):
     return (iv1 & 31, (iv1 >> 5) & 31, (iv1 >> 10) & 31,
             (iv2 >> 5) & 31, (iv2 >> 10) & 31, iv2 & 31)
 
@@ -605,13 +605,13 @@ def calibration_static(seeds, initial_advances, max_advances, offset, method, ts
     Uses pybind11 C++ acceleration."""
     if ttv_advances_range is None:
         ttv_advances_range = (0, 0)
-    return _calibration_static_pybind(
+    return calibration_static_pybind(
         seeds, initial_advances, max_advances, offset, method, tsv,
         gender_ratio, bugged_roamer, filter_obj, ttv_advances_range
     )
 
 
-def _calibration_static_pybind(seeds, initial_advances, max_advances, offset, method, tsv,
+def calibration_static_pybind(seeds, initial_advances, max_advances, offset, method, tsv,
                                 gender_ratio, bugged_roamer, filter_obj, ttv_advances_range):
     """Pybind11 C++ accelerated calibration_static."""
     import os
@@ -687,17 +687,17 @@ def calibration_wild(seeds, initial_advances, max_advances, offset, method, tsv,
     Returns list of result dicts with added initial_seed, seed_time, ttv_advances, method.
     Uses pybind11 C++ acceleration."""
     if isinstance(encounter_type, str):
-        encounter_type = _ENCOUNTER_TYPE_ALIASES.get(encounter_type, 0)
+        encounter_type = ENCOUNTER_TYPE_ALIASES.get(encounter_type, 0)
     if ttv_advances_range is None:
         ttv_advances_range = (0, 0)
-    return _calibration_wild_pybind(
+    return calibration_wild_pybind(
         seeds, initial_advances, max_advances, offset, method, tsv,
         encounter_slots, encounter_type, filter_obj, ttv_advances_range,
         level_min, level_max
     )
 
 
-def _calibration_wild_pybind(seeds, initial_advances, max_advances, offset, method, tsv,
+def calibration_wild_pybind(seeds, initial_advances, max_advances, offset, method, tsv,
                               encounter_slots, encounter_type, filter_obj, ttv_advances_range,
                               level_min=0, level_max=0):
     """Pybind11 C++ accelerated calibration_wild."""
