@@ -33,23 +33,37 @@ def in_wild(ctx: ScriptContext) -> bool:
 
 def restart(ctx: ScriptContext) -> None:
     ctx.log("重启游戏...")
-    if ctx.search_label("NS主页满电量", 90):
-        pass
-    else:
-        ctx.press("HOME")
-        sleep(2.0)
-    if ctx.search_label("NS主页关闭确认", 90):
-        ctx.press("A")
-    else:
-        ctx.press("Y")
-        sleep(2.0)
-        ctx.press("A")
+    search_label_zysb = lambda : any(ctx.search_label(f"NS{_}色系主题-主页手柄", 80) for _ in "深浅")
+    search_label_qhyh = lambda : any(ctx.search_label(f"NS{_}色系主题-切换用户", 80) for _ in "深浅")
+    search_label_ysyw = lambda : any(ctx.search_label(f"NS{_}色系主题-由谁游玩", 80) for _ in "深浅")
+    
     for _ in range(5):
-        sleep(1.0)
-        if ctx.search_label("NS主页选择玩家", 40):
+        if search_label_zysb() and not search_label_ysyw():
             break
+        else:
+            ctx.press("HOME")
+            sleep(3.0)
     else:
-        raise ValueError("未检测到NS选择玩家界面")
+        ctx.log(f"[重启失败警告] 未能识别到NS主页画面")
+    
+    for _ in range(5):
+        if search_label_qhyh():
+            break
+        else:
+            ctx.press("Y")
+            sleep(3.0)
+    else:
+        ctx.log(f"[重启失败警告] 未能识别到用户切换画面")
+    sleep(3.0)
+    ctx.press("A")
+    
+    for _ in range(5):
+        if search_label_zysb() and search_label_ysyw():
+            break
+        else:
+            sleep(1.0)
+    else:
+        ctx.log(f"[重启失败警告] 未能识别到用户选择画面")
     sleep(1.0)
 
 
@@ -74,7 +88,7 @@ def navigate(ctx: ScriptContext, route_map: List[Tuple[str, List[Tuple[str, int]
             sleep(2.0)
         # head
         for direction, units in route:
-            heading_time = (units - 0.8) * unit_move_ms / speed_ratio
+            heading_time = (units - 0.5) * unit_move_ms / speed_ratio
             heading_time += unit_swing_ms if (direction != current_direction) else 0
             ctx.press(direction, heading_time)
             current_direction = direction
