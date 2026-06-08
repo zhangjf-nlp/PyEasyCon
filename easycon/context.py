@@ -312,7 +312,7 @@ class ScriptContext:
             os.makedirs(save_dir, exist_ok=True)
 
         h, w = self._record_frames[0].shape[:2]
-        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        fourcc = cv2.VideoWriter_fourcc(*'h264')
         out = cv2.VideoWriter(save_path, fourcc, 30.0, (w, h))
 
         for frame in self._record_frames:

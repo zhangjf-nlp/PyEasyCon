@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 import json
 import os
-import shutil
 import subprocess
 import sys
 import threading
@@ -1252,20 +1251,15 @@ if __name__ == "__main__":
         game_version="{game_ver}",
     )
 '''
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                               "examples", "scan_custom.py")
-    if os.path.exists(script_path):
-        mtime = os.path.getmtime(script_path)
-        ts    = datetime.fromtimestamp(mtime).strftime("%Y%m%d_%H%M%S")
-        shutil.move(script_path,
-                    os.path.join(os.path.dirname(script_path), f"scan_{ts}.py"))
+                               "examples", f"scan_custom_{ts}.py")
     with open(script_path, "w", encoding="utf-8") as f:
         f.write(script)
+    return script_path
 
 
-def _run_script():
-    script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                               "examples", "scan_custom.py")
+def _run_script(script_path: str):
     python_exe  = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                "Python312", "python.exe")
     if not os.path.exists(python_exe):
@@ -1283,11 +1277,11 @@ def main():
         print("用户取消。")
         return
     try:
-        _generate_script(data)
+        script_path = _generate_script(data)
     except Exception as e:
         print(f"脚本生成失败: {e}")
         return
-    _run_script()
+    _run_script(script_path)
 
 
 if __name__ == "__main__":

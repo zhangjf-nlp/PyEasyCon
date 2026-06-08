@@ -5,9 +5,9 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from easycon.config import get
 from easycon.context import ScriptContext, sleep
-from rng.calibration import calibrate, RNGAttempt
+from rng.calibration import calibrate, RNGAttempt, WIDE_SEED_BIAS, WIDE_ADV_BIAS, NARROW_SEED_BIAS, NARROW_ADV_BIAS, _unique_iv_count
 from rng.config import RNGConfig, SessionState, RNGSlot, RNGDisplacement
-from rng.tenlines_utils import IVsObservation, get_species_id, get_personal, iv_calculator
+from rng.tenlines_utils import IVsObservation, get_species_id, get_personal, iv_calculator, calibration as tenlines_calibration
 
 
 def n_combos(lo: List[int], hi: List[int]) -> int:
@@ -94,11 +94,17 @@ def run_calibration(ctx: ScriptContext, state: SessionState, cfg: RNGConfig) -> 
     if state.log_dir is None or not state.attempts:
         return
 
-    threshold = cfg.coldstart_credits if not state.coldstart_done else cfg.calibration_credits
-    credits = sum(a.credit for a in state.attempts.values())
-    if credits < threshold:
-        ctx.log(f"[skip] credits={credits}/{threshold} 不足，跳过校准")
+    valid_attempts = [a for a in state.attempts.values() if a.is_valid]
+    if not valid_attempts:
         return
+
+    # 冷启动阶段：仍需攒够 credits 才校准
+    if not state.coldstart_done:
+        threshold = cfg.coldstart_credits
+        credits = sum(a.credit for a in valid_attempts)
+        if credits < threshold:
+            ctx.log(f"[skip] coldstart credits={credits}/{threshold} 不足，跳过校准")
+            return
 
     result = calibrate(cfg, state)
 
@@ -121,12 +127,18 @@ def run_calibration(ctx: ScriptContext, state: SessionState, cfg: RNGConfig) -> 
 
     if predicted_seed_ms < seed_ms_min:
         ctx.log(f"[reject] Seed takes {predicted_seed_ms}ms < {seed_ms_min}ms")
+        state.attempts_ocr_data.clear()
+        state.attempts.clear()
         return
     if predicted_seed_ms > seed_ms_max:
         ctx.log(f"[reject] Seed takes {predicted_seed_ms}ms > {seed_ms_max}ms")
+        state.attempts_ocr_data.clear()
+        state.attempts.clear()
         return
     if predicted_tv_ms < tv_ms_min and cfg.target.advances >= 10000:
         ctx.log(f"[reject] TV takes {predicted_tv_ms}ms < {tv_ms_min}ms")
+        state.attempts_ocr_data.clear()
+        state.attempts.clear()
         return
 
     cfg.schedule.apply_calibration(RNGDisplacement(ds=ds, dt=dt, dn=dn))
@@ -140,19 +152,19 @@ def run_calibration(ctx: ScriptContext, state: SessionState, cfg: RNGConfig) -> 
         f"| Normal takes {cfg.schedule.advances_ms_normal}ms"
     )
 
-    converged = (
-        state.coldstart_done
-        and result["major_l1_converged"]
-        and result["median_l2_converged"]
-    )
-
-    if converged:
-        state.fast_attempts = cfg.max_fast_attempts
-        ctx.log(f"[convergence] fast_attempts={cfg.max_fast_attempts}")
-    else:
-        state.fast_attempts = 0
-
     state.coldstart_done = state.coldstart_done or all(abs(result[d]) <= 1 for d in ["ds", "dt", "dn"])
+
+    # 累计 credits 用于收敛确认（不用于校准门槛）
+    state.total_credits += sum(a.credit for a in valid_attempts)
+    threshold = cfg.calibration_credits
+
+    if state.coldstart_done and state.total_credits >= threshold:
+        converged = result["major_l1_converged"] and result["median_l2_converged"]
+        if converged:
+            state.fast_attempts = cfg.max_fast_attempts
+            ctx.log(f"[convergence] fast_attempts={cfg.max_fast_attempts}")
+            state.total_credits = 0
+
     state.attempts_ocr_data.clear()
     state.attempts.clear()
 
@@ -245,16 +257,40 @@ def observe_pokemon(ctx: ScriptContext, state: SessionState, cfg: RNGConfig, att
         save_ocr(state, ocr_elevated, attempt, pokemon, candy_num=i + 1)
 
         obs_list.append(make_obs(ocr_elevated, nature))
-        try:
-            base_stats = get_personal(get_species_id(pokemon), cfg.game_version)["stats"]
-            iv_range = obs_to_iv_range(obs_list, base_stats)
-            if iv_range is not None:
-                current_n_combos = n_combos(*iv_range)
-                ctx.log(f"{len(obs_list)} IVs observations | {current_n_combos} IVs combos")
-                if current_n_combos <= cfg.precicase_combos:
+        if state.coldstart_done:
+            try:
+                seed_bias = NARROW_SEED_BIAS
+                adv_bias = NARROW_ADV_BIAS
+                results = tenlines_calibration(
+                    game=cfg.game_version,
+                    console="NX2" if cfg.game_version.endswith("nx2") else "NX",
+                    tid=cfg.trainer_id, sid=cfg.secret_id,
+                    method=cfg.rng_method,
+                    seed=f"{cfg.target.seed_hex:04X}", advances=cfg.target.advances,
+                    settings=cfg.game_settings,
+                    seed_bias=seed_bias, advances_bias=adv_bias,
+                    nature=nature, gender=ocr_caught_iv.get("gender", ""),
+                    ability=ocr_caught_info.get("ability", ""),
+                    location=cfg.rng_location, category=cfg.rng_category,
+                    ivs_observations=obs_list, pokemon=pokemon, level=ocr_caught_info.get("level"),
+                )
+                uv = _unique_iv_count(results)
+                ctx.log(f"{len(obs_list)} IVs observations | {uv} IV results")
+                if uv == 1:
                     break
-        except Exception:
-            pass
+            except Exception:
+                pass
+        else:
+            try:
+                base_stats = get_personal(get_species_id(pokemon), cfg.game_version)["stats"]
+                iv_range = obs_to_iv_range(obs_list, base_stats)
+                if iv_range is not None:
+                    current_n_combos = n_combos(*iv_range)
+                    ctx.log(f"{len(obs_list)} IVs observations | {current_n_combos} IVs combos")
+                    if current_n_combos <= cfg.precicase_combos:
+                        break
+            except Exception:
+                pass
 
         for _ in range(30):
             ctx.press("B")
@@ -269,7 +305,8 @@ def observe_pokemon(ctx: ScriptContext, state: SessionState, cfg: RNGConfig, att
         else:
             break
 
-    rng_attempt = RNGAttempt(attempt, state.attempts_ocr_data.get(attempt, []), cfg.target, cfg)
+    rng_attempt = RNGAttempt(attempt, state.attempts_ocr_data.get(attempt, []), cfg.target, cfg,
+                           coldstart_done=state.coldstart_done)
 
     if not rng_attempt.is_valid:
         ctx.log(f"[invalid] #{attempt} -> no result")

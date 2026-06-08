@@ -11,7 +11,7 @@ from rng.config import RNGConfig, SessionState
 from rng.tenlines_utils import calibration as calibration_api
 from script_utils.hit import hit
 from script_utils.capture import check_shiny, catch_with_ball, catch_with_safari_strategy, check_last_pokemon
-from script_utils.session import observe_pokemon, init_log_dir, run_calibration, ready_for_calibration
+from script_utils.session import observe_pokemon, init_log_dir, run_calibration
 from script_utils.navigation import in_wild, restart
 
 
@@ -84,8 +84,7 @@ def launch(cfg: RNGConfig, state: SessionState = None) -> None:
                     if catch_with_safari_strategy(ctx, pokemon_en):
                         check_last_pokemon(ctx)
                         observe_pokemon(ctx, state, cfg, state.attempt_index, pokemon_en)
-                    if ready_for_calibration(state, cfg):
-                        run_calibration(ctx, state, cfg)
+                    run_calibration(ctx, state, cfg)
                     
             elif cfg.rng_category in ["Grass", "Surfing", "SuperRod", "GoodRod", "OldRod", "Stationary", "Legend", "Event"]:
                 is_shiny, pokemon_en = check_shiny(ctx, cfg, state, state.attempt_index)
@@ -98,8 +97,7 @@ def launch(cfg: RNGConfig, state: SessionState = None) -> None:
                     if catch_with_ball(ctx):
                         check_last_pokemon(ctx)
                         observe_pokemon(ctx, state, cfg, state.attempt_index, pokemon_en)
-                    if ready_for_calibration(state, cfg):
-                        run_calibration(ctx, state, cfg)
+                    run_calibration(ctx, state, cfg)
             
             elif cfg.rng_category in ["Gift", "Fossil", "Game Corner"]:
                 check_last_pokemon(ctx)
@@ -110,8 +108,7 @@ def launch(cfg: RNGConfig, state: SessionState = None) -> None:
                     state.fast_attempts -= 1
                 else:
                     observe_pokemon(ctx, state, cfg, state.attempt_index, cfg.pokemon_species)
-                    if ready_for_calibration(state, cfg):
-                        run_calibration(ctx, state, cfg)
+                    run_calibration(ctx, state, cfg)
             
             else:
                 raise NotImplementedError(cfg.rng_category)

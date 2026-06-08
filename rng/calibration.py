@@ -11,6 +11,9 @@ from rng.config import RNGConfig, SessionState, RNGSlot, SEED_PERIOD, ADV_PERIOD
 WIDE_SEED_BIAS = 3000
 WIDE_ADV_BIAS = 30000
 
+NARROW_SEED_BIAS = 100
+NARROW_ADV_BIAS = 1000
+
 NATURES_LOWER = {n.lower(): n for n in NATURES}
 
 
@@ -55,17 +58,30 @@ def parse_entries(
     return obs_list, nature, gender, ability, caught_level, pokemon
 
 
+def _unique_iv_count(results) -> int:
+    seen = set()
+    for r in results:
+        iv_tuple = (r.ivs.hp, r.ivs.attack, r.ivs.defense, r.ivs.sp_attack, r.ivs.sp_defense, r.ivs.speed)
+        seen.add(iv_tuple)
+    return len(seen)
+
+
 class RNGAttempt:
-    def __init__(self, attempt_id: int, entries: List[dict], target: RNGSlot, cfg: RNGConfig) -> None:
+    def __init__(self, attempt_id: int, entries: List[dict], target: RNGSlot, cfg: RNGConfig,
+                 coldstart_done: bool = False) -> None:
         self.id = attempt_id
         self.entries = entries
         self.target = target
         self.cfg = cfg
+        self.coldstart_done = coldstart_done
 
         self.obs_list, self.nature, self.gender, self.ability, self.caught_level, self.pokemon = \
             parse_entries(self.entries)
         if not self.obs_list or self.pokemon is None:
             return
+
+        seed_bias = NARROW_SEED_BIAS if coldstart_done else WIDE_SEED_BIAS
+        adv_bias = NARROW_ADV_BIAS if coldstart_done else WIDE_ADV_BIAS
 
         results = tenlines_calibration(
             game=self.cfg.game_version,
@@ -74,12 +90,13 @@ class RNGAttempt:
             method=self.cfg.rng_method,
             seed=f"{self.cfg.target.seed_hex:04X}", advances=self.cfg.target.advances,
             settings=self.cfg.game_settings,
-            seed_bias=WIDE_SEED_BIAS, advances_bias=WIDE_ADV_BIAS,
+            seed_bias=seed_bias, advances_bias=adv_bias,
             nature=self.nature, gender=self.gender, ability=self.ability,
             location=self.cfg.rng_location, category=self.cfg.rng_category,
             ivs_observations=self.obs_list, pokemon=self.pokemon, level=self.caught_level,
         )
         self.slots = make_slots(results)
+        self.unique_iv_count = _unique_iv_count(results) if results else 0
 
         if len(self.slots) == 0:
             print(f"[classify] #{self.id} -> empty")

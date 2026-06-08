@@ -153,5 +153,6 @@ class SessionState:
     fast_attempts: int = 0
     attempt_index: int = 0
     coldstart_done: bool = False
+    total_credits: int = 0
     attempts_ocr_data: Dict[int, list] = field(default_factory=dict)
     attempts: Dict[int, Any] = field(default_factory=dict)

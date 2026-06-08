@@ -6,7 +6,6 @@ RNG 配置 GUI —— 基于 pygame 的乱数配置界面
 
 import json
 import os
-import shutil
 import subprocess
 import sys
 import threading
@@ -1959,22 +1958,16 @@ if __name__ == "__main__":
     launch(cfg, state)
 '''
 
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                               "examples", "rng_custom.py")
-
-    if os.path.exists(script_path):
-        mtime = os.path.getmtime(script_path)
-        ts = datetime.fromtimestamp(mtime).strftime("%Y%m%d_%H%M%S")
-        backup_path = os.path.join(os.path.dirname(script_path), f"rng_{ts}.py")
-        shutil.move(script_path, backup_path)
+                               "examples", f"rng_custom_{ts}.py")
 
     with open(script_path, "w", encoding="utf-8") as f:
         f.write(script)
+    return script_path
 
 
-def _run_script():
-    script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                               "examples", "rng_custom.py")
+def _run_script(script_path: str):
     python_exe = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                               "Python312", "python.exe")
     if not os.path.exists(python_exe):
@@ -1996,13 +1989,13 @@ def main():
 
     # 生成脚本
     try:
-        _generate_script(data)
+        script_path = _generate_script(data)
     except Exception as e:
         print(f"脚本生成失败: {e}")
         return
 
     # 运行脚本
-    _run_script()
+    _run_script(script_path)
 
 
 if __name__ == "__main__":
