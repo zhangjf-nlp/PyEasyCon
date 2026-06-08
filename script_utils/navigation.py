@@ -2,8 +2,7 @@ from typing import List, Tuple
 from easycon.context import ScriptContext, sleep
 
 unit_move_ms = 16 / 60 * 1000
-unit_swing_ms = 6 / 60 * 1000
-offset_ms = 1 / 60 * 1000
+unit_swing_ms = 8 / 60 * 1000
 
 
 def run_away(ctx: ScriptContext) -> None:
@@ -75,7 +74,7 @@ def navigate(ctx: ScriptContext, route_map: List[Tuple[str, List[Tuple[str, int]
             sleep(2.0)
         # head
         for direction, units in route:
-            heading_time = units * unit_move_ms / speed_ratio - offset_ms
+            heading_time = (units - 0.8) * unit_move_ms / speed_ratio
             heading_time += unit_swing_ms if (direction != current_direction) else 0
             ctx.press(direction, heading_time)
             current_direction = direction

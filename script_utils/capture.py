@@ -229,6 +229,8 @@ def open_pokemon_menu(ctx: ScriptContext) -> None:
         sleep(1.0)
         if ctx.search_label("FRLG菜单", 90):
             break
+    else:
+        raise ValueError(f"未能打开菜单")
     for _ in range(20):
         sleep(0.5)
         if ctx.search_label("FRLG关键词BAG选中", 90):

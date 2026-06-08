@@ -87,7 +87,7 @@ def launch(cfg: RNGConfig, state: SessionState = None) -> None:
                     if ready_for_calibration(state, cfg):
                         run_calibration(ctx, state, cfg)
                     
-            elif cfg.rng_category in ["Grass", "Surfing", "SuperRod", "GoodRod", "OldRod", "Stationary", "Legend", "Fossil", "Event"]:
+            elif cfg.rng_category in ["Grass", "Surfing", "SuperRod", "GoodRod", "OldRod", "Stationary", "Legend", "Event"]:
                 is_shiny, pokemon_en = check_shiny(ctx, cfg, state, state.attempt_index)
                 if is_shiny:
                     ctx.log("闪光出现!")
@@ -101,7 +101,7 @@ def launch(cfg: RNGConfig, state: SessionState = None) -> None:
                     if ready_for_calibration(state, cfg):
                         run_calibration(ctx, state, cfg)
             
-            elif cfg.rng_category in ["Gift", "Game Corner"]:
+            elif cfg.rng_category in ["Gift", "Fossil", "Game Corner"]:
                 check_last_pokemon(ctx)
                 if ctx.search_label("FRLG闪光", 80):
                     ctx.log("闪光出现!")

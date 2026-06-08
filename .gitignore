@@ -18,6 +18,8 @@ build/
 rng_logs/
 debug_label/
 debug_labels/
+debug_ocr/
+screen_record/
 .env
 launch.log
 
