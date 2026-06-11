@@ -158,7 +158,7 @@ def calibrate(ctx, cfg: RNGConfig, state: SessionState) -> dict:
         for i, slot in enumerate(attempt.slots):
             delta = slot - target - attempt.calibration
             entries.append((slot_weight, delta.to_array(),
-                            (slot - target).to_array(), attempt.id))
+                            attempt.calibration.to_array(), attempt.id))
             attempt_delta_arrs.append(delta.to_array())
             ctx.log(f"# {attempt.id if i==0 else '':<3} - {delta} x {slot_weight:.3f}")
         attempt_delta_arrs = np.stack(attempt_delta_arrs, axis=0)
@@ -195,7 +195,7 @@ def calibrate(ctx, cfg: RNGConfig, state: SessionState) -> dict:
     adv_bias_delta = dt * ADV_PERIOD + dn
 
     # 收敛判断：最佳修正值在各维度上都接近 0
-    converged = all(_ >= 0.3 for _ in ml)
+    converged = all(_ >= 0.2 for _ in ml) and all(abs(_) <= 2 for _ in mle)
     
     ctx.log(
         f"[calibrate] MLE ds={ds:+d} dt={dt:+d} dn={dn:+d} | "

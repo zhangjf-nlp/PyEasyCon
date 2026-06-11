@@ -99,8 +99,9 @@ def run_calibration(ctx: ScriptContext, state: SessionState, cfg: RNGConfig) -> 
     if state.log_dir is None or not state.attempts:
         return
 
-    valid_attempts = [a for a in state.attempts.values() if a.is_valid]
-    if not valid_attempts:
+    current = state.attempts.get(state.attempt_index)
+    if current is None or not current.is_valid:
+        ctx.log(f"[skip] #{state.attempt_index} 当前轮次无有效观测")
         return
 
     result = calibrate(ctx, cfg, state)
