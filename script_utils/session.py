@@ -334,7 +334,10 @@ def observe_pokemon(ctx: ScriptContext, state: SessionState, cfg: RNGConfig, att
         candidates = find_candidates(obs_list)
         uv = unique_iv_count(candidates) if candidates else 0
         ctx.log(f"{len(obs_list)} IVs observations | {uv} IV results")
-
+    
+    dist = lambda r: (RNGSlot(int(r.seed, 16), r.seed_time, r.advances) - cfg.target).l1
+    candidates = sorted(candidates, key=dist)[:3]
+    
     rng_attempt = RNGAttempt(attempt_index, ocr_data.get(attempt_index, []), cfg.target, cfg, candidates=candidates)
 
     if not rng_attempt.is_valid:

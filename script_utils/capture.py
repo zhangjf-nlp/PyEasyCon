@@ -243,6 +243,7 @@ def open_pokemon_menu(ctx: ScriptContext) -> None:
             ctx.press("DOWN")
     else:
         ctx.log(f"[观察失败警告] 未能找到背包")
+    sleep(1.0)
     ctx.press("A")
 
 
