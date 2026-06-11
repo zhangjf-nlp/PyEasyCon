@@ -41,9 +41,9 @@ def in_wild(ctx: ScriptContext) -> bool:
 
 def restart(ctx: ScriptContext) -> None:
     ctx.log("重启游戏...")
-    search_label_zysb = lambda : any(ctx.search_label(f"NS{_}色系主题-主页手柄", 80) for _ in "深浅")
-    search_label_qhyh = lambda : any(ctx.search_label(f"NS{_}色系主题-切换用户", 80) for _ in "深浅")
-    search_label_ysyw = lambda : any(ctx.search_label(f"NS{_}色系主题-由谁游玩", 80) for _ in "深浅")
+    search_label_zysb = lambda : any(ctx.search_label(f"NS{_}色系主题-主页手柄", 70) for _ in "深浅")
+    search_label_qhyh = lambda : any(ctx.search_label(f"NS{_}色系主题-切换用户", 70) for _ in "深浅")
+    search_label_ysyw = lambda : any(ctx.search_label(f"NS{_}色系主题-由谁游玩", 70) for _ in "深浅")
     
     for _ in range(3):
         if search_label_zysb() and not search_label_ysyw():
