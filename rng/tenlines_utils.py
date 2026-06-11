@@ -367,6 +367,20 @@ class IVsObservation:
     sp_defense: int = 0
     speed: int = 0
 
+    @property
+    def is_valid(self) -> bool:
+        return (
+            isinstance(self.pokemon, str) and len(self.pokemon) > 0
+            and isinstance(self.nature, str) and self.nature in NATURES
+            and isinstance(self.level, int) and self.level >= 1
+            and isinstance(self.hp, int) and self.hp > 0
+            and isinstance(self.attack, int) and self.attack > 0
+            and isinstance(self.defense, int) and self.defense > 0
+            and isinstance(self.sp_attack, int) and self.sp_attack > 0
+            and isinstance(self.sp_defense, int) and self.sp_defense > 0
+            and isinstance(self.speed, int) and self.speed > 0
+        )
+
 SOUND_LABEL_TO_VALUE = {"Mono": "mono", "Stereo": "stereo"}
 SOUND_VALUE_TO_LABEL = {v: k for k, v in SOUND_LABEL_TO_VALUE.items()}
 

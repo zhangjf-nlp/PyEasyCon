@@ -124,10 +124,10 @@ def catch_with_ball(ctx: ScriptContext) -> bool:
             ball = "精灵球"
         else:
             raise ValueError("未找到可用精灵球")
-        for _ in range(10):
+        for _ in range(20):
             if ctx.search_label(f"FRLG选中{ball}", 95):
                 break
-            ctx.press("DOWN")
+            ctx.press("DOWN" if _ < 10 else "UP")
             sleep(1.0)
         for _ in range(10):
             ctx.press("A")

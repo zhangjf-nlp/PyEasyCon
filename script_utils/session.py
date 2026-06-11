@@ -22,6 +22,8 @@ def obs_to_ivs_range(
     obs_list: List[IVsObservation],
     base_stats: Tuple[int, int, int, int, int, int],
 ) -> Optional[Tuple[List[int], List[int]]]:
+    if any(not obs.is_valid for obs in obs_list):
+        return None
     r = iv_calculator(obs_list, base_stats)
     lo = r.ivs_lower_bound
     hi = r.ivs_upper_bound
@@ -153,7 +155,7 @@ def observe_pokemon(ctx: ScriptContext, state: SessionState, cfg: RNGConfig, att
     if ctx.search_label('FRLG闪光', 90):
         raise ValueError(f"[异常] 队末精灵为异色 -> 停止运行")
     ocr_caught_info = ctx.ocr_pokemon()
-    nature = ocr_caught_info.get("nature")
+    nature = ocr_caught_info.get("nature", "unknown")
     ctx.save_ocr_screenshot(f"{state.log_dir}/screens/{attempt_index:03d}-CAUGHT_INFO.png", "CAUGHT_INFO")
     gender = (
         "male" if ctx.search_label("FRLG性别符号♂", 90)
