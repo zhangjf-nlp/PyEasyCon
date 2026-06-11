@@ -233,7 +233,7 @@ class EasyConGUI:
             return
 
         self.recording = True
-        self.record_frame_interval = 60.0 / self.record_fps
+        self.record_frame_interval = 1.0 / self.record_fps
         self.output_panel.log(f"开始录制: {self.record_path}")
 
     def stop_and_save(self):

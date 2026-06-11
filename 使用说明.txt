@@ -20,7 +20,7 @@
 ### OCR提速
 
 默认是调用在线模型进行OCR识别，断网会中断刷闪，如果设备有显卡，可以尝试：
-1. 打开命令提示符，输入：wsl --install，或wsl --update，安装wsl（大约60分钟）
+1. 打开命令提示符，输入：wsl --install，或wsl --update，安装wsl，然后重启电脑（大约60分钟）
 2. 打开命令提示符，输入：wsl --install Ubuntu-24.04，安装Ubuntu（大约30分钟）
 3. 双击start_vllm.bat，配置vllm环境，下载并部署OCR模型（大约15分钟）
 

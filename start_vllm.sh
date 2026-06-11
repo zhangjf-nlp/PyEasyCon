@@ -27,7 +27,7 @@ SETUP_FLAG="$PROJECT_DIR/.setup_done"
 
 # 智能选择 pip 镜像源（使用 pip 自身的 whl 文件测试，避免下载大文件）
 select_pip_mirror() {
-    echo -e "${YELLOW}正在测试 PyPI 镜像源（使用 pip 的 whl 文件进行连通性测试）...${NC}"
+    echo -e "${YELLOW}正在测试 PyPI 镜像源（使用 pip 的 whl 文件进行连通性测试）...${NC}" >&2
     
     # 镜像源列表（名称，URL）
     mirrors=(
@@ -48,34 +48,34 @@ select_pip_mirror() {
     
     for mirror in "${mirrors[@]}"; do
         IFS='|' read -r name url <<< "$mirror"
-        echo -e "${BLUE}测试 $name ($url)...${NC}"
+        echo -e "${BLUE}测试 $name ($url)...${NC}" >&2
         
         # 构建完整的 whl 文件 URL
         whl_url="$url/$TEST_WHL"
         
         # 使用 curl 测试 HEAD 请求，检查文件是否可下载
         if timeout 10 curl -sIL "$whl_url" 2>/dev/null | head -1 | grep -q "200\|302"; then
-            echo -e "${GREEN}✓ $name 可用 (能正常下载 whl 文件)${NC}"
+            echo -e "${GREEN}✓ $name 可用 (能正常下载 whl 文件)${NC}" >&2
             SELECTED_MIRROR="$url"
             SELECTED_NAME="$name"
             break
         else
-            echo -e "${RED}✗ $name 不可访问或 whl 下载失败${NC}"
+            echo -e "${RED}✗ $name 不可访问或 whl 下载失败${NC}" >&2
         fi
     done
     
     if [ -n "$SELECTED_MIRROR" ]; then
-        echo -e "${GREEN}✓ 选中镜像源: $SELECTED_NAME ($SELECTED_MIRROR)${NC}"
+        echo -e "${GREEN}✓ 选中镜像源: $SELECTED_NAME ($SELECTED_MIRROR)${NC}" >&2
         echo "$SELECTED_MIRROR"
     else
-        echo -e "${YELLOW}⚠ 所有镜像源均不可用，将使用官方源（可能较慢）${NC}"
+        echo -e "${YELLOW}⚠ 所有镜像源均不可用，将使用官方源（可能较慢）${NC}" >&2
         echo "https://pypi.org/simple"
     fi
 }
 
 # 智能选择 apt 镜像源
 select_apt_mirror() {
-    echo -e "${YELLOW}正在测试 apt 镜像源...${NC}"
+    echo -e "${YELLOW}正在测试 apt 镜像源...${NC}" >&2
     
     UBUNTU_CODENAME=$(lsb_release -cs)
     
@@ -93,24 +93,24 @@ select_apt_mirror() {
     
     for mirror in "${apt_mirrors[@]}"; do
         IFS='|' read -r name url <<< "$mirror"
-        echo -e "${BLUE}测试 $name ($url)...${NC}"
+        echo -e "${BLUE}测试 $name ($url)...${NC}" >&2
         
         # 测试能否访问并下载 Packages.gz
         if timeout 10 curl -sIL "$url/dists/$UBUNTU_CODENAME/main/binary-amd64/Packages.gz" 2>/dev/null | head -1 | grep -q "200\|302"; then
-            echo -e "${GREEN}✓ $name 可用${NC}"
+            echo -e "${GREEN}✓ $name 可用${NC}" >&2
             SELECTED_APT="$url"
             SELECTED_APT_NAME="$name"
             break
         else
-            echo -e "${RED}✗ $name 不可访问或超时${NC}"
+            echo -e "${RED}✗ $name 不可访问或超时${NC}" >&2
         fi
     done
     
     if [ -n "$SELECTED_APT" ]; then
-        echo -e "${GREEN}✓ 选中 apt 镜像源: $SELECTED_APT_NAME ($SELECTED_APT)${NC}"
+        echo -e "${GREEN}✓ 选中 apt 镜像源: $SELECTED_APT_NAME ($SELECTED_APT)${NC}" >&2
         echo "$SELECTED_APT"
     else
-        echo -e "${YELLOW}⚠ 所有 apt 镜像源均不可用，将使用官方源${NC}"
+        echo -e "${YELLOW}⚠ 所有 apt 镜像源均不可用，将使用官方源${NC}" >&2
         echo "http://archive.ubuntu.com/ubuntu"
     fi
 }
