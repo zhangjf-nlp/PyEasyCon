@@ -22,7 +22,7 @@ def obs_to_ivs_range(
     obs_list: List[IVsObservation],
     base_stats: Tuple[int, int, int, int, int, int],
 ) -> Optional[Tuple[List[int], List[int]]]:
-    if any(not obs.is_valid for obs in obs_list):
+    if not all(obs.is_valid for obs in obs_list):
         return None
     r = iv_calculator(obs_list, base_stats)
     lo = r.ivs_lower_bound
@@ -86,7 +86,7 @@ def save_ocr(state: SessionState, ocr_result: Dict[str, Any], attempt_index: int
 
 def make_obs(ocr: Dict[str, Any], nature: str) -> IVsObservation:
     return IVsObservation(
-        nature=nature,
+        nature=nature.title(),
         level=ocr["level"],
         hp=ocr["hp"],
         attack=ocr["attack"],
@@ -154,7 +154,7 @@ def observe_pokemon(ctx: ScriptContext, state: SessionState, cfg: RNGConfig, att
     sleep(1.0)
     if ctx.search_label('FRLG闪光', 90):
         raise ValueError(f"[异常] 队末精灵为异色 -> 停止运行")
-    ocr_caught_info = ctx.ocr_pokemon()
+    ocr_caught_info = ctx.ocr_caught_info()
     nature = ocr_caught_info.get("nature", "unknown")
     ctx.save_ocr_screenshot(f"{state.log_dir}/screens/{attempt_index:03d}-CAUGHT_INFO.png", "CAUGHT_INFO")
     gender = (
@@ -166,22 +166,16 @@ def observe_pokemon(ctx: ScriptContext, state: SessionState, cfg: RNGConfig, att
     ocr_data.setdefault(attempt_index, []).append(
         save_ocr(state, ocr_caught_info, attempt_index, pokemon)
     )
-    if not ocr_caught_info.get("screen") == "CAUGHT_INFO":
-        ctx.log(f"[观察失败警告] 未识别到捕获信息画面")
-        return None
 
     sleep(0.5)
     ctx.press("RIGHT")
     sleep(2.0)
-    ocr_caught_iv = ctx.ocr_pokemon()
+    ocr_caught_iv = ctx.ocr_caught_iv()
     ocr_caught_iv["gender"] = gender
     ctx.save_ocr_screenshot(f"{state.log_dir}/screens/{attempt_index:03d}-CAUGHT_IV.png", "CAUGHT_IV")
     ocr_data.setdefault(attempt_index, []).append(
         save_ocr(state, ocr_caught_iv, attempt_index, pokemon)
     )
-    if not ocr_caught_iv.get("screen") == "CAUGHT_IV":
-        ctx.log(f"[观察失败警告] 未识别到捕获能力值画面")
-        return None
 
     obs_list = [make_obs(ocr_caught_iv, nature)]
 
@@ -256,15 +250,12 @@ def observe_pokemon(ctx: ScriptContext, state: SessionState, cfg: RNGConfig, att
         sleep(1.5)
         ctx.press("B")
         sleep(1.5)
-        ocr_elevated = ctx.ocr_pokemon()
+        ocr_elevated = ctx.ocr_elevated()
 
         ctx.save_ocr_screenshot(f"{state.log_dir}/screens/{attempt_index:03d}-ELEVATEDx{i+1}.png", "ELEVATED")
         ocr_data.setdefault(attempt_index, []).append(
             save_ocr(state, ocr_elevated, attempt_index, pokemon, candy_num=i + 1)
         )
-        if not ocr_elevated.get("screen") == "ELEVATED":
-            ctx.log(f"[观察失败警告] 未识别到升级画面")
-            break
 
         new_obs = make_obs(ocr_elevated, nature)
         obs_list.append(new_obs)
@@ -319,7 +310,7 @@ def observe_pokemon(ctx: ScriptContext, state: SessionState, cfg: RNGConfig, att
         # ── 返回糖果菜单 ──
         for _ in range(30):
             ctx.press("B")
-            sleep(0.5)
+            sleep(1.0)
             if ctx.search_label("FRLG神奇糖果", 90):
                 break
             if ctx.search_label("FRLG技能替换", 90):
@@ -337,7 +328,7 @@ def observe_pokemon(ctx: ScriptContext, state: SessionState, cfg: RNGConfig, att
     
     dist = lambda r: (RNGSlot(int(r.seed, 16), r.seed_time, r.advances) - cfg.target).l1
     candidates = sorted(candidates, key=dist)[:3]
-    
+
     rng_attempt = RNGAttempt(attempt_index, ocr_data.get(attempt_index, []), cfg.target, cfg, candidates=candidates)
 
     if not rng_attempt.is_valid:
