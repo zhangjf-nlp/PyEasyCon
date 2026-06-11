@@ -6,16 +6,16 @@ Pokemon Sprite Matching Module
 import os, cv2, numpy as np
 from typing import Optional, List, Tuple, Dict
 
-def _imread(path, flags=cv2.IMREAD_UNCHANGED):
+def imread_func(path, flags=cv2.IMREAD_UNCHANGED):
     try:
         with open(path, "rb") as f:
             return cv2.imdecode(np.frombuffer(f.read(), np.uint8), flags)
     except Exception:
         return None
 
-_BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-NORMAL_DIR = os.path.join(_BASE, "assets", "sprites", "normal")
-SHINY_DIR = os.path.join(_BASE, "assets", "sprites", "shiny")
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+NORMAL_DIR = os.path.join(BASE_DIR, "assets", "sprites", "normal")
+SHINY_DIR = os.path.join(BASE_DIR, "assets", "sprites", "shiny")
 GBA_W, GBA_H = 240, 160
 SPRITE_NATIVE = 64
 
@@ -40,7 +40,7 @@ def detect_gba_area(frame: np.ndarray) -> Tuple[int, int, float]:
     return result
 
 
-def _get_sprite_paths(species_id: int) -> List[Tuple[str, str, str]]:
+def get_sprite_paths(species_id: int) -> List[Tuple[str, str, str]]:
     result = []
     if species_id == 351:
         for form in ["351", "351-rainy", "351-snowy", "351-sunny"]:
@@ -55,12 +55,12 @@ def _get_sprite_paths(species_id: int) -> List[Tuple[str, str, str]]:
     return result
 
 
-def _load_sprite(path: str) -> Optional[np.ndarray]:
+def load_sprite_func(path: str) -> Optional[np.ndarray]:
     if path in _sprite_cache:
         return _sprite_cache[path].copy()
     if not os.path.exists(path):
         return None
-    img = _imread(path)
+    img = imread_func(path)
     if img is None:
         return None
     if len(img.shape) == 2:
@@ -71,7 +71,7 @@ def _load_sprite(path: str) -> Optional[np.ndarray]:
     return img
 
 
-def _match_one(search_frame, sprite_bgra, sprite_px, fh, fw):
+def match_one(search_frame, sprite_bgra, sprite_px, fh, fw):
     bgr, alpha = sprite_bgra[:,:,:3], sprite_bgra[:,:,3]
     mask = (alpha > 128).astype(np.uint8) * 255
     tpl = cv2.resize(bgr, (sprite_px, sprite_px), interpolation=cv2.INTER_NEAREST)
@@ -83,7 +83,7 @@ def _match_one(search_frame, sprite_bgra, sprite_px, fh, fw):
     return max(0.0, 1.0 - float(min_val)), (min_loc[0], min_loc[1])
 
 
-def _score_species(frame, species_id, shiny, gba):
+def score_species(frame, species_id, shiny, gba):
     gx, gy, scale = gba
     spx = int(SPRITE_NATIVE * scale)
     if spx < 8:
@@ -94,11 +94,11 @@ def _score_species(frame, species_id, shiny, gba):
     search = frame[gy:gy+sh, sx:sx+sw]
     fh, fw = search.shape[:2]
     best, best_pos = 0.0, (0, 0)
-    for _, np_path, sp_path in _get_sprite_paths(species_id):
-        sprite = _load_sprite(sp_path if shiny else np_path)
+    for _, np_path, sp_path in get_sprite_paths(species_id):
+        sprite = load_sprite_func(sp_path if shiny else np_path)
         if sprite is None:
             continue
-        s, (mx, my) = _match_one(search, sprite, spx, fh, fw)
+        s, (mx, my) = match_one(search, sprite, spx, fh, fw)
         if s > best:
             best = s
             best_pos = (sx + mx, gy + my)
@@ -116,18 +116,18 @@ def identify_pokemon(frame: np.ndarray,
 
     gba = detect_gba_area(frame)
     for sid in candidates:
-        for _, np_path, sp_path in _get_sprite_paths(sid):
-            _load_sprite(np_path)
-            _load_sprite(sp_path)
+        for _, np_path, sp_path in get_sprite_paths(sid):
+            load_sprite_func(np_path)
+            load_sprite_func(sp_path)
 
     best_sid, best_score, best_shiny = None, 0.0, False
     best_mx, best_my = 0, 0
     for sid in candidates:
-        ns, (nmx, nmy) = _score_species(frame, sid, False, gba)
+        ns, (nmx, nmy) = score_species(frame, sid, False, gba)
         if ns > best_score:
             best_score, best_sid, best_shiny = ns, sid, False
             best_mx, best_my = nmx, nmy
-        ss, (smx, smy) = _score_species(frame, sid, True, gba)
+        ss, (smx, smy) = score_species(frame, sid, True, gba)
         if ss > best_score:
             best_score, best_sid, best_shiny = ss, sid, True
             best_mx, best_my = smx, smy
@@ -139,6 +139,6 @@ def identify_pokemon(frame: np.ndarray,
 
 def preload_sprites(species_ids: List[int]):
     for sid in species_ids:
-        for _, np_path, sp_path in _get_sprite_paths(sid):
-            _load_sprite(np_path)
-            _load_sprite(sp_path)
+        for _, np_path, sp_path in get_sprite_paths(sid):
+            load_sprite_func(np_path)
+            load_sprite_func(sp_path)

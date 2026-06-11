@@ -1,18 +1,15 @@
+from math import e
 from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
 from rng.tenlines_utils import (
-    calibration as tenlines_calibration,
     IVsObservation, NATURES, METHOD_NAMES,
 )
-from rng.config import RNGConfig, SessionState, RNGSlot, SEED_PERIOD, ADV_PERIOD
+from rng.config import RNGConfig, SessionState, RNGSlot, RNGDisplacement, SEED_PERIOD, ADV_PERIOD
 
 WIDE_SEED_BIAS = 3000
 WIDE_ADV_BIAS = 30000
-
-NARROW_SEED_BIAS = 100
-NARROW_ADV_BIAS = 1000
 
 NATURES_LOWER = {n.lower(): n for n in NATURES}
 
@@ -58,7 +55,7 @@ def parse_entries(
     return obs_list, nature, gender, ability, caught_level, pokemon
 
 
-def _unique_iv_count(results) -> int:
+def unique_iv_count(results) -> int:
     seen = set()
     for r in results:
         iv_tuple = (r.ivs.hp, r.ivs.attack, r.ivs.defense, r.ivs.sp_attack, r.ivs.sp_defense, r.ivs.speed)
@@ -68,45 +65,21 @@ def _unique_iv_count(results) -> int:
 
 class RNGAttempt:
     def __init__(self, attempt_id: int, entries: List[dict], target: RNGSlot, cfg: RNGConfig,
-                 coldstart_done: bool = False) -> None:
+                 candidates=None) -> None:
         self.id = attempt_id
         self.entries = entries
         self.target = target
         self.cfg = cfg
-        self.coldstart_done = coldstart_done
+        self.calibration = RNGDisplacement(0, 0, 0)
 
         self.obs_list, self.nature, self.gender, self.ability, self.caught_level, self.pokemon = \
             parse_entries(self.entries)
-        if not self.obs_list or self.pokemon is None:
-            return
-
-        seed_bias = NARROW_SEED_BIAS if coldstart_done else WIDE_SEED_BIAS
-        adv_bias = NARROW_ADV_BIAS if coldstart_done else WIDE_ADV_BIAS
-
-        results = tenlines_calibration(
-            game=self.cfg.game_version,
-            console="NX2" if self.cfg.game_version.endswith("nx2") else "NX",
-            tid=self.cfg.trainer_id, sid=self.cfg.secret_id,
-            method=self.cfg.rng_method,
-            seed=f"{self.cfg.target.seed_hex:04X}", advances=self.cfg.target.advances,
-            settings=self.cfg.game_settings,
-            seed_bias=seed_bias, advances_bias=adv_bias,
-            nature=self.nature, gender=self.gender, ability=self.ability,
-            location=self.cfg.rng_location, category=self.cfg.rng_category,
-            ivs_observations=self.obs_list, pokemon=self.pokemon, level=self.caught_level,
-        )
-        self.slots = make_slots(results)
-        self.unique_iv_count = _unique_iv_count(results) if results else 0
-
-        if len(self.slots) == 0:
-            print(f"[classify] #{self.id} -> empty")
-        elif self.is_precise:
-            print(f"[classify] #{self.id} -> precise ({self.slots[0].method}) | unique {self.slots[0] - self.target}")
+        if not self.obs_list or self.pokemon is None or candidates is None:
+            self.slots = []
+            self.unique_iv_count = 0
         else:
-            for r in results:
-                print(f"[classify] #{self.id} {r}")
-            nearest = self.find_nearest(self.target)
-            print(f"[classify] #{self.id} -> vague ({nearest.method}) | nearest (1/{len(self.slots)}) {nearest - self.target}")
+            self.slots = make_slots(candidates)
+            self.unique_iv_count = unique_iv_count(candidates) if candidates else 0
 
     @property
     def is_precise(self) -> bool:
@@ -153,92 +126,91 @@ class RNGAttempt:
         }
 
 
-def calibrate(cfg: RNGConfig, state: SessionState) -> dict:
-    attempts = [a for a in state.attempts.values() if a.is_valid]
+def calibrate(ctx, cfg: RNGConfig, state: SessionState) -> dict:
+    """基于加权正态分布 MLE 的连续校准算法。
+    
+    每个 attempt 的每个反查结果都对 ds/dt/dn 产生一个正态分布投票，
+    方差与 delta 绝对值正相关（ln(|delta|+e)），权重考虑时间衰减和结果数均分。
+    取加权概率密度最大的 (ds, dt, dn) 作为本轮修正值。
+    """
+    attempts: List[RNGAttempt] = sorted(
+        [a for a in state.attempts.values() if a.is_valid],
+        key=lambda a: a.id,
+    )
     if not attempts:
         raise ValueError("无有效观测数据")
 
+    N = len(attempts)
     target = cfg.target
 
-    print(f"[calibrate] {len(attempts)} valid attempts "
-          f"({sum(1 for a in attempts if a.is_precise)} precise, "
-          f"{sum(1 for a in attempts if not a.is_precise)} vague)")
+    ctx.log(f"[calibrate] {N} valid attempts "
+            f"({sum(1 for a in attempts if a.is_precise)} precise, "
+            f"{sum(1 for a in attempts if not a.is_precise)} vague)")
 
-    reps = [a.representative() for a in attempts]
-    seed_to_hex: Dict[int, int] = {}
-    for r in reps:
-        seed_to_hex[r.seed_time] = r.seed_hex
-    seed_times_set = list(seed_to_hex.keys())
-    advances_set = list({r.advances for r in reps})
+    # ── 1. 展平所有结果，每个结果携带权重 ──
+    # entries: [(weight, delta_array[ds, dt, dn], attempt_id), ...]
+    entries: List[Tuple[float, np.ndarray, np.ndarray, int]] = []
+    search_ranges = []
+    for idx, attempt in enumerate(attempts):
+        time_weight = 0.8 ** (N - 1 - idx)      # 距最新越远，权重越低
+        slot_weight = time_weight / len(attempt.slots)
+        attempt_delta_arrs = []
+        for i, slot in enumerate(attempt.slots):
+            delta = slot - target - attempt.calibration
+            entries.append((slot_weight, delta.to_array(),
+                            (slot - target).to_array(), attempt.id))
+            attempt_delta_arrs.append(delta.to_array())
+            ctx.log(f"# {attempt.id if i==0 else '':<3} - {delta} x {slot_weight:.3f}")
+        attempt_delta_arrs = np.stack(attempt_delta_arrs, axis=0)
+        attempt_search_range = np.abs(attempt_delta_arrs).min(axis=0)
+        search_ranges.append(attempt_search_range)
+    
+    # ── 2. 计算搜索范围 ──
+    # avg_attempt(min_result(|delta|))：每个 attempt 取各维度最小 |delta|，再跨 attempt 平均
+    search_range = np.stack(search_ranges, axis=0).mean(axis=0)
+    search_range = np.maximum(10, search_range).astype(int)
 
-    best_anchor: Optional[RNGSlot] = None
-    best_l1: float = float("inf")
-    best_l2: float = float("inf")
+    # ── 3. 独立 MLE 搜索最佳 (ds, dt, dn) ──
 
-    for st in seed_times_set:
-        hex_val = seed_to_hex[st]
-        for a in advances_set:
-            candidate = RNGSlot(hex_val, st, a)
-            total_l1 = 0.0
-            total_l2 = 0.0
-            for attempt in attempts:
-                nearest = attempt.find_nearest(candidate)
-                d = nearest - candidate
-                total_l1 += d.l1
-                total_l2 += d.l2
-            if total_l1 < best_l1 or (total_l1 == best_l1 and total_l2 < best_l2):
-                best_l1 = total_l1
-                best_l2 = total_l2
-                best_anchor = candidate
+    # 权重 & 观测值
+    weights = np.array([w for w, _, _, _ in entries])                         # (E,)
+    weights = weights / weights.sum()                                       # (E,)
+    deltas = np.array([[arr[d] for _, arr, _, _ in entries] for d in range(3)])   # (3, E)
+    distances = np.array([[arr[d] for _, _, arr, _ in entries] for d in range(3)])  # (3, E)
 
-    anchor = best_anchor
-    print(
-        f"[calibrate] anchor {repr(anchor)} "
-        f"(sum l1={best_l1} l2={best_l2:.2f})"
-    )
-
-    observed_slots: List[RNGSlot] = []
-    calibration_lines: List[str] = []
-    for attempt in attempts:
-        nearest = attempt.find_nearest(anchor)
-        observed_slots.append(nearest)
-        disp = nearest - target
-        line = f"[calibrate] #{attempt.id}: {nearest} ({nearest.method}) -> {disp}"
-        print(line)
-        calibration_lines.append(line)
-
-    deltas = np.array([(obs - target).to_array() for obs in observed_slots])
-    median_deltas = np.median(deltas, axis=0)
-
-    ds = int(median_deltas[0])
-    dt = int(median_deltas[1])
-    dn = int(median_deltas[2])
+    # 各维度独立 MLE（搜索范围可能不同，逐维度计算）
+    ml, mle = [], []
+    for d in range(3):
+        sigma = np.log(np.abs(distances[d]) + np.e)                # (E,)
+        grid = np.arange(-search_range[d], search_range[d] + 1)    # (G,)
+        z = (grid[:, None] - deltas[d]) / sigma                    # (G, E)
+        pdf = np.exp(-0.5 * z * z) / (sigma * np.sqrt(2 * np.pi))  # (G, E)
+        l = pdf @ weights                                          # (G,)
+        ml.append(float(l.max()))
+        mle.append(int(grid[l.argmax()]))
+    ds_ml, dt_ml, dn_ml = ml
+    ds, dt, dn = mle
 
     seed_bias_delta = ds * SEED_PERIOD
     adv_bias_delta = dt * ADV_PERIOD + dn
 
-    major_l1 = int((np.abs(deltas).sum(axis=1) <= 3).sum())
-    median_l2 = float(ds ** 2 + dt ** 2 + dn ** 2)
-    major_l1_converged = major_l1 >= len(attempts) / 2
-    median_l2_converged = median_l2 <= 1
-
-    print(
-        f"[calibrate] median ds={ds:+d} dt={dt:+d} dn={dn:+d} | "
+    # 收敛判断：最佳修正值在各维度上都接近 0
+    converged = all(_ >= 0.3 for _ in ml)
+    
+    ctx.log(
+        f"[calibrate] MLE ds={ds:+d} dt={dt:+d} dn={dn:+d} | "
         f"seed_bias_delta={seed_bias_delta:+d}ms adv_bias_delta={adv_bias_delta:+d}"
     )
-    print(
-        f"[calibrate] conv: major_l1={major_l1}/{len(attempts)} median_l2={median_l2:.2f} => "
-        f"major_l1={major_l1_converged} median_l2={median_l2_converged}"
+    ctx.log(
+        f"[calibrate] ML ds={ds_ml:.3f} dt={dt_ml:.3f} dn={dn_ml:.3f} | "
+        f"{converged=}"
     )
 
     return {
         "seed_bias": seed_bias_delta,
         "adv_bias": adv_bias_delta,
-        "major_l1_converged": major_l1_converged,
-        "median_l2_converged": median_l2_converged,
-        "anchor": anchor,
+        "converged": converged,
         "ds": ds,
         "dt": dt,
         "dn": dn,
-        "calibration_lines": calibration_lines,
     }

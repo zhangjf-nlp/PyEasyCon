@@ -5,7 +5,8 @@ from typing import Any, Optional, Tuple
 import cv2
 import numpy as np
 
-from easycon.context import ScriptContext, sleep
+from easycon.context import ScriptContext
+from easycon.controller import sleep
 from rng.config import RNGConfig, SessionState
 from script_utils.navigation import in_wild
 from vision.sprite import identify_pokemon as _identify, detect_gba_area, SPRITE_NATIVE
@@ -127,10 +128,10 @@ def catch_with_ball(ctx: ScriptContext) -> bool:
             if ctx.search_label(f"FRLG选中{ball}", 95):
                 break
             ctx.press("DOWN")
-            sleep(0.8)
+            sleep(1.0)
         for _ in range(10):
             ctx.press("A")
-            sleep(0.8)
+            sleep(1.0)
             if ctx.search_label("FRLG野怪血条", 90):
                 break
         else:
@@ -154,7 +155,7 @@ def catch_with_safari_strategy(ctx: ScriptContext, pokemon_en: str):
     for _ in range(30):
         ctx.press("B")
         sleep(0.5)
-        if ctx.search_label("FRLG狩猎区选中Ball"):
+        if ctx.search_label("FRLG狩猎区选中Ball", 80):
             break
     
     if pokemon_en in ["Chansey", "Kangaskhan", "Dragonair", "Pinsir", "Scyther", "Tauros"]:
@@ -230,15 +231,18 @@ def open_pokemon_menu(ctx: ScriptContext) -> None:
         if ctx.search_label("FRLG菜单", 90):
             break
     else:
-        raise ValueError(f"未能打开菜单")
-    for _ in range(20):
-        sleep(0.5)
-        if ctx.search_label("FRLG关键词BAG选中", 90):
+        ctx.log(f"[观察失败警告] 未能打开菜单")
+    for _ in range(10):
+        sleep(1.0)
+        if ctx.search_label("FRLG菜单选中POKeMON", 98):
+            break
+        elif ctx.search_label("FRLG关键词BAG选中", 90):
+            ctx.press("UP")
             break
         else:
             ctx.press("DOWN")
-    ctx.press("UP")
-    sleep(1.0)
+    else:
+        ctx.log(f"[观察失败警告] 未能找到背包")
     ctx.press("A")
 
 
@@ -250,7 +254,7 @@ def check_last_pokemon(ctx: ScriptContext) -> None:
     sleep(1.0)
     ctx.press("UP")
     sleep(1.0)
-    for _ in range(100):
+    for _ in range(10):
         ctx.press("A")
         sleep(1.0)
         if ctx.search_label("FRLG精灵球", 85):

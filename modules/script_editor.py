@@ -35,11 +35,11 @@ class PatchedTextEditor(TextEditor):
             self.line_number_width = self.letter_width * 6
             self.line_start_x = self.editor_offset_x + self.line_number_width
 
-        self._undo_stack = []
-        self._redo_stack = []
-        self._suppress_undo = False
+        self.undo_stack = []
+        self.redo_stack = []
+        self.suppress_undo = False
 
-    def _snapshot(self):
+    def snapshot(self):
         return (
             copy.deepcopy(self.editor_lines),
             self.chosen_line_index,
@@ -47,37 +47,37 @@ class PatchedTextEditor(TextEditor):
             self.first_showable_line_index,
         )
 
-    def _restore_snapshot(self, snap):
+    def restore_snapshot(self, snap):
         lines, li, ci, fli = snap
         self.editor_lines = copy.deepcopy(lines)
         self.chosen_line_index = max(0, min(li, len(self.editor_lines) - 1))
         self.chosen_letter_index = max(0, min(ci, len(self.editor_lines[self.chosen_line_index])))
         self.first_showable_line_index = max(0, fli)
         self.render_line_numbers_flag = True
-        self._update_caret_x()
-        self._update_caret_y()
+        self.update_caret_x()
+        self.update_caret_y()
 
-    def _maybe_save_undo(self):
-        if self._suppress_undo:
+    def maybe_save_undo(self):
+        if self.suppress_undo:
             return
-        snap = self._snapshot()
-        self._undo_stack.append(snap)
-        if len(self._undo_stack) > UNDO_MAX:
-            self._undo_stack.pop(0)
-        self._redo_stack.clear()
+        snap = self.snapshot()
+        self.undo_stack.append(snap)
+        if len(self.undo_stack) > UNDO_MAX:
+            self.undo_stack.pop(0)
+        self.redo_stack.clear()
 
     def undo(self):
-        if len(self._undo_stack) > 1:
-            self._redo_stack.append(self._snapshot())
-            self._undo_stack.pop()
-            self._restore_snapshot(self._undo_stack[-1])
+        if len(self.undo_stack) > 1:
+            self.redo_stack.append(self.snapshot())
+            self.undo_stack.pop()
+            self.restore_snapshot(self.undo_stack[-1])
 
     def redo(self):
-        if self._redo_stack:
-            self._undo_stack.append(self._snapshot())
-            self._restore_snapshot(self._redo_stack.pop())
+        if self.redo_stack:
+            self.undo_stack.append(self.snapshot())
+            self.restore_snapshot(self.redo_stack.pop())
 
-    def _line_pixel_width(self, line_index, upto=None):
+    def line_pixel_width(self, line_index, upto=None):
         if line_index < 0 or line_index >= len(self.editor_lines):
             return 0
         line = self.editor_lines[line_index]
@@ -89,22 +89,22 @@ class PatchedTextEditor(TextEditor):
             return 0
         return self.editor_font.size(text)[0]
 
-    def _update_caret_x(self):
-        px = self._line_pixel_width(self.chosen_line_index, self.chosen_letter_index)
+    def update_caret_x(self):
+        px = self.line_pixel_width(self.chosen_line_index, self.chosen_letter_index)
         self.caret_x = self.line_start_x + px + 1
 
-    def _update_caret_y(self):
+    def update_caret_y(self):
         self.caret_y = self.editor_offset_y + (
             (self.chosen_line_index - self.first_showable_line_index)
             * self.line_height_including_margin
         )
 
     def update_caret_position(self):
-        self._update_caret_x()
-        self._update_caret_y()
+        self.update_caret_x()
+        self.update_caret_y()
 
     def update_caret_position_by_drag_start(self):
-        self.caret_x = self.line_start_x + self._line_pixel_width(
+        self.caret_x = self.line_start_x + self.line_pixel_width(
             self.drag_chosen_line_index_start, self.drag_chosen_letter_index_start
         )
         self.caret_y = (
@@ -114,7 +114,7 @@ class PatchedTextEditor(TextEditor):
         )
 
     def update_caret_position_by_drag_end(self):
-        self.caret_x = self.line_start_x + self._line_pixel_width(
+        self.caret_x = self.line_start_x + self.line_pixel_width(
             self.drag_chosen_line_index_end, self.drag_chosen_letter_index_end
         )
         self.caret_y = (
@@ -149,7 +149,7 @@ class PatchedTextEditor(TextEditor):
             line_end = self.get_line_index(mouse_y)
             if line_end >= self.get_showable_lines():
                 line_end = self.get_showable_lines() - 1
-            letter_end = self._get_letter_index_for_line(line_end, mouse_x)
+            letter_end = self.get_letter_index_for_line(line_end, mouse_x)
             if letter_end < 0:
                 letter_end = 0
             elif letter_end > len(self.editor_lines[line_end]):
@@ -160,7 +160,7 @@ class PatchedTextEditor(TextEditor):
         line_coord = self.editor_offset_y + (
             self.line_height_including_margin * (line - self.first_showable_line_index)
         )
-        letter_coord = self.line_start_x + self._line_pixel_width(line, letter)
+        letter_coord = self.line_start_x + self.line_pixel_width(line, letter)
         return letter_coord, line_coord
 
     def render_line_contents(self, line_contents):
@@ -182,7 +182,7 @@ class PatchedTextEditor(TextEditor):
     def display_editor(self, pygame_events, pressed_keys, mouse_x, mouse_y, mouse_pressed):
         self.cycleCounter = self.cycleCounter + 1
 
-        snap_before = self._snapshot() if not self._suppress_undo and pygame_events else None
+        snap_before = self.snapshot() if not self.suppress_undo and pygame_events else None
 
         if self.first_iteration_boolean:
             pygame.draw.rect(
@@ -207,11 +207,11 @@ class PatchedTextEditor(TextEditor):
         self.render_caret()
         self.render_scrollbar_vertical()
 
-        if snap_before is not None and self._snapshot() != snap_before:
-            self._undo_stack.append(snap_before)
-            if len(self._undo_stack) > UNDO_MAX:
-                self._undo_stack.pop(0)
-            self._redo_stack.clear()
+        if snap_before is not None and self.snapshot() != snap_before:
+            self.undo_stack.append(snap_before)
+            if len(self.undo_stack) > UNDO_MAX:
+                self.undo_stack.pop(0)
+            self.redo_stack.clear()
 
         return kb_result
 
@@ -230,22 +230,22 @@ class PatchedTextEditor(TextEditor):
         return self.get_text_as_string()
 
     def set_code(self, code):
-        self._suppress_undo = True
+        self.suppress_undo = True
         self.clear_text()
         self.set_text_from_string(code)
-        self._suppress_undo = False
-        self._undo_stack.clear()
-        self._redo_stack.clear()
-        self._maybe_save_undo()
+        self.suppress_undo = False
+        self.undo_stack.clear()
+        self.redo_stack.clear()
+        self.maybe_save_undo()
 
-    def _start_shift_selection(self):
+    def start_shift_selection(self):
         if not self.dragged_active:
             self.drag_chosen_line_index_start = self.chosen_line_index
             self.drag_chosen_letter_index_start = self.chosen_letter_index
             self.dragged_active = True
             self.dragged_finished = True
 
-    def _extend_shift_selection(self):
+    def extend_shift_selection(self):
         self.drag_chosen_line_index_end = self.chosen_line_index
         self.drag_chosen_letter_index_end = self.chosen_letter_index
 
@@ -284,9 +284,9 @@ class PatchedTextEditor(TextEditor):
                 if shift and event.key in (
                     pygame.K_UP, pygame.K_DOWN, pygame.K_LEFT, pygame.K_RIGHT
                 ):
-                    self._extend_shift_selection()
-                    self._move_arrow(event.key)
-                    self._extend_shift_selection()
+                    self.extend_shift_selection()
+                    self.move_arrow(event.key)
+                    self.extend_shift_selection()
                 else:
                     self.handle_input_with_highlight(event)
             else:
@@ -296,9 +296,9 @@ class PatchedTextEditor(TextEditor):
                 if shift and event.key in (
                     pygame.K_UP, pygame.K_DOWN, pygame.K_LEFT, pygame.K_RIGHT
                 ):
-                    self._start_shift_selection()
-                    self._move_arrow(event.key)
-                    self._extend_shift_selection()
+                    self.start_shift_selection()
+                    self.move_arrow(event.key)
+                    self.extend_shift_selection()
                 elif (
                     self.dragged_finished and self.dragged_active
                     and event.unicode in ("\x08", "\x7f")
@@ -328,15 +328,15 @@ class PatchedTextEditor(TextEditor):
                 elif event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
                     self.handle_keyboard_return()
                 elif event.key == pygame.K_UP:
-                    self._move_arrow(pygame.K_UP)
+                    self.move_arrow(pygame.K_UP)
                 elif event.key == pygame.K_DOWN:
-                    self._move_arrow(pygame.K_DOWN)
+                    self.move_arrow(pygame.K_DOWN)
                 elif event.key == pygame.K_RIGHT:
-                    self._move_arrow(pygame.K_RIGHT)
+                    self.move_arrow(pygame.K_RIGHT)
                 elif event.key == pygame.K_LEFT:
-                    self._move_arrow(pygame.K_LEFT)
+                    self.move_arrow(pygame.K_LEFT)
 
-    def _move_arrow(self, key):
+    def move_arrow(self, key):
         if key == pygame.K_UP:
             self.handle_keyboard_arrow_up()
         elif key == pygame.K_DOWN:
@@ -352,7 +352,7 @@ class PatchedTextEditor(TextEditor):
             line[: self.chosen_letter_index] + unicode + line[self.chosen_letter_index :]
         )
         self.chosen_letter_index += len(unicode)
-        self._update_caret_x()
+        self.update_caret_x()
 
     def handle_keyboard_space(self):
         self.insert_unicode(" ")
@@ -367,7 +367,7 @@ class PatchedTextEditor(TextEditor):
             self.chosen_line_index -= 1
             self.chosen_letter_index = len(self.editor_lines[self.chosen_line_index])
             self.caret_y -= self.line_height_including_margin
-            self._update_caret_x()
+            self.update_caret_x()
             self.editor_lines[self.chosen_line_index] += self.editor_lines.pop(self.chosen_line_index + 1)
             self.render_line_numbers_flag = True
             if self.first_showable_line_index > 0 and (
@@ -384,7 +384,7 @@ class PatchedTextEditor(TextEditor):
                 line[: self.chosen_letter_index - 1] + line[self.chosen_letter_index :]
             )
             self.chosen_letter_index -= 1
-            self._update_caret_x()
+            self.update_caret_x()
 
     def handle_keyboard_delete(self):
         line = self.editor_lines[self.chosen_line_index]
@@ -404,11 +404,11 @@ class PatchedTextEditor(TextEditor):
     def handle_keyboard_arrow_left(self):
         if self.chosen_letter_index > 0:
             self.chosen_letter_index -= 1
-            self._update_caret_x()
+            self.update_caret_x()
         elif self.chosen_letter_index == 0 and self.chosen_line_index > 0:
             self.chosen_line_index -= 1
             self.chosen_letter_index = len(self.editor_lines[self.chosen_line_index])
-            self._update_caret_x()
+            self.update_caret_x()
             self.caret_y -= self.line_height_including_margin
             if self.chosen_line_index < self.first_showable_line_index:
                 self.first_showable_line_index -= 1
@@ -418,11 +418,11 @@ class PatchedTextEditor(TextEditor):
     def handle_keyboard_arrow_right(self):
         if self.chosen_letter_index < len(self.editor_lines[self.chosen_line_index]):
             self.chosen_letter_index += 1
-            self._update_caret_x()
+            self.update_caret_x()
         elif self.chosen_line_index < len(self.editor_lines) - 1:
             self.chosen_letter_index = 0
             self.chosen_line_index += 1
-            self._update_caret_x()
+            self.update_caret_x()
             self.caret_y += self.line_height_including_margin
             if self.chosen_line_index > (
                 self.first_showable_line_index + self.showable_line_numbers_in_editor - 1
@@ -434,13 +434,13 @@ class PatchedTextEditor(TextEditor):
     def handle_keyboard_arrow_up(self):
         if self.chosen_line_index == 0:
             self.chosen_letter_index = 0
-            self._update_caret_x()
+            self.update_caret_x()
         else:
             self.chosen_line_index -= 1
             self.caret_y -= self.line_height_including_margin
             if len(self.editor_lines[self.chosen_line_index]) < self.chosen_letter_index:
                 self.chosen_letter_index = len(self.editor_lines[self.chosen_line_index])
-            self._update_caret_x()
+            self.update_caret_x()
             if self.chosen_line_index < self.first_showable_line_index:
                 self.scrollbar_up()
 
@@ -450,14 +450,14 @@ class PatchedTextEditor(TextEditor):
             self.caret_y += self.line_height_including_margin
             if len(self.editor_lines[self.chosen_line_index]) < self.chosen_letter_index:
                 self.chosen_letter_index = len(self.editor_lines[self.chosen_line_index])
-            self._update_caret_x()
+            self.update_caret_x()
             if self.chosen_line_index > (
                 self.first_showable_line_index + self.showable_line_numbers_in_editor - 1
             ):
                 self.scrollbar_down()
         elif self.chosen_line_index == len(self.editor_lines) - 1:
             self.chosen_letter_index = len(self.editor_lines[self.chosen_line_index])
-            self._update_caret_x()
+            self.update_caret_x()
 
     def handle_mouse_input(self, pygame_events, mouse_x, mouse_y, mouse_pressed):
         for event in pygame_events:
@@ -495,7 +495,7 @@ class PatchedTextEditor(TextEditor):
                         self.dragged_finished = False
                         if self.mouse_within_texteditor(mouse_x, mouse_y):
                             if self.mouse_within_existing_lines(mouse_y):
-                                self._set_drag_start_by_mouse(mouse_x, mouse_y)
+                                self.set_drag_start_by_mouse(mouse_x, mouse_y)
                             else:
                                 self.set_drag_start_after_last_line()
                             self.update_caret_position_by_drag_start()
@@ -507,7 +507,7 @@ class PatchedTextEditor(TextEditor):
                     self.click_hold_flag = False
                     if self.mouse_within_texteditor(mouse_x, mouse_y):
                         if self.mouse_within_existing_lines(mouse_y):
-                            self._set_drag_end_by_mouse(mouse_x, mouse_y)
+                            self.set_drag_end_by_mouse(mouse_x, mouse_y)
                         else:
                             self.set_drag_end_after_last_line()
                         self.update_caret_position_by_drag_end()
@@ -524,7 +524,7 @@ class PatchedTextEditor(TextEditor):
                                 self.drag_chosen_line_index_end = len(self.editor_lines) - 1
                         else:
                             self.set_drag_end_line_by_mouse(mouse_y)
-                        self._set_drag_end_letter_by_mouse(mouse_x)
+                        self.set_drag_end_letter_by_mouse(mouse_x)
 
             if (self.last_clickup_cycle - self.last_clickdown_cycle) >= 0:
                 if (
@@ -542,34 +542,34 @@ class PatchedTextEditor(TextEditor):
                 self.last_clickup_cycle = -1
 
         if mouse_pressed[0] == 1 and self.scrollbar_is_being_dragged:
-            self._handle_scrollbar_drag(mouse_y)
+            self.handle_scrollbar_drag(mouse_y)
         elif mouse_pressed[0] == 1 and self.click_hold_flag:
-            self._handle_drag_autoscroll(mouse_x, mouse_y)
+            self.handle_drag_autoscroll(mouse_x, mouse_y)
 
-    def _set_drag_start_by_mouse(self, mouse_x, mouse_y):
+    def set_drag_start_by_mouse(self, mouse_x, mouse_y):
         self.drag_chosen_line_index_start = self.get_line_index(mouse_y)
         li = self.drag_chosen_line_index_start
         max_letter = len(self.editor_lines[li]) if li < len(self.editor_lines) else 0
-        idx = self._get_letter_index_for_line(li, mouse_x)
+        idx = self.get_letter_index_for_line(li, mouse_x)
         if idx > max_letter:
             self.drag_chosen_letter_index_start = max_letter
         else:
             self.drag_chosen_letter_index_start = idx
 
-    def _set_drag_end_by_mouse(self, mouse_x, mouse_y):
+    def set_drag_end_by_mouse(self, mouse_x, mouse_y):
         self.set_drag_end_line_by_mouse(mouse_y)
-        self._set_drag_end_letter_by_mouse(mouse_x)
+        self.set_drag_end_letter_by_mouse(mouse_x)
 
-    def _set_drag_end_letter_by_mouse(self, mouse_x):
+    def set_drag_end_letter_by_mouse(self, mouse_x):
         li = self.drag_chosen_line_index_end
         max_letter = len(self.editor_lines[li]) if li < len(self.editor_lines) else 0
-        idx = self._get_letter_index_for_line(li, mouse_x)
+        idx = self.get_letter_index_for_line(li, mouse_x)
         if idx > max_letter:
             self.drag_chosen_letter_index_end = max_letter
         else:
             self.drag_chosen_letter_index_end = idx
 
-    def _get_letter_index_for_line(self, line_index, mouse_x):
+    def get_letter_index_for_line(self, line_index, mouse_x):
         x = mouse_x - self.line_start_x
         if x <= 0:
             return 0
@@ -581,7 +581,7 @@ class PatchedTextEditor(TextEditor):
                 return i
         return len(line)
 
-    def _handle_scrollbar_drag(self, mouse_y):
+    def handle_scrollbar_drag(self, mouse_y):
         track_top = self.editor_offset_y + self.scrollbar_width
         track_bottom = self.editor_offset_y + self.editor_height - self.scrollbar_width
         fraction = max(0.0, min(1.0, (mouse_y - track_top) / max(1, track_bottom - track_top)))
@@ -591,7 +591,7 @@ class PatchedTextEditor(TextEditor):
             self.first_showable_line_index = target
             self.render_line_numbers_flag = True
 
-    def _handle_drag_autoscroll(self, mouse_x, mouse_y):
+    def handle_drag_autoscroll(self, mouse_x, mouse_y):
         if mouse_y < self.editor_offset_y + AUTO_SCROLL_MARGIN:
             for _ in range(AUTO_SCROLL_SPEED):
                 if self.first_showable_line_index > 0:

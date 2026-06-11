@@ -61,16 +61,16 @@ class LabelMaker:
         
         # 已保存的标签
         self.saved_labels: List[str] = []
-        self._refresh_saved_labels()
+        self.refresh_saved_labels()
         
-        # 按钮（3行2列，靠左 ~40% 宽度）
+        # 按钮（3行2列，靠右侧）
         btn_y = y + 230
         btn_w = 64
         btn_h = 28
         gap_x = 8
         gap_y = 6
-        col1_x = x + 10
-        col2_x = col1_x + btn_w + gap_x
+        col2_x = x + width - btn_w - 10
+        col1_x = col2_x - (btn_w + gap_x)
         self.btn_region_w = col2_x + btn_w - x
         self.buttons = {
             'capture': pygame.Rect(col1_x, btn_y, btn_w, btn_h),
@@ -83,25 +83,26 @@ class LabelMaker:
         
         self.btn_bottom = self.buttons['save'].bottom
 
-        # 识别目标显示区域（按钮右侧）
-        self.target_panel_x = x + self.btn_region_w + 10
-        self.target_panel_w = width - self.btn_region_w - 20
+        # 识别目标显示区域（按钮左侧）
+        btn_area = btn_w * 2 + gap_x + 10  # 按钮占用宽度（含右侧边距）
+        self.target_panel_x = x + 10
+        self.target_panel_w = width - btn_area - 10
 
         self.target_thumb: Optional[pygame.Surface] = None
         self.target_thumb_name: str = ""
         self.target_match: float = 0
-        self._last_match_update = 0.0
+        self.last_match_update = 0.0
 
         self.popup_mode = None
         self.popup_input = ""
         self.popup_scroll = 0
         self.popup_search = ""
         self.popup_confirm_name = ""
-        self._popup_msg = ""
-        self._capture_callback = None
+        self.popup_msg = ""
+        self.capture_callback = None
 
 
-    def _refresh_saved_labels(self):
+    def refresh_saved_labels(self):
         """刷新已保存的标签列表"""
         import os
         try:
@@ -116,18 +117,18 @@ class LabelMaker:
         """
         if frame is not None:
             self.current_capture = frame.copy()
-            self._update_capture_surface()
+            self.update_capture_surface()
             self.range_rect = None
             self.target_rect = None
             self.selection_start = None
             self.target_thumb = None
             self.target_thumb_name = ""
             self.target_match = 0
-            self._last_match_update = 0
+            self.last_match_update = 0
             return True
         return False
     
-    def _update_capture_surface(self):
+    def update_capture_surface(self):
         """更新截图显示表面"""
         if self.current_capture is not None:
             # 缩放以适应显示区域
@@ -141,7 +142,7 @@ class LabelMaker:
     
     def handle_event(self, event: pygame.event.Event) -> bool:
         if self.popup_mode:
-            return self._handle_popup_event(event)
+            return self.handle_popup_event(event)
 
         if event.type == pygame.MOUSEBUTTONDOWN:
             if event.button == 1:
@@ -151,28 +152,28 @@ class LabelMaker:
                         if btn_name == 'capture':
                             return 'capture'
                         elif btn_name == 'clear':
-                            self._clear_all()
+                            self.clear_all()
                             return True
                         elif btn_name == 'range':
                             self.mode = 'range'
                         elif btn_name == 'target':
                             self.mode = 'target'
                         elif btn_name == 'save':
-                            self._open_save_popup()
+                            self.open_save_popup()
                             return True
                         elif btn_name == 'load':
-                            self._open_load_popup()
+                            self.open_load_popup()
                             return True
                         return True
 
-                if self._is_in_capture_display(mx, my) and self.current_capture is not None:
-                    self.selection_start = self._screen_to_capture_coords(mx, my)
+                if self.is_in_capture_display(mx, my) and self.current_capture is not None:
+                    self.selection_start = self.screen_to_capture_coords(mx, my)
                     return True
 
         elif event.type == pygame.MOUSEMOTION:
             if event.buttons[0] and self.selection_start and self.current_capture is not None:
                 mx, my = event.pos
-                current = self._screen_to_capture_coords(mx, my)
+                current = self.screen_to_capture_coords(mx, my)
                 x1, y1 = self.selection_start
                 x2, y2 = current
                 temp_rect = (
@@ -194,7 +195,7 @@ class LabelMaker:
 
         return False
 
-    def _clear_all(self):
+    def clear_all(self):
         self.current_capture = None
         self.capture_surface = None
         self.range_rect = None
@@ -205,39 +206,39 @@ class LabelMaker:
         self.target_match = 0
         self.mode = "range"
 
-    def _open_save_popup(self):
+    def open_save_popup(self):
         if self.current_capture is None:
-            self._popup_msg = "请先截图"
+            self.popup_msg = "请先截图"
             self.popup_mode = "msg"
             return
         if self.target_rect is None:
-            self._popup_msg = "请先选择目标区域(Target)"
+            self.popup_msg = "请先选择目标区域(Target)"
             self.popup_mode = "msg"
             return
         self.popup_mode = "save"
         self.popup_input = ""
 
-    def _open_load_popup(self):
-        if self.current_capture is None and self._capture_callback:
-            self._capture_callback()
-        self._refresh_saved_labels()
+    def open_load_popup(self):
+        if self.current_capture is None and self.capture_callback:
+            self.capture_callback()
+        self.refresh_saved_labels()
         self.popup_mode = "load"
         self.popup_scroll = 0
         self.popup_search = ""
 
-    def _popup_rect(self):
+    def popup_rect(self):
         pw, ph = 300, 260
         px = self.x + (self.width - pw) // 2
         py = self.y + (self.height - ph) // 2
         return pygame.Rect(px, py, pw, ph)
 
-    def _handle_popup_event(self, event: pygame.event.Event):
+    def handle_popup_event(self, event: pygame.event.Event):
         if self.popup_mode == "msg":
             if event.type == pygame.MOUSEBUTTONDOWN or event.type == pygame.KEYDOWN:
                 self.popup_mode = None
             return True
 
-        pr = self._popup_rect()
+        pr = self.popup_rect()
 
         if event.type == pygame.TEXTINPUT:
             if self.popup_mode == "save":
@@ -255,7 +256,7 @@ class LabelMaker:
                 if event.key == pygame.K_BACKSPACE:
                     self.popup_input = self.popup_input[:-1]
                 elif event.key == pygame.K_RETURN:
-                    self._do_save_label()
+                    self.do_save_label()
                 elif not event.unicode:
                     if pygame.K_a <= event.key <= pygame.K_z:
                         self.popup_input += chr(event.key)
@@ -272,7 +273,7 @@ class LabelMaker:
 
         if self.popup_mode == "save_confirm":
             if event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
-                self._do_overwrite_save()
+                self.do_overwrite_save()
                 return True
 
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
@@ -285,7 +286,7 @@ class LabelMaker:
                 btn_ok = pygame.Rect(pr.x + 60, pr.y + 200, 70, 28)
                 btn_cancel = pygame.Rect(pr.x + 150, pr.y + 200, 70, 28)
                 if btn_ok.collidepoint(mx, my):
-                    self._do_save_label()
+                    self.do_save_label()
                 elif btn_cancel.collidepoint(mx, my):
                     self.popup_mode = None
                 return True
@@ -294,7 +295,7 @@ class LabelMaker:
                 btn_ok = pygame.Rect(pr.x + 60, pr.y + 200, 70, 28)
                 btn_cancel = pygame.Rect(pr.x + 150, pr.y + 200, 70, 28)
                 if btn_ok.collidepoint(mx, my):
-                    self._do_overwrite_save()
+                    self.do_overwrite_save()
                 elif btn_cancel.collidepoint(mx, my):
                     self.popup_mode = None
                 return True
@@ -313,7 +314,7 @@ class LabelMaker:
                 for i, label_name in enumerate(filtered[self.popup_scroll:self.popup_scroll + visible]):
                     item_rect = pygame.Rect(pr.x + 10, list_y_start + i * item_h, pr.width - 20, item_h)
                     if item_rect.collidepoint(mx, my):
-                        result = self._load_label(label_name)
+                        result = self.load_label(label_name)
                         self.popup_mode = None
                         return result
 
@@ -321,17 +322,17 @@ class LabelMaker:
             self.popup_scroll -= event.y
             search = self.popup_search.lower()
             filtered = [n for n in self.saved_labels if search in n.lower()]
-            visible = (self._popup_rect().height - 115) // 22
+            visible = (self.popup_rect().height - 115) // 22
             max_scroll = max(0, len(filtered) - visible)
             self.popup_scroll = max(0, min(self.popup_scroll, max_scroll))
             return True
 
         return True
 
-    def _do_save_label(self):
+    def do_save_label(self):
         label_name = self.popup_input.strip()
         if not label_name:
-            self._popup_msg = "标签名不能为空"
+            self.popup_msg = "标签名不能为空"
             self.popup_mode = "msg"
             return
         import os
@@ -339,28 +340,28 @@ class LabelMaker:
             self.popup_confirm_name = label_name
             self.popup_mode = "save_confirm"
             return
-        result = self._save_label_with_name(label_name)
-        self._refresh_saved_labels()
+        result = self.save_label_with_name(label_name)
+        self.refresh_saved_labels()
         self.popup_mode = None
         if isinstance(result, str):
-            self._popup_msg = result
+            self.popup_msg = result
             self.popup_mode = "msg"
 
-    def _do_overwrite_save(self):
+    def do_overwrite_save(self):
         label_name = self.popup_confirm_name
-        result = self._save_label_with_name(label_name)
-        self._refresh_saved_labels()
+        result = self.save_label_with_name(label_name)
+        self.refresh_saved_labels()
         self.popup_mode = None
         if isinstance(result, str):
-            self._popup_msg = result
+            self.popup_msg = result
             self.popup_mode = "msg"
 
-    def _is_in_capture_display(self, mx: int, my: int) -> bool:
+    def is_in_capture_display(self, mx: int, my: int) -> bool:
         """检查坐标是否在截图显示区域内"""
         return (self.capture_display_x <= mx <= self.capture_display_x + self.capture_display_width and
                 self.capture_display_y <= my <= self.capture_display_y + self.capture_display_height)
     
-    def _screen_to_capture_coords(self, mx: int, my: int) -> Tuple[int, int]:
+    def screen_to_capture_coords(self, mx: int, my: int) -> Tuple[int, int]:
         """将屏幕坐标转换为截图内的坐标"""
         x = mx - self.capture_display_x
         y = my - self.capture_display_y
@@ -371,7 +372,7 @@ class LabelMaker:
         
         return (x, y)
     
-    def _load_label(self, label_name: str):
+    def load_label(self, label_name: str):
         """加载标签 — 保持当前截图为上下文，叠加 Range/Target 框"""
         try:
             import os
@@ -432,7 +433,7 @@ class LabelMaker:
                     if roi is not None and roi.size > 0 and roi.shape[0] >= h and roi.shape[1] >= w:
                         result = cv2.matchTemplate(roi, cv_img, cv2.TM_CCOEFF_NORMED)
                         _, max_val, _, _ = cv2.minMaxLoc(result)
-                        self.target_match = max_val * 100
+                        self.target_match = (max_val + 1.0) * 50.0
                     else:
                         self.target_match = 0
                 else:
@@ -444,7 +445,7 @@ class LabelMaker:
         except Exception as e:
             return f"加载标签失败: {e}"
     
-    def _save_label_with_name(self, label_name: str):
+    def save_label_with_name(self, label_name: str):
         """保存标签（使用指定名称）"""
         if self.current_capture is None:
             return "请先截图"
@@ -564,8 +565,8 @@ class LabelMaker:
             if self.selection_start:
                 # 获取当前鼠标位置计算临时矩形
                 mx, my = pygame.mouse.get_pos()
-                if self._is_in_capture_display(mx, my):
-                    current = self._screen_to_capture_coords(mx, my)
+                if self.is_in_capture_display(mx, my):
+                    current = self.screen_to_capture_coords(mx, my)
                     x1, y1 = self.selection_start
                     x2, y2 = current
                     temp_rect = (
@@ -591,34 +592,34 @@ class LabelMaker:
                          self.capture_display_width, self.capture_display_height), 1)
         
         # 按钮
-        self._draw_button(screen, small_font, 'capture', "截图", (60, 80, 120))
-        self._draw_button(screen, small_font, 'clear', "清空", (100, 60, 60))
-        self._draw_button(screen, small_font, 'range', "范围",
+        self.draw_button(screen, small_font, 'capture', "截图", (60, 80, 120))
+        self.draw_button(screen, small_font, 'clear', "清空", (100, 60, 60))
+        self.draw_button(screen, small_font, 'range', "范围",
                          (80, 120, 80) if self.mode == "range" else (60, 60, 60))
-        self._draw_button(screen, small_font, 'target', "目标",
+        self.draw_button(screen, small_font, 'target', "目标",
                          (120, 80, 80) if self.mode == "target" else (60, 60, 60))
-        self._draw_button(screen, small_font, 'save', "保存", (80, 120, 80))
-        self._draw_button(screen, small_font, 'load', "加载", (80, 80, 120))
+        self.draw_button(screen, small_font, 'save', "保存", (80, 120, 80))
+        self.draw_button(screen, small_font, 'load', "加载", (80, 80, 120))
 
-        self._update_match()
-        self._draw_target_panel(screen, small_font)
+        self.update_match()
+        self.draw_target_panel(screen, small_font)
 
         if self.popup_mode:
-            self._draw_popup(screen, small_font)
+            self.draw_popup(screen, small_font)
 
         pygame.draw.rect(screen, (100, 100, 100), (self.x, self.y, self.width, self.height), 2)
 
-    def _draw_popup(self, screen, font):
+    def draw_popup(self, screen, font):
         overlay = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
         overlay.fill((0, 0, 0, 160))
         screen.blit(overlay, (self.x, self.y))
 
-        pr = self._popup_rect()
+        pr = self.popup_rect()
         pygame.draw.rect(screen, (45, 45, 50), pr, border_radius=6)
         pygame.draw.rect(screen, (100, 100, 110), pr, 2, border_radius=6)
 
         if self.popup_mode == "msg":
-            msg = font.render(self._popup_msg, True, (220, 220, 220))
+            msg = font.render(self.popup_msg, True, (220, 220, 220))
             msg_rect = msg.get_rect(center=(pr.centerx, pr.centery))
             screen.blit(msg, msg_rect)
             return
@@ -639,8 +640,8 @@ class LabelMaker:
 
             btn_ok = pygame.Rect(pr.x + 60, pr.y + 200, 70, 28)
             btn_cancel = pygame.Rect(pr.x + 150, pr.y + 200, 70, 28)
-            self._draw_popup_button(screen, font, btn_ok, "确定", (60, 100, 60))
-            self._draw_popup_button(screen, font, btn_cancel, "取消", (100, 60, 60))
+            self.draw_popup_button(screen, font, btn_ok, "确定", (60, 100, 60))
+            self.draw_popup_button(screen, font, btn_cancel, "取消", (100, 60, 60))
 
         if self.popup_mode == "save_confirm":
             msg = font.render(f"标签 '{self.popup_confirm_name}' 已存在，是否覆盖?", True, (220, 220, 220))
@@ -649,8 +650,8 @@ class LabelMaker:
 
             btn_ok = pygame.Rect(pr.x + 60, pr.y + 200, 70, 28)
             btn_cancel = pygame.Rect(pr.x + 150, pr.y + 200, 70, 28)
-            self._draw_popup_button(screen, font, btn_ok, "覆盖", (180, 120, 40))
-            self._draw_popup_button(screen, font, btn_cancel, "取消", (100, 60, 60))
+            self.draw_popup_button(screen, font, btn_ok, "覆盖", (180, 120, 40))
+            self.draw_popup_button(screen, font, btn_cancel, "取消", (100, 60, 60))
 
         if self.popup_mode == "load":
             title = font.render("加载标签", True, (220, 220, 220))
@@ -684,17 +685,17 @@ class LabelMaker:
                 screen.blit(text, (pr.x + 16, y + 3))
 
             btn_cancel = pygame.Rect(pr.x + (pr.width - 70) // 2, pr.y + 220, 70, 28)
-            self._draw_popup_button(screen, font, btn_cancel, "取消", (100, 60, 60))
+            self.draw_popup_button(screen, font, btn_cancel, "取消", (100, 60, 60))
 
-    def _update_match(self):
+    def update_match(self):
         now = time.time()
-        if now - self._last_match_update < 1.0:
+        if now - self.last_match_update < 1.0:
             return
-        self._last_match_update = now
+        self.last_match_update = now
         if self.target_thumb_name and self.current_capture is not None and self.target_rect is not None:
-            self._recalc_match()
+            self.recalc_match()
 
-    def _recalc_match(self):
+    def recalc_match(self):
         try:
             label_path = os.path.join(self.labels_dir, f"{self.target_thumb_name}.IL")
             if not os.path.exists(label_path):
@@ -725,11 +726,11 @@ class LabelMaker:
             if roi is not None and roi.size > 0 and roi.shape[0] >= h and roi.shape[1] >= w:
                 result = cv2.matchTemplate(roi, template, cv2.TM_CCOEFF_NORMED)
                 _, max_val, _, _ = cv2.minMaxLoc(result)
-                self.target_match = max_val * 100
+                self.target_match = (max_val + 1.0) * 50.0
         except Exception:
             pass
 
-    def _draw_target_panel(self, screen, font):
+    def draw_target_panel(self, screen, font):
         tx = self.target_panel_x
         ty = self.y + 230
         tw = self.target_panel_w
@@ -757,7 +758,7 @@ class LabelMaker:
             hint_rect = hint.get_rect(center=(tx + tw // 2, ty + 30))
             screen.blit(hint, hint_rect)
 
-    def _draw_popup_button(self, screen, font, rect, text, color):
+    def draw_popup_button(self, screen, font, rect, text, color):
         mx, my = pygame.mouse.get_pos()
         c = tuple(min(255, v + 30) for v in color) if rect.collidepoint(mx, my) else color
         pygame.draw.rect(screen, c, rect, border_radius=4)
@@ -765,7 +766,7 @@ class LabelMaker:
         tr = t.get_rect(center=rect.center)
         screen.blit(t, tr)
     
-    def _draw_button(self, screen: pygame.Surface, font: pygame.font.Font, 
+    def draw_button(self, screen: pygame.Surface, font: pygame.font.Font, 
                      btn_name: str, text: str, color: Tuple[int, int, int]):
         """绘制按钮"""
         rect = self.buttons[btn_name]

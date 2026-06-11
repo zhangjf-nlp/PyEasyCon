@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import sys
 import os
-from typing import Callable
+from typing import Optional
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -13,6 +13,71 @@ from script_utils.hit import hit
 from script_utils.capture import check_shiny, catch_with_ball, catch_with_safari_strategy, check_last_pokemon
 from script_utils.session import observe_pokemon, init_log_dir, run_calibration
 from script_utils.navigation import in_wild, restart
+
+
+def attempt_once(ctx: ScriptContext, cfg: RNGConfig, state: Optional[SessionState] = None) -> bool:
+    """单次乱数尝试（hit → 判定 → 校准/观察），返回 True 表示找到并处理了闪光目标"""
+    if state is None:
+        state = SessionState()
+    state.attempt_index += 1
+    ctx.log(f"========== 乱数尝试第 {state.attempt_index} 次 ==========")
+
+    hit(ctx, cfg)
+
+    if cfg.rng_location.startswith("Safari Zone"):
+        is_shiny, pokemon_en = check_shiny(ctx, cfg, state, state.attempt_index)
+        if pokemon_en is None:
+            return False
+        if is_shiny:
+            ctx.log("闪光出现!")
+            ctx.press("CAPTURE", 3000)
+            ctx.screen_record_start()
+            if catch_with_safari_strategy(ctx, pokemon_en):
+                ctx.screen_record_save()
+                ctx.log("捕获成功!")
+                return True
+            ctx.screen_record_save()
+            ctx.log("捕获失败...")
+            ctx.press("CAPTURE", 3000)
+            return False
+        if state.fast_attempts:
+            state.fast_attempts -= 1
+            return False
+        if catch_with_safari_strategy(ctx, pokemon_en):
+            check_last_pokemon(ctx)
+            observe_pokemon(ctx, state, cfg, state.attempt_index, pokemon_en)
+        run_calibration(ctx, state, cfg)
+        return False
+
+    if cfg.rng_category in ["Grass", "Surfing", "SuperRod", "GoodRod", "OldRod", "Stationary", "Legend", "Event"]:
+        is_shiny, pokemon_en = check_shiny(ctx, cfg, state, state.attempt_index)
+        if pokemon_en is None:
+            return False
+        if is_shiny:
+            ctx.log("闪光出现!")
+            return True
+        if state.fast_attempts:
+            state.fast_attempts -= 1
+            return False
+        if catch_with_ball(ctx):
+            check_last_pokemon(ctx)
+            observe_pokemon(ctx, state, cfg, state.attempt_index, pokemon_en)
+        run_calibration(ctx, state, cfg)
+        return False
+
+    if cfg.rng_category in ["Gift", "Fossil", "Game Corner"]:
+        check_last_pokemon(ctx)
+        if ctx.search_label("FRLG闪光", 80):
+            ctx.log("闪光出现!")
+            return True
+        if state.fast_attempts:
+            state.fast_attempts -= 1
+            return False
+        observe_pokemon(ctx, state, cfg, state.attempt_index, cfg.pokemon_species)
+        run_calibration(ctx, state, cfg)
+        return False
+
+    raise NotImplementedError(cfg.rng_category)
 
 
 def launch(cfg: RNGConfig, state: SessionState = None) -> None:
@@ -53,66 +118,13 @@ def launch(cfg: RNGConfig, state: SessionState = None) -> None:
             ctx.log("[Warning] 目标不是闪光! 请检查配置是否正确。继续执行...")
         else:
             ctx.log("目标确认为闪光，开始乱数。")
-        
+
         if in_wild(ctx):
             restart(ctx)
 
-        state.attempt_index = 0
         while ctx.is_running():
-            state.attempt_index += 1
-            ctx.log(f"========== 乱数尝试第 {state.attempt_index} 次 ==========")
-
-            hit(ctx, cfg)
-
-            if cfg.rng_location.startswith("Safari Zone"):
-                is_shiny, pokemon_en = check_shiny(ctx, cfg, state, state.attempt_index)
-                if is_shiny:
-                    ctx.log("闪光出现!")
-                    ctx.press("CAPTURE", 3000)
-                    ctx.screen_record_start()
-                    if catch_with_safari_strategy(ctx, pokemon_en):
-                        ctx.screen_record_save()
-                        ctx.log("捕获成功!")
-                        break
-                    else:
-                        ctx.screen_record_save()
-                        ctx.log("捕获失败...")
-                        ctx.press("CAPTURE", 3000)
-                elif state.fast_attempts:
-                    state.fast_attempts -= 1
-                elif pokemon_en:
-                    if catch_with_safari_strategy(ctx, pokemon_en):
-                        check_last_pokemon(ctx)
-                        observe_pokemon(ctx, state, cfg, state.attempt_index, pokemon_en)
-                    run_calibration(ctx, state, cfg)
-                    
-            elif cfg.rng_category in ["Grass", "Surfing", "SuperRod", "GoodRod", "OldRod", "Stationary", "Legend", "Event"]:
-                is_shiny, pokemon_en = check_shiny(ctx, cfg, state, state.attempt_index)
-                if is_shiny:
-                    ctx.log("闪光出现!")
-                    break
-                elif state.fast_attempts:
-                    state.fast_attempts -= 1
-                elif pokemon_en:
-                    if catch_with_ball(ctx):
-                        check_last_pokemon(ctx)
-                        observe_pokemon(ctx, state, cfg, state.attempt_index, pokemon_en)
-                    run_calibration(ctx, state, cfg)
-            
-            elif cfg.rng_category in ["Gift", "Fossil", "Game Corner"]:
-                check_last_pokemon(ctx)
-                if ctx.search_label("FRLG闪光", 80):
-                    ctx.log("闪光出现!")
-                    break
-                elif state.fast_attempts:
-                    state.fast_attempts -= 1
-                else:
-                    observe_pokemon(ctx, state, cfg, state.attempt_index, cfg.pokemon_species)
-                    run_calibration(ctx, state, cfg)
-            
-            else:
-                raise NotImplementedError(cfg.rng_category)
-
+            if attempt_once(ctx, cfg, state):
+                break
             restart(ctx)
 
         ctx.press("CAPTURE", 3000)

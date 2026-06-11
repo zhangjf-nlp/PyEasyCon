@@ -14,34 +14,34 @@ from .controller import EasyConController
 class ImageRecognizer:
     def __init__(self, capture_source: Optional[int] = None, use_dshow: bool = True):
         self.capture_source = capture_source
-        self._cap: Optional[cv2.VideoCapture] = None
-        self._labels: List[ImgLabel] = []
-        self._resolution = (1920, 1080)
-        self._use_dshow = use_dshow
+        cap_dev: Optional[cv2.VideoCapture] = None
+        labels_list: List[ImgLabel] = []
+        resolution = (1920, 1080)
+        self.use_dshow = use_dshow
 
         if capture_source is not None:
-            self._init_capture(capture_source)
+            self.init_capture(capture_source)
 
-    def _init_capture(self, device_id: int):
+    def init_capture(self, device_id: int):
         import time
 
         for attempt in range(3):
-            if self._use_dshow:
-                self._cap = cv2.VideoCapture(device_id, cv2.CAP_DSHOW)
+            if self.use_dshow:
+                cap_dev = cv2.VideoCapture(device_id, cv2.CAP_DSHOW)
             else:
-                self._cap = cv2.VideoCapture(device_id)
+                cap_dev = cv2.VideoCapture(device_id)
 
-            if self._cap.isOpened():
-                self._cap.set(cv2.CAP_PROP_FRAME_WIDTH, self._resolution[0])
-                self._cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self._resolution[1])
-                self._cap.set(cv2.CAP_PROP_FPS, 60)
+            if cap_dev.isOpened():
+                cap_dev.set(cv2.CAP_PROP_FRAME_WIDTH, resolution[0])
+                cap_dev.set(cv2.CAP_PROP_FRAME_HEIGHT, resolution[1])
+                cap_dev.set(cv2.CAP_PROP_FPS, 60)
 
-                ret, frame = self._cap.read()
+                ret, frame = cap_dev.read()
                 if ret and frame is not None:
                     return
 
-            if self._cap:
-                self._cap.release()
+            if cap_dev:
+                cap_dev.release()
             time.sleep(0.5)
 
         raise RuntimeError(f"Cannot open capture device {device_id} after 3 attempts")
@@ -62,13 +62,13 @@ class ImageRecognizer:
             return devices
 
     def set_resolution(self, width: int, height: int):
-        self._resolution = (width, height)
-        if self._cap:
-            self._cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
-            self._cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+        resolution = (width, height)
+        if cap_dev:
+            cap_dev.set(cv2.CAP_PROP_FRAME_WIDTH, width)
+            cap_dev.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
 
     def load_label(self, label: ImgLabel):
-        self._labels.append(label)
+        labels_list.append(label)
 
     def load_label_from_file(self, path: str) -> ImgLabel:
         with open(path, "r", encoding="utf-8") as f:
@@ -78,20 +78,20 @@ class ImageRecognizer:
         if label.image_base64:
             img_data = base64.b64decode(label.image_base64)
             nparr = np.frombuffer(img_data, np.uint8)
-            label._cv_image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-        self._labels.append(label)
+            label.cv_image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        labels_list.append(label)
         return label
 
     def get_frame(self) -> Optional[np.ndarray]:
-        if self._cap:
-            ret, frame = self._cap.read()
+        if cap_dev:
+            ret, frame = cap_dev.read()
             if ret:
                 return frame
         return None
 
     def search(self, label_name: str, frame: Optional[np.ndarray] = None) -> Tuple[bool, float, Tuple[int, int]]:
         label = None
-        for l in self._labels:
+        for l in labels_list:
             if l.name == label_name:
                 label = l
                 break
@@ -122,8 +122,8 @@ class ImageRecognizer:
 
         search_region = frame[ry:ry + rh, rx:rx + rw]
 
-        if hasattr(label, '_cv_image') and label._cv_image is not None:
-            target = label._cv_image
+        if hasattr(label, '_cv_image') and label.cv_image is not None:
+            target = label.cv_image
         elif label.image_base64:
             img_data = base64.b64decode(label.image_base64)
             nparr = np.frombuffer(img_data, np.uint8)
@@ -162,14 +162,14 @@ class ImageRecognizer:
             frame = self.get_frame()
 
         results = {}
-        for label in self._labels:
+        for label in labels_list:
             results[label.name] = self.search(label.name, frame)
         return results
 
     def release(self):
-        if self._cap:
-            self._cap.release()
-            self._cap = None
+        if cap_dev:
+            cap_dev.release()
+            cap_dev = None
 
 
 class EasyConScript:

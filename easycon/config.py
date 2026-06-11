@@ -3,15 +3,15 @@ import yaml
 from typing import Any, Dict
 
 
-_config: Dict[str, Any] = {}
-_loaded = False
+config_data: Dict[str, Any] = {}
+loaded_flag = False
 
 
 def load_config(config_path: str = None) -> Dict[str, Any]:
-    global _config, _loaded
+    global config_data, loaded_flag
 
-    if _loaded:
-        return _config
+    if loaded_flag:
+        return config_data
 
     if config_path is None:
         config_path = os.environ.get(
@@ -21,18 +21,18 @@ def load_config(config_path: str = None) -> Dict[str, Any]:
 
     if os.path.exists(config_path):
         with open(config_path, "r", encoding="utf-8") as f:
-            _config = yaml.safe_load(f) or {}
+            config_data = yaml.safe_load(f) or {}
     else:
-        _config = {}
+        config_data = {}
 
-    _loaded = True
-    return _config
+    loaded_flag = True
+    return config_data
 
 
 def get_config() -> Dict[str, Any]:
-    if not _loaded:
+    if not loaded_flag:
         load_config()
-    return _config
+    return config_data
 
 
 def get(key: str, default: Any = None) -> Any:
@@ -50,7 +50,7 @@ def get(key: str, default: Any = None) -> Any:
 
 
 def reload_config(config_path: str = None):
-    global _config, _loaded
-    _config = {}
-    _loaded = False
+    global config_data, loaded_flag
+    config_data = {}
+    loaded_flag = False
     return load_config(config_path)

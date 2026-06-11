@@ -21,13 +21,13 @@ HEADERS   = {"User-Agent": "EasyCon-sprites-downloader/1.0"}
 RES_DIR   = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "assets", "sprites", "resources")
 os.makedirs(RES_DIR, exist_ok=True)
 
-_ssl_ctx = ssl.create_default_context()
-_ssl_ctx.check_hostname = False
-_ssl_ctx.verify_mode = ssl.CERT_NONE
+ssl_ctx = ssl.create_default_context()
+ssl_ctx.check_hostname = False
+ssl_ctx.verify_mode = ssl.CERT_NONE
 
 def fetch(url):
     req = urllib.request.Request(url, headers=HEADERS)
-    with urllib.request.urlopen(req, context=_ssl_ctx, timeout=15) as r:
+    with urllib.request.urlopen(req, context=ssl_ctx, timeout=15) as r:
         return r.read()
 
 MANUAL_OVERRIDES = {

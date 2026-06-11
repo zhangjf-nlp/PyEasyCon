@@ -8,20 +8,20 @@ from typing import Optional, Callable, Any
 import cv2
 import numpy as np
 
-from .controller import EasyConController, sleep
+from .controller import EasyConController
 from .protocol import GamePadKey
 
 
-class _HoldContext:
+class HoldContext:
     def __init__(self, ctx: "ScriptContext", button: str):
-        self._ctx = ctx
-        self._button = button
+        ctx_ref = ctx
+        button_name = button
 
     def __enter__(self):
         pass
 
     def __exit__(self, *args):
-        self._ctx.release(self._button)
+        ctx_ref.release(button_name)
 
 
 class ScriptContext:
@@ -41,27 +41,27 @@ class ScriptContext:
         ocr_name_func: Optional[Callable] = None,
         labels_dir: str = "assets/labels",
     ):
-        self._controller = controller
-        self._get_frame = get_frame
-        self._log_func = log_func
-        self._is_running_func = is_running_func
-        self._ocr_pokemon_func = ocr_pokemon_func
-        self._ocr_elevated_func = ocr_elevated_func
-        self._ocr_caught_info_func = ocr_caught_info_func
-        self._ocr_caught_iv_func = ocr_caught_iv_func
-        self._ocr_custom_func = ocr_custom_func
-        self._ocr_taken_item_func = ocr_taken_item_func
-        self._identify_pokemon_func = identify_pokemon_func
-        self._ocr_name_func = ocr_name_func
-        self._labels_dir = labels_dir
-        self._label_cache = {}
+        self.controller_ref = controller
+        self.get_frame_func = get_frame
+        self.log_func = log_func
+        self.is_running_func = is_running_func
+        self.ocr_pokemon_func = ocr_pokemon_func
+        self.ocr_elevated_func = ocr_elevated_func
+        self.ocr_caught_info_func = ocr_caught_info_func
+        self.ocr_caught_iv_func = ocr_caught_iv_func
+        self.ocr_custom_func = ocr_custom_func
+        self.ocr_taken_item_func = ocr_taken_item_func
+        self.identify_pokemon_func = identify_pokemon_func
+        self.ocr_name_func = ocr_name_func
+        self.labels_dir = labels_dir
+        self.label_cache = {}
 
         # 屏幕录制
-        self._recording = False
-        self._record_thread: Optional[threading.Thread] = None
-        self._record_frames: list = []
+        self.recording_flag = False
+        self.record_thread: Optional[threading.Thread] = None
+        self.record_frames: list = []
 
-        self._button_map = {
+        self.button_map = {
             'A': GamePadKey.A, 'B': GamePadKey.B, 'X': GamePadKey.X, 'Y': GamePadKey.Y,
             'L': GamePadKey.L, 'R': GamePadKey.R, 'ZL': GamePadKey.ZL, 'ZR': GamePadKey.ZR,
             'PLUS': GamePadKey.PLUS, 'MINUS': GamePadKey.MINUS,
@@ -71,57 +71,57 @@ class ScriptContext:
         }
 
     def press(self, button: str, duration_ms: int = 50):
-        if self._controller and self._controller.is_connected:
-            key = self._button_map.get(button.upper())
+        if self.controller_ref and self.controller_ref.is_connected and duration_ms >= 0:
+            key = self.button_map.get(button.upper())
             if key:
-                self._controller.click(key, duration_ms)
+                self.controller_ref.click(key, duration_ms)
 
     def hold(self, button: str):
-        if self._controller and self._controller.is_connected:
-            key = self._button_map.get(button.upper())
+        if self.controller_ref and self.controller_ref.is_connected:
+            key = self.button_map.get(button.upper())
             if key:
-                self._controller.press(key)
-        return _HoldContext(self, button)
+                self.controller_ref.press(key)
+        return HoldContext(self, button)
 
     def release(self, button: str):
-        if self._controller and self._controller.is_connected:
-            key = self._button_map.get(button.upper())
+        if self.controller_ref and self.controller_ref.is_connected:
+            key = self.button_map.get(button.upper())
             if key:
-                self._controller.release(key)
+                self.controller_ref.release(key)
 
     def lstick(self, x: int, y: int, duration_ms: int = 50):
-        if self._controller and self._controller.is_connected:
-            self._controller.lstick(x, y, duration_ms)
+        if self.controller_ref and self.controller_ref.is_connected:
+            self.controller_ref.lstick(x, y, duration_ms)
 
     def capture(self):
-        if self._controller and self._controller.is_connected:
-            self._controller.capture()
+        if self.controller_ref and self.controller_ref.is_connected:
+            self.controller_ref.capture()
 
     def log(self, msg: str):
-        if self._log_func:
-            self._log_func(msg)
+        if self.log_func:
+            self.log_func(msg)
 
     def is_running(self) -> bool:
-        if self._is_running_func:
-            return self._is_running_func()
+        if self.is_running_func:
+            return self.is_running_func()
         return False
 
     def get_frame(self) -> Optional[np.ndarray]:
-        if self._get_frame:
-            return self._get_frame()
+        if self.get_frame_func:
+            return self.get_frame_func()
         return None
 
-    def _load_label(self, label_name):
-        label_path = os.path.join(self._labels_dir, f"{label_name}.IL")
+    def load_label(self, label_name):
+        label_path = os.path.join(self.labels_dir, f"{label_name}.IL")
         if not os.path.exists(label_path):
-            self._label_cache[label_name] = None
+            self.label_cache[label_name] = None
             return None
 
         with open(label_path, 'r', encoding='utf-8') as f:
             label_data = json.load(f)
 
         if not label_data.get('ImgBase64'):
-            self._label_cache[label_name] = None
+            self.label_cache[label_name] = None
             return None
 
         img_bytes = base64.b64decode(label_data['ImgBase64'])
@@ -134,16 +134,22 @@ class ScriptContext:
             'rh': label_data.get('RangeHeight'),
             'search_method': label_data.get('searchMethod', 5),
         }
-        self._label_cache[label_name] = cached
+        self.label_cache[label_name] = cached
         return cached
 
-    def search_label(self, label_name: str, threshold: int = 80, debug: bool = False):
+    def search_label(self, label_name: str, threshold: int = 80, seconds: float = None, debug: bool = False):
+        if seconds:
+            if self.search_label(label_name, threshold):
+                time.sleep(seconds)
+                return self.search_label(label_name, threshold)
+            return False
+
         try:
-            cached = self._label_cache.get(label_name)
+            cached = self.label_cache.get(label_name)
             if cached is None:
-                if label_name in self._label_cache:
+                if label_name in self.label_cache:
                     return 0 if threshold == -1 else False
-                cached = self._load_label(label_name)
+                cached = self.load_label(label_name)
                 if cached is None:
                     return 0 if threshold == -1 else False
 
@@ -194,44 +200,48 @@ class ScriptContext:
                 self.log(f"  [label] {label_name} -> 错误: {e}")
             return 0 if threshold == -1 else False
 
+    def vlm_available(self) -> bool:
+        """VLM/OCR 是否可用"""
+        return self.ocr_custom_func is not None
+
     def ocr_pokemon(self):
-        if self._ocr_pokemon_func:
-            return self._ocr_pokemon_func()
+        if self.ocr_pokemon_func:
+            return self.ocr_pokemon_func()
         return None
 
     def ocr_elevated(self):
-        if self._ocr_elevated_func:
-            return self._ocr_elevated_func()
+        if self.ocr_elevated_func:
+            return self.ocr_elevated_func()
         return None
 
     def ocr_caught_info(self):
-        if self._ocr_caught_info_func:
-            return self._ocr_caught_info_func()
+        if self.ocr_caught_info_func:
+            return self.ocr_caught_info_func()
         return None
 
     def ocr_caught_iv(self):
-        if self._ocr_caught_iv_func:
-            return self._ocr_caught_iv_func()
+        if self.ocr_caught_iv_func:
+            return self.ocr_caught_iv_func()
         return None
 
     def ocr_custom(self, image, prompt: str, model_type: str = None):
-        if self._ocr_custom_func:
-            return self._ocr_custom_func(image, prompt, model_type)
+        if self.ocr_custom_func:
+            return self.ocr_custom_func(image, prompt, model_type)
         return None
 
     def ocr_taken_item(self, frame):
-        if self._ocr_taken_item_func:
-            return self._ocr_taken_item_func(frame)
+        if self.ocr_taken_item_func:
+            return self.ocr_taken_item_func(frame)
         return None
 
     def identify_pokemon(self, candidates=None, threshold=0.0):
-        if self._identify_pokemon_func:
-            return self._identify_pokemon_func(candidates=candidates, threshold=threshold)
+        if self.identify_pokemon_func:
+            return self.identify_pokemon_func(candidates=candidates, threshold=threshold)
         return None, 0.0, False
 
     def ocr_name(self, candidates=None):
-        if self._ocr_name_func:
-            return self._ocr_name_func(candidates=candidates)
+        if self.ocr_name_func:
+            return self.ocr_name_func(candidates=candidates)
         return None
 
     def save_ocr_screenshot(self, save_path: str, screen_type: str):
@@ -240,13 +250,13 @@ class ScriptContext:
             return
         from vision.ocr import get_all_roi_boxes
 
-        _GROUP_MAP = {
+        GROUP_MAP = {
             "ELEVATED": "Elevated",
             "CAUGHT_INFO": "Caught",
             "CAUGHT_IV": "CaughtIV",
             "APPEARED": "Appeared",
         }
-        group = _GROUP_MAP.get(screen_type)
+        group = GROUP_MAP.get(screen_type)
         if group is None:
             return
 
@@ -271,35 +281,44 @@ class ScriptContext:
 
     def screen_record_start(self):
         """开始录制GUI显示的游戏画面"""
-        if self._recording:
+        if self.recording_flag:
             return
-        self._recording = True
-        self._record_frames = []
-        self._record_thread = threading.Thread(target=self._record_worker, daemon=True)
-        self._record_thread.start()
+        self.recording_flag = True
+        self.record_frames = []
+        self.record_thread = threading.Thread(target=self.record_worker, daemon=True)
+        self.record_thread.start()
 
-    def _record_worker(self):
-        """录制线程：持续抓取画面帧"""
-        while self._recording:
+    def record_worker(self):
+        """录制线程：按配置的 fps 录制，用绝对时间戳避免累积误差"""
+        from .config import get
+        record_cfg = get("record", {})
+        fps = record_cfg.get("fps", 30)
+        max_frames = record_cfg.get("max_frames", 0)
+        interval = 1.0 / fps
+        start_time = time.time()
+        frame_count = 0
+
+        while self.recording_flag:
+            target_time = start_time + frame_count * interval
+            delay = target_time - time.time()
+            if delay > 0:
+                time.sleep(delay)
+
             frame = self.get_frame()
             if frame is not None:
-                self._record_frames.append(frame.copy())
-            time.sleep(1 / 30.0)
+                self.record_frames.append(frame.copy())
+                if max_frames > 0:
+                    self.record_frames = self.record_frames[-max_frames:]
 
-    def screen_record_end(self):
-        """结束录制"""
-        self._recording = False
-        if self._record_thread:
-            self._record_thread.join(timeout=2.0)
-            self._record_thread = None
+            frame_count += 1
 
     def screen_record_save(self, save_path: str = None):
         """结束录制，保存录制的视频，默认保存至 screen_record/{timestamp}.mp4"""
-        self._recording = False
-        if self._record_thread:
-            self._record_thread.join(timeout=2.0)
-            self._record_thread = None
-        if not self._record_frames:
+        self.recording_flag = False
+        if self.record_thread:
+            self.record_thread.join(timeout=2.0)
+            self.record_thread = None
+        if not self.record_frames:
             self.log("没有录制帧可保存")
             return
 
@@ -311,13 +330,20 @@ class ScriptContext:
         if save_dir:
             os.makedirs(save_dir, exist_ok=True)
 
-        h, w = self._record_frames[0].shape[:2]
-        fourcc = cv2.VideoWriter_fourcc(*'h264')
-        out = cv2.VideoWriter(save_path, fourcc, 30.0, (w, h))
+        from .config import get
+        record_cfg = get("record", {})
+        out_w = record_cfg.get("width", 640)
+        out_h = record_cfg.get("height", 360)
+        fps = record_cfg.get("fps", 30)
 
-        for frame in self._record_frames:
+        fourcc = cv2.VideoWriter_fourcc(*'avc1')
+        out = cv2.VideoWriter(save_path, fourcc, fps, (out_w, out_h))
+
+        for frame in self.record_frames:
+            if (frame.shape[1], frame.shape[0]) != (out_w, out_h):
+                frame = cv2.resize(frame, (out_w, out_h))
             out.write(frame)
         out.release()
 
-        self.log(f"视频已保存: {save_path} ({len(self._record_frames)} 帧)")
-        self._record_frames.clear()
+        self.log(f"视频已保存: {save_path} ({len(self.record_frames)} 帧)")
+        self.record_frames.clear()

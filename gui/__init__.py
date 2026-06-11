@@ -18,7 +18,7 @@ from .app import (
     ocr_custom,
     get_frame,
     identify_pokemon,
-    _current_gui,
+    current_gui,
 )
 
 __all__ = [
@@ -41,5 +41,5 @@ __all__ = [
     "ocr_custom",
     "get_frame",
     "identify_pokemon",
-    "_current_gui",
+    "current_gui",
 ]

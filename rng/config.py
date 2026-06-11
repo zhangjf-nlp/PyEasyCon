@@ -29,6 +29,24 @@ class RNGDisplacement:
     def to_array(self) -> np.ndarray:
         return np.array([self.ds, self.dt, self.dn], dtype=float)
 
+    def __add__(self, other: "RNGDisplacement") -> "RNGDisplacement":
+        return RNGDisplacement(self.ds + other.ds, self.dt + other.dt, self.dn + other.dn)
+
+    def __iadd__(self, other: "RNGDisplacement") -> "RNGDisplacement":
+        self.ds += other.ds
+        self.dt += other.dt
+        self.dn += other.dn
+        return self
+
+    def __sub__(self, other: "RNGDisplacement") -> "RNGDisplacement":
+        return RNGDisplacement(self.ds - other.ds, self.dt - other.dt, self.dn - other.dn)
+
+    def __isub__(self, other: "RNGDisplacement") -> "RNGDisplacement":
+        self.ds -= other.ds
+        self.dt -= other.dt
+        self.dn -= other.dn
+        return self
+
     def __lt__(self, other: "RNGDisplacement") -> bool:
         return (self.l1, self.l2) < (other.l1, other.l2)
 
@@ -101,8 +119,6 @@ class RNGConfig:
     normal_ms_min: int = 10000
 
     precicase_combos: int = 512
-    coldstart_credits: int = 3
-    calibration_credits: int = 10
     max_candies: int = 12
     max_fast_attempts: int = 10
 
@@ -152,7 +168,4 @@ class SessionState:
     log_dir: Optional[str] = None
     fast_attempts: int = 0
     attempt_index: int = 0
-    coldstart_done: bool = False
-    total_credits: int = 0
-    attempts_ocr_data: Dict[int, list] = field(default_factory=dict)
     attempts: Dict[int, Any] = field(default_factory=dict)

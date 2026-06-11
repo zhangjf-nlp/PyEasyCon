@@ -1,4 +1,7 @@
+import json
 import math
+import os
+from dataclasses import dataclass, field
 from typing import List, Tuple, Optional
 
 from .tenlines import (
@@ -10,6 +13,8 @@ from .tenlines import (
     HELD_BUTTON_OFFSETS,
     frame_to_ms, ms_to_time_str, hex_seed,
 )
+
+from assets.game_text import species_to_zh, species_to_en
 
 # ============================================================
 # Data loading: personal info, species/ability names
@@ -145,26 +150,18 @@ def get_seed_time(seed_hex: str, game: str = "fr_nx", game_settings = None) -> i
     return sm[unoffset_seed][0]['seed_time']
 
 
-from modules.species_zh import _SPECIES_EN_TO_ZH as SPECIES_EN_TO_ZH
-
-
 def get_species_zh_name(species_or_name) -> str:
     """获取宝可梦的中文名。接受 species ID (int) 或英文名 (str)。"""
     if isinstance(species_or_name, int):
         en_name = get_species_name(species_or_name)
     else:
         en_name = species_or_name
-    if en_name in SPECIES_EN_TO_ZH:
-        return SPECIES_EN_TO_ZH[en_name]
-    return en_name
+    return species_to_zh(en_name)
 
-
-# 反向映射：中文名 → 英文名
-ZH_TO_EN = {zh: en for en, zh in SPECIES_EN_TO_ZH.items()}
 
 def get_species_en_name(zh_name: str) -> str:
     """中文名 → 英文名，查找失败返回原值。"""
-    return ZH_TO_EN.get(zh_name, zh_name)
+    return species_to_en(zh_name)
 
 
 def get_encounter_species_list(location: str, category: str, game_version: str = "fr_nx") -> list:
@@ -183,7 +180,6 @@ def get_encounter_species_list(location: str, category: str, game_version: str =
 # ============================================================
 # Encounter data (wild encounters)
 # ============================================================
-import json, os
 encounter_cache: dict = {}
 
 FRLG_MAP_TO_LOCATION = {
@@ -326,7 +322,6 @@ def get_encounter(location: str, category: str, game_version: str = "fr_nx") -> 
 # ============================================================
 # Type definitions (same interface as before)
 # ============================================================
-from dataclasses import dataclass, field
 
 NATURES = ["Hardy","Lonely","Brave","Adamant","Naughty","Bold","Docile","Relaxed",
            "Impish","Lax","Timid","Hasty","Serious","Jolly","Naive","Modest","Mild",
@@ -399,6 +394,14 @@ class GameSettings:
     @property
     def setting_key(self) -> str:
         return f"{self.sound}_{self.button_mode}_{self.seed_button}"
+
+    def __str__(self) -> str:
+        return (
+            f"{SOUND_VALUE_TO_LABEL.get(self.sound, self.sound)}"
+            f" | {BUTTON_MODE_VALUE_TO_LABEL.get(self.button_mode, self.button_mode)}"
+            f" | Seed Button: {SEED_BUTTON_VALUE_TO_LABEL.get(self.seed_button, self.seed_button)}"
+            f" | Extra Button: {EXTRA_BUTTON_VALUE_TO_LABEL.get(self.extra_button, self.extra_button)}"
+        )
 
     @classmethod
     def from_string(cls, s: str) -> "GameSettings":
@@ -485,6 +488,14 @@ class CalibrationResult:
     species_name: str = ""
     method: int = 0
 
+    def match_ivs_range(self, ivs_range: Tuple[List[int], List[int]]) -> bool:
+        """检查自身 IV 是否落在 [lo, hi] 范围内，lo/hi 各为 6 元素列表"""
+        ivs_low, ivs_high = ivs_range
+        ivs_value = [self.ivs.hp, self.ivs.attack, self.ivs.defense,
+                     self.ivs.sp_attack, self.ivs.sp_defense, self.ivs.speed]
+        return all(iv_low <= iv <= iv_high for iv_low, iv, iv_high in
+                   zip(ivs_low, ivs_value, ivs_high))
+
     def __str__(self):
         method_name = METHOD_NAMES.get(self.method, f"M{self.method}")
         ivs_str = "/".join(str(getattr(self.ivs, a))
@@ -537,7 +548,8 @@ def build_filter(ivs_range, shiny, nature, gender, hidden_type, ability_idx=None
         except ValueError: pass
     filter_nature = None
     if nature and nature != "Any":
-        try: filter_nature = NATURES.index(nature)
+        nature_title = nature.strip().title()
+        try: filter_nature = NATURES.index(nature_title)
         except ValueError: pass
     filter_gender = None
     if gender and gender != "Any":

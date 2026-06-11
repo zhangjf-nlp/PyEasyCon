@@ -4,8 +4,10 @@ Video Module - 游戏画面显示模块
 """
 
 import os
+import time
 import pygame
 import cv2
+import numpy as np
 import threading
 from typing import Optional, Tuple, Dict
 from easycon import EasyConController, GamePadKey
@@ -15,8 +17,8 @@ from easycon.config import get
 class VideoModule:
     """游戏画面显示模块"""
     
-    # 按键映射
-    KEY_MAP = {
+    # 默认按键映射（类级别，可通过 key_map 实例属性覆盖）
+    DEFAULT_KEY_MAP = {
         pygame.K_y: GamePadKey.A, pygame.K_u: GamePadKey.B,
         pygame.K_i: GamePadKey.X, pygame.K_h: GamePadKey.Y,
         pygame.K_g: GamePadKey.L, pygame.K_t: GamePadKey.R,
@@ -34,11 +36,13 @@ class VideoModule:
         self.width = width
         self.height = height
         
-        # 视频捕获
+        # 实例级按键映射（默认使用类级别的 DEFAULT_KEY_MAP）
+        self.key_map: Dict[int, GamePadKey] = dict(VideoModule.DEFAULT_KEY_MAP)
         self.cap: Optional[cv2.VideoCapture] = None
         self.current_frame: Optional[pygame.Surface] = None
         self.raw_frame: Optional = None  # 原始 numpy 帧（供 OCR 等使用）
-        self._frame_lock = threading.Lock()
+        self.last_frame_time = 0.0  # 上次更新 raw_frame 的时间戳
+        self.frame_lock = threading.Lock()
         self.flip_vertical = get("capture.flip_vertical", False)
         self.flip_horizontal = get("capture.flip_horizontal", False)
         
@@ -63,9 +67,9 @@ class VideoModule:
         self.model_type = "未知"
         
         # 初始化
-        self._init_video()
+        self.init_video()
     
-    def _init_video(self):
+    def init_video(self):
         """初始化视频捕获"""
         def init_worker():
             try:
@@ -83,9 +87,9 @@ class VideoModule:
     def set_controller(self, controller: EasyConController):
         """设置控制器"""
         self.controller = controller
-        self._update_connection_status()
+        self.update_connection_status()
     
-    def _update_connection_status(self):
+    def update_connection_status(self):
         """更新连接状态"""
         if self.controller and self.controller.is_connected:
             self.controller_connected = True
@@ -94,7 +98,7 @@ class VideoModule:
             self.controller_connected = False
             self.controller_status = "未连接"
     
-    def _check_and_reconnect(self):
+    def check_and_reconnect(self):
         """检查连接状态并尝试重连"""
         current_time = pygame.time.get_ticks()
         
@@ -105,7 +109,7 @@ class VideoModule:
         self.last_reconnect_time = current_time
         
         # 检查当前连接状态
-        self._update_connection_status()
+        self.update_connection_status()
         if self.controller_connected:
             return
         
@@ -124,68 +128,81 @@ class VideoModule:
                 for port in ports:
                     try:
                         if self.controller.connect(port.device, timeout=2.0):
-                            self._update_connection_status()
+                            self.update_connection_status()
                             return
                     except:
                         continue
                 
-                self._update_connection_status()
+                self.update_connection_status()
             except Exception as e:
-                self._update_connection_status()
+                self.update_connection_status()
         
         threading.Thread(target=reconnect_worker, daemon=True).start()
     
-    def update(self):
-        """更新视频帧"""
+    def update(self, render: bool = True):
+        """更新视频帧。render=False 时仅更新 raw_frame（供脚本 OCR 使用），不刷新 pygame Surface。"""
         if self.cap and self.cap.isOpened():
             try:
                 ret, frame = self.cap.read()
                 if ret and frame is not None:
-                    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                    if self.flip_vertical:
-                        frame_rgb = cv2.flip(frame_rgb, 0)
-                    if self.flip_horizontal:
-                        frame_rgb = cv2.flip(frame_rgb, 1)
-                    frame_resized = cv2.resize(frame_rgb, (self.width, self.height))
-                    self.current_frame = pygame.image.frombuffer(
-                        frame_resized.tobytes(),
-                        (self.width, self.height),
-                        "RGB"
-                    )
-                    with self._frame_lock:
+                    now = time.time()
+                    with self.frame_lock:
                         self.raw_frame = frame
+                        self.last_frame_time = now
 
-                    # 计算FPS
-                    self.frame_count += 1
-                    current_time = pygame.time.get_ticks()
-                    if current_time - self.fps_timer >= 1000:  # 每秒更新一次
-                        self.fps = self.frame_count
-                        self.frame_count = 0
-                        self.fps_timer = current_time
-                        
-                        # 更新模型类型显示
-                        try:
-                            from vision.ocr import get_current_model_type, OLLAMA_MODEL_NAME, SILICONFLOW_MODEL
-                            model_type = get_current_model_type()
-                            if model_type == "vllm":
-                                self.model_type = "vLLM(本地)"
-                            elif model_type == "ollama":
-                                self.model_type = f"{OLLAMA_MODEL_NAME}(Ollama)"
-                            elif model_type == "siliconflow":
-                                self.model_type = f"{SILICONFLOW_MODEL.split('/')[-1]}(SiliconFlow)"
-                            else:
-                                self.model_type = "未知"
-                        except Exception:
-                            pass
+                    if render:
+                        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                        if self.flip_vertical:
+                            frame_rgb = cv2.flip(frame_rgb, 0)
+                        if self.flip_horizontal:
+                            frame_rgb = cv2.flip(frame_rgb, 1)
+                        frame_resized = cv2.resize(frame_rgb, (self.width, self.height))
+                        # 复用 Surface 避免 frombuffer 频繁创建导致内存碎片
+                        if self.current_frame is None:
+                            self.current_frame = pygame.Surface(
+                                (self.width, self.height), 0, 24)
+                        pygame.surfarray.blit_array(
+                            self.current_frame,
+                            np.transpose(frame_resized, (1, 0, 2)))
+
+                        # 计算FPS
+                        self.frame_count += 1
+                        current_time = pygame.time.get_ticks()
+                        if current_time - self.fps_timer >= 1000:
+                            self.fps = self.frame_count
+                            self.frame_count = 0
+                            self.fps_timer = current_time
+
+                            # 更新模型类型显示
+                            try:
+                                from vision.ocr import get_current_model_type, OLLAMA_MODEL_NAME, SILICONFLOW_MODEL
+                                model_type = get_current_model_type()
+                                if model_type == "vllm":
+                                    self.model_type = "vLLM(本地)"
+                                elif model_type == "ollama":
+                                    self.model_type = f"{OLLAMA_MODEL_NAME}(Ollama)"
+                                elif model_type == "siliconflow":
+                                    self.model_type = f"{SILICONFLOW_MODEL.split('/')[-1]}(SiliconFlow)"
+                                else:
+                                    self.model_type = "未知"
+                            except Exception:
+                                pass
             except Exception as e:
                 pass
 
     def get_raw_frame(self):
         """获取原始采集卡帧（线程安全，供 OCR 使用）"""
-        with self._frame_lock:
+        with self.frame_lock:
             if self.raw_frame is not None:
                 return self.raw_frame.copy()
         return None
+
+    def get_raw_frame_age(self) -> float:
+        """获取 raw_frame 的年龄（秒）。-1 表示无帧。"""
+        with self.frame_lock:
+            if self.raw_frame is not None:
+                return time.time() - self.last_frame_time
+        return -1.0
     
     def handle_event(self, event: pygame.event.Event) -> bool:
         """
@@ -205,8 +222,8 @@ class VideoModule:
         # 只有获得焦点时才处理键盘事件
         if self.focused:
             if event.type == pygame.KEYDOWN:
-                if event.key in self.KEY_MAP:
-                    key = self.KEY_MAP[event.key]
+                if event.key in self.key_map:
+                    key = self.key_map[event.key]
                     self.pressed_keys.add(key)
                     
                     # 检查控制器连接状态
@@ -218,7 +235,7 @@ class VideoModule:
                             self.controller_status = "未连接"
                     else:
                         # 未连接时尝试重连
-                        self._check_and_reconnect()
+                        self.check_and_reconnect()
                 elif event.key != pygame.K_TAB:
                     # 未映射的按键：记录并显示提示（Tab除外，它用于切换叠加信息）
                     self.last_unmapped_key = pygame.key.name(event.key)
@@ -227,8 +244,8 @@ class VideoModule:
                 return True
             
             elif event.type == pygame.KEYUP:
-                if event.key in self.KEY_MAP:
-                    key = self.KEY_MAP[event.key]
+                if event.key in self.key_map:
+                    key = self.key_map[event.key]
                     self.pressed_keys.discard(key)
                     if self.controller and self.controller.is_connected:
                         try:
@@ -351,3 +368,6 @@ class VideoModule:
                 self.cap.release()
             except:
                 pass
+            self.cap = None
+        self.current_frame = None
+        self.raw_frame = None

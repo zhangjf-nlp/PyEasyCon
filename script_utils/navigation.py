@@ -1,5 +1,7 @@
+from ast import Break
 from typing import List, Tuple
-from easycon.context import ScriptContext, sleep
+from easycon.context import ScriptContext
+from easycon.controller import sleep
 
 unit_move_ms = 16 / 60 * 1000
 unit_swing_ms = 8 / 60 * 1000
@@ -26,9 +28,16 @@ def run_away(ctx: ScriptContext) -> None:
 
 
 def in_wild(ctx: ScriptContext) -> bool:
-    return ctx.search_label("FRLG草丛", 90) or ctx.search_label("FRLG对话", 90) \
-        or ctx.search_label("FRLG水面", 90) or ctx.search_label("FRLG洞穴", 90) \
-        or ctx.search_label("FRLG宝可梦塔", 90)
+    return any([
+        ctx.search_label("FRLG草丛", 90),
+        ctx.search_label("FRLG对话", 90),
+        ctx.search_label("FRLG水面", 90),
+        ctx.search_label("FRLG洞穴", 90),
+        ctx.search_label("FRLG宝可梦塔", 85),
+    ]) and not any([
+        ctx.search_label(f"NS深色系主题-主页手柄", 80),
+        ctx.search_label(f"NS浅色系主题-主页手柄", 80),
+    ])
 
 
 def restart(ctx: ScriptContext) -> None:
@@ -37,7 +46,7 @@ def restart(ctx: ScriptContext) -> None:
     search_label_qhyh = lambda : any(ctx.search_label(f"NS{_}色系主题-切换用户", 80) for _ in "深浅")
     search_label_ysyw = lambda : any(ctx.search_label(f"NS{_}色系主题-由谁游玩", 80) for _ in "深浅")
     
-    for _ in range(5):
+    for _ in range(3):
         if search_label_zysb() and not search_label_ysyw():
             break
         else:
@@ -46,31 +55,33 @@ def restart(ctx: ScriptContext) -> None:
     else:
         ctx.log(f"[重启失败警告] 未能识别到NS主页画面")
     
-    for _ in range(5):
+    for _ in range(3):
+        ctx.press("Y")
+        sleep(3.0)
         if search_label_qhyh():
             break
-        else:
-            ctx.press("Y")
-            sleep(3.0)
     else:
         ctx.log(f"[重启失败警告] 未能识别到用户切换画面")
-    sleep(3.0)
-    ctx.press("A")
     
-    for _ in range(5):
+    ctx.press("A")
+    sleep(3.0)
+    for _ in range(3):
         if search_label_zysb() and search_label_ysyw():
             break
-        else:
-            sleep(1.0)
+        if search_label_zysb() and not search_label_ysyw():
+            ctx.press("A")
+        sleep(3.0)
     else:
         ctx.log(f"[重启失败警告] 未能识别到用户选择画面")
     sleep(1.0)
 
 
-def navigate(ctx: ScriptContext, route_map: List[Tuple[str, List[Tuple[str, int]]]], current_direction: str = None) -> None:
+def navigate(ctx: ScriptContext, route_map: List[Tuple[str, List[Tuple[str, int]]]], current_direction: str = None) -> str:
     for way, route in route_map:
         if way == "wait":
-            sleep(1.0)
+            assert len(route) == 1, route
+            current_direction, delay_seconds = route[0]
+            sleep(delay_seconds)
             continue
         if way not in ["walk", "run", "surf"]:
             raise NotImplementedError(way)
@@ -82,13 +93,18 @@ def navigate(ctx: ScriptContext, route_map: List[Tuple[str, List[Tuple[str, int]
             ctx.hold("B")
             sleep(0.5)
         elif way == "surf":
+            first_dir, first_units = route[0]
+            if first_dir != current_direction:
+                ctx.press(first_dir)
+                sleep(0.5)
             for _ in range(5):
                 ctx.press("A")
                 sleep(0.5)
             sleep(2.0)
+            route = [(first_dir, first_units - 1)] + route[1:] if first_units > 1 else route[1:]
         # head
         for direction, units in route:
-            heading_time = (units - 0.5) * unit_move_ms / speed_ratio
+            heading_time = (units - 0.4) * unit_move_ms / speed_ratio
             heading_time += unit_swing_ms if (direction != current_direction) else 0
             ctx.press(direction, heading_time)
             current_direction = direction
@@ -101,6 +117,8 @@ def navigate(ctx: ScriptContext, route_map: List[Tuple[str, List[Tuple[str, int]
             sleep(0.5)
         elif way == "surf":
             sleep(0.5)
+
+    return current_direction
 
 
 def navigate_safari_zone(ctx: ScriptContext, target: str):
@@ -121,77 +139,168 @@ def navigate_safari_zone(ctx: ScriptContext, target: str):
         ],
         "center_surfing": [
             ("run", [("UP", 9), ("RIGHT", 6), ("UP", 2)]),
-            ("surf", []),
+            ("surf", [("UP", 1)]),
         ],
         "east_grass": [
             ("run", [("UP", 1), ("RIGHT", 16), ("UP", 13), ("RIGHT", 2)]),
-            ("wait", []),
+            ("wait", [("RIGHT", 1)]),
             ("run", [("RIGHT", 9), ("DOWN", 1), ("RIGHT", 12)]),
         ],
         "east_rod": [
             ("run", [("UP", 1), ("RIGHT", 16), ("UP", 13), ("RIGHT", 2)]),
-            ("wait", []),
+            ("wait", [("RIGHT", 1)]),
             ("run", [("RIGHT", 9), ("DOWN", 1), ("RIGHT", 19), ("UP", 4),
-                     ("LEFT", 6), ("DOWN", 2), ("LEFT", 6), ("UP", 5), ("RIGHT", 1)]),
+                    ("LEFT", 6), ("DOWN", 2), ("LEFT", 6), ("UP", 5), ("RIGHT", 1)]),
         ],
         "east_surfing": [
             ("run", [("UP", 1), ("RIGHT", 16), ("UP", 13), ("RIGHT", 2)]),
-            ("wait", []),
+            ("wait", [("RIGHT", 1)]),
             ("run", [("RIGHT", 9), ("DOWN", 1), ("RIGHT", 19), ("UP", 4),
-                     ("LEFT", 6), ("DOWN", 2), ("LEFT", 6), ("UP", 5), ("RIGHT", 1)]),
-            ("surf", []),
+                    ("LEFT", 6), ("DOWN", 2), ("LEFT", 6), ("UP", 5), ("RIGHT", 1)]),
+            ("surf", [("RIGHT", 1)]),
         ],
         "north_grass": [
             ("run", [("UP", 9), ("RIGHT", 6), ("UP", 2)]),
-            ("surf", [("UP", 5), ("LEFT", 6), ("UP", 1)]),
+            ("surf", [("UP", 6), ("LEFT", 6), ("UP", 1)]),
             ("run", [("UP", 8)]),
-            ("wait", []),
+            ("wait", [("UP", 1)]),
             ("run", [("UP", 2)]),
         ],
         "north_rod": [
             ("run", [("UP", 9), ("RIGHT", 6), ("UP", 2)]),
-            ("surf", [("UP", 5), ("LEFT", 6), ("UP", 1)]),
+            ("surf", [("UP", 6), ("LEFT", 6), ("UP", 1)]),
             ("run", [("UP", 8)]),
-            ("wait", []),
+            ("wait", [("UP", 1)]),
             ("run", [("UP", 11), ("LEFT", 6), ("DOWN", 5), ("LEFT", 4)]),
         ],
         "north_surfing": [
             ("run", [("UP", 9), ("RIGHT", 6), ("UP", 2)]),
-            ("surf", [("UP", 5), ("LEFT", 6), ("UP", 1)]),
+            ("surf", [("UP", 6), ("LEFT", 6), ("UP", 1)]),
             ("run", [("UP", 8)]),
-            ("wait", []),
+            ("wait", [("UP", 1)]),
             ("run", [("UP", 11), ("LEFT", 6), ("DOWN", 5), ("LEFT", 4)]),
-            ("surf", []),
+            ("surf", [("LEFT", 1)]),
         ],
         "west_grass": [
             ("run", [("UP", 9), ("RIGHT", 6), ("UP", 2)]),
-            ("surf", [("LEFT", 15)]),
+            ("surf", [("UP", 1), ("LEFT", 15)]),
             ("run", [("LEFT", 10)]),
-            ("wait", []),
+            ("wait", [("LEFT", 1)]),
             ("run", [("LEFT", 10), ("UP", 5), ("LEFT", 5), ("DOWN", 2),
-                     ("LEFT", 10), ("DOWN", 3)]),
+                    ("LEFT", 10), ("DOWN", 3)]),
         ],
         "west_rod": [
             ("run", [("UP", 9), ("RIGHT", 6), ("UP", 2)]),
-            ("surf", [("LEFT", 15)]),
+            ("surf", [("UP", 1), ("LEFT", 15)]),
             ("run", [("LEFT", 10)]),
-            ("wait", []),
+            ("wait", [("LEFT", 1)]),
             ("run", [("LEFT", 10), ("UP", 5), ("LEFT", 5), ("DOWN", 2),
-                     ("LEFT", 10), ("DOWN", 3), ("LEFT", 5), ("UP", 7)]),
+                    ("LEFT", 10), ("DOWN", 3), ("LEFT", 5), ("UP", 7)]),
         ],
         "west_surfing": [
             ("run", [("UP", 9), ("RIGHT", 6), ("UP", 2)]),
-            ("surf", [("LEFT", 15)]),
+            ("surf", [("UP", 1), ("LEFT", 15)]),
             ("run", [("LEFT", 10)]),
-            ("wait", []),
+            ("wait", [("LEFT", 1)]),
             ("run", [("LEFT", 10), ("UP", 5), ("LEFT", 5), ("DOWN", 2),
-                     ("LEFT", 10), ("DOWN", 3), ("LEFT", 5), ("UP", 7)]),
-            ("surf", []),
-        ]
+                    ("LEFT", 10), ("DOWN", 3), ("LEFT", 5), ("UP", 7)]),
+            ("surf", [("UP", 1)]),
+        ],
     }
     
-    navigate(
+    return navigate(
         ctx=ctx,
         route_map=target_route_map[target.lower()],
         current_direction=current_direction
     )
+
+
+def reverse_route_map(map: List[Tuple[str, List[Tuple[str, int]]]]):
+    """
+    按照以下规则完善现有的reverse计算
+    [
+        ("run", [("UP", 1), ("RIGHT", 16), ("UP", 13), ("RIGHT", 2)]),
+        ("wait", [("RIGHT", 1)]),
+        ("run", [("RIGHT", 9), ("DOWN", 1), ("RIGHT", 19), ("UP", 4),
+                    ("LEFT", 6), ("DOWN", 2), ("LEFT", 6), ("UP", 5), ("RIGHT", 1)]),
+        ("surf", [("RIGHT", 1)]),
+    ]
+    -- reverse -->
+    [
+        ("surf", [("LEFT", 1)]),
+        ("run", [("LEFT", 1), ..., ("LFET", 9), ("LEFT", 1)]), # 前面正常逆转; 正向以("wait", [("RIGHT", 1)])开始 -> 末尾添加一个wait逆向unit: ("LEFT", 1)
+        ("wait", [("LEFT", 1)]), # 正向从("RIGHT", 2)进入wait -> wait方向变为LEFT & delay不变 & 下一行("RIGHT", 2)开头要减去一个unit
+        ("run", [("LEFT", 1), ("DOWN", 13), ..., ("DOWN", 1)]), # 正向以wait结束 -> 开头减去一个unit: ("RIGHT", 2) -> ("LEFT", 2) -> ("LEFT", 1)
+    ]
+
+    [
+        ("walk", [("RIGHT", 6), ("DOWN", 1), ("RIGHT", 6), ("UP", 1)]),
+        ("wait", [("UP", 2)]),
+        ("walk", [("UP", 9), ("RIGHT", 8)]),
+        ("wait", [("LEFT", 1)]),
+        ("walk", [("UP", 4), ("LEFT", 14), ("DOWN", 4), ("LEFT", 1)]),
+        ("wait", [("RIGHT", 1)]),
+    ]
+    -- reverse -->
+    [
+        ("walk", [("LEFT", 1)]), # 正向以("wait", [("RIGHT", 1)])开始 -> 末尾添加一个wait逆向unit: ("LEFT", 1)
+        ("wait", [("RIGHT", 1)]), # 正向从("LEFT", 1)进入wait -> wait方向变为RIGHT & delay不变 & 下一行("LEFT", 1)开头要减去一个unit
+        ("walk", [("UP", 4), ("RIGHT", 14), ("DOWN", 4), ("RIGHT", 1)]), # 正向以wait结束 -> 开头减去一个unit: ("LEFT", 1) -> ("RIGHT", 1) -> ("RIGHT", 0) -> 消失
+        # [承上]正向以("wait", [("UP", 2)])开始 -> 末尾添加一个wait逆向unit: ("RIGHT", 1)
+        ("wait", [("LEFT", 1)]), # 正向从("RIGHT", 8)进入wait -> wait方向变为LEFT & delay不变 & 下一行("RIGHT", 8)开头要减去一个unit
+        ("walk", [("LEFT", 7), ("DOWN", 9), ("DOWN", 1)]), # 正向以wait结束 -> 开头减去一个unit: ("RIGHT", 8) -> ("LEFT", 8) -> ("LEFT", 7)
+        # [承上]正向以("wait", [("UP", 2)])开始 -> 末尾添加一个wait逆向unit: ("DOWN", 1)
+        ("wait", [("DOWN", 2)]), # 正向从("UP", 1)进入wait -> wait方向变为DOWN & delay不变 & 下一行("UP", 1)开头要减去一个unit
+        ("walk", [("LEFT", 6), ("UP", 1), ("LEFT", 6)]) # 正向以wait结束 -> 开头减去一个unit: ("UP", 1) -> ("DOWN", 1) -> ("DOWN", 0) -> 消失
+    ]
+    """
+    reverse_direction = {
+        "DOWN": "UP", "UP": "DOWN",
+        "RIGHT": "LEFT", "LEFT": "RIGHT"
+    }
+
+    n = len(map)
+    result: List[Tuple[str, List[Tuple[str, int]]]] = []
+
+    # 正向以wait结尾 -> 逆向开头需插入一个walk/run segment（退回上一个地图）
+    if n > 0 and map[-1][0] == "wait":
+        wait_dir = map[-1][1][0][0]
+        extra_dir = reverse_direction[wait_dir]
+        extra_way = map[-2][0] if n >= 2 else "walk"
+        result.append((extra_way, [(extra_dir, 1)]))
+    
+    for i in range(n - 1, -1, -1):
+        way, route = map[i]
+
+        if way == "wait":
+            # wait方向 = 正向中前一个segment最后一步方向的逆向
+            _, prev_route = map[i - 1]
+            prev_last_dir = prev_route[-1][0]
+            wait_dir = reverse_direction[prev_last_dir]
+            wait_units = route[0][1]
+            result.append(("wait", [(wait_dir, wait_units)]))
+            continue
+
+        # walk/run/surf：基本逆转（路线倒序、方向取反）
+        rev_route = [(reverse_direction[d], u) for d, u in reversed(route)]
+
+        if way in ("walk", "run"):
+            # 进入wait -> 逆向中开头减去一个unit
+            if i + 1 < n and map[i + 1][0] == "wait":
+                first_dir, first_units = rev_route[0]
+                if first_units > 1:
+                    rev_route[0] = (first_dir, first_units - 1)
+                else:
+                    rev_route = rev_route[1:]
+
+            # 从wait进入 -> 逆向中末尾添加一个逆向unit
+            if i - 1 >= 0 and map[i - 1][0] == "wait":
+                wait_dir = map[i - 1][1][0][0]
+                rev_route.append((reverse_direction[wait_dir], 1))
+
+        result.append((way, rev_route))
+    
+    if n > 0 and result[0][0] == "surf":
+        result[0][1][0] = (result[0][1][0][0], result[0][1][0][1] + 1)
+    
+    return result

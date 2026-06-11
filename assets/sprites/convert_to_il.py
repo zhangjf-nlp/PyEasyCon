@@ -12,7 +12,7 @@ Configuration:
 """
 import sys, os, cv2, json, base64, numpy as np
 sys.path.insert(0, '.')
-from vision.sprite import _load_sprite, _get_sprite_paths, NORMAL_DIR
+from vision.sprite import load_sprite_func, get_sprite_paths, NORMAL_DIR
 
 SCALE = 6.5
 GBA_X, GBA_Y = 180, 5
@@ -38,8 +38,8 @@ for sid in all_ids:
         label_path = os.path.join(OUT_DIR, f'{label_name}.IL')
 
         sprite = None
-        for _, np_path, sp_path in _get_sprite_paths(sid):
-            s = _load_sprite(sp_path if shiny else np_path)
+        for _, np_path, sp_path in get_sprite_paths(sid):
+            s = load_sprite_func(sp_path if shiny else np_path)
             if s is not None:
                 sprite = s
                 break

@@ -1,7 +1,7 @@
 import time
-from typing import Optional
 
-from easycon.context import ScriptContext, sleep
+from easycon.context import ScriptContext
+from easycon.controller import sleep
 from rng.config import RNGConfig
 from script_utils.navigation import navigate_safari_zone
 
