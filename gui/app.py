@@ -630,7 +630,12 @@ class EasyConGUI:
 
         # 根据状态决定基础颜色
         if btn_name == 'run':
-            color = (80, 80, 80) if self.script_running else (60, 120, 80)
+            if not self.video_module.controller_connected:
+                color = (80, 80, 80)  # 控制器未连接，灰色不可用
+            elif self.script_running:
+                color = (80, 80, 80)
+            else:
+                color = (60, 120, 80)
         elif btn_name == 'stop':
             color = (120, 60, 60) if self.script_running else (80, 80, 80)
         elif btn_name == 'record':
@@ -709,7 +714,10 @@ class EasyConGUI:
                     if event.key == pygame.K_ESCAPE:
                         self.running = False
                     elif event.key == pygame.K_F5:
-                        self.run_script()
+                        if not self.video_module.controller_connected:
+                            self.output_panel.log("控制器未连接，无法运行")
+                        else:
+                            self.run_script()
                     elif event.key == pygame.K_F6:
                         self.stop_script()
                     elif event.key == pygame.K_F9:
@@ -740,7 +748,10 @@ class EasyConGUI:
                             self.btn_pressed = btn_name
                             self.btn_pressed_frames = 10
                             if btn_name == 'run':
-                                self.run_script()
+                                if not self.video_module.controller_connected:
+                                    self.output_panel.log("控制器未连接，无法运行")
+                                else:
+                                    self.run_script()
                             elif btn_name == 'stop':
                                 self.stop_script()
                             elif btn_name == 'record':
