@@ -1,5 +1,4 @@
 from .ocr import (
-    ocr_pokemon,
     ocr_elevated,
     ocr_caught_info,
     ocr_caught_iv,
@@ -29,7 +28,6 @@ from .sprite import (
 )
 
 __all__ = [
-    "ocr_pokemon",
     "ocr_elevated",
     "ocr_caught_info",
     "ocr_caught_iv",

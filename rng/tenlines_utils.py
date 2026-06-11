@@ -370,8 +370,7 @@ class IVsObservation:
     @property
     def is_valid(self) -> bool:
         return (
-            isinstance(self.pokemon, str) and len(self.pokemon) > 0
-            and isinstance(self.nature, str) and self.nature in NATURES
+            isinstance(self.nature, str) and self.nature in NATURES
             and isinstance(self.level, int) and self.level >= 1
             and isinstance(self.hp, int) and self.hp > 0
             and isinstance(self.attack, int) and self.attack > 0

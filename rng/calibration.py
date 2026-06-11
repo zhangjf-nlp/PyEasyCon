@@ -1,4 +1,3 @@
-from math import e
 from typing import Dict, List, Optional, Tuple
 
 import numpy as np
@@ -31,8 +30,9 @@ def parse_entries(
         if pokemon is None and e.get("pokemon"):
             pokemon = e["pokemon"]
         ocr = e.get("ocr_result", {})
-        st = ocr.get("screen", "")
-        if st == "CAUGHT_INFO":
+        is_caught_info = "nature" in ocr and "hp" not in ocr
+        is_iv_like = "hp" in ocr and "attack" in ocr and "defense" in ocr
+        if is_caught_info:
             n = (ocr.get("nature") or "").strip()
             if n:
                 nature = NATURES_LOWER.get(n.lower(), n)
@@ -44,8 +44,9 @@ def parse_entries(
             lv = ocr.get("level")
             if lv is not None:
                 caught_level = lv
-        elif st in ("CAUGHT_IV", "ELEVATED"):
-            if st == "CAUGHT_IV":
+        elif is_iv_like:
+            has_ability = "ability" in ocr
+            if has_ability:
                 ability = (ocr.get("ability") or "").strip().title()
             obs_list.append(IVsObservation(
                 nature=nature, level=ocr["level"],
@@ -147,47 +148,30 @@ def calibrate(ctx, cfg: RNGConfig, state: SessionState) -> dict:
             f"({sum(1 for a in attempts if a.is_precise)} precise, "
             f"{sum(1 for a in attempts if not a.is_precise)} vague)")
 
-    # ── 1. 展平所有结果，每个结果携带权重 ──
-    # entries: [(weight, delta_array[ds, dt, dn], attempt_id), ...]
-    entries: List[Tuple[float, np.ndarray, np.ndarray, int]] = []
-    search_ranges = []
+    # ── 1. 展平所有结果，收集权重和delta ──
+    weights = []
+    deltas = []
     for idx, attempt in enumerate(attempts):
-        time_weight = 0.8 ** (N - 1 - idx)      # 距最新越远，权重越低
+        time_weight = 0.8 ** (N - 1 - idx)
         slot_weight = time_weight / len(attempt.slots)
-        attempt_delta_arrs = []
+        weights.extend([slot_weight] * len(attempt.slots))
         for i, slot in enumerate(attempt.slots):
             delta = slot - target - attempt.calibration
-            entries.append((slot_weight, delta.to_array(),
-                            attempt.calibration.to_array(), attempt.id))
-            attempt_delta_arrs.append(delta.to_array())
+            deltas.append(delta.to_array())
             ctx.log(f"# {attempt.id if i==0 else '':<3} - {delta} x {slot_weight:.3f}")
-        attempt_delta_arrs = np.stack(attempt_delta_arrs, axis=0)
-        attempt_search_range = np.abs(attempt_delta_arrs).min(axis=0)
-        search_ranges.append(attempt_search_range)
-    
-    # ── 2. 计算搜索范围 ──
-    # avg_attempt(min_result(|delta|))：每个 attempt 取各维度最小 |delta|，再跨 attempt 平均
-    search_range = np.stack(search_ranges, axis=0).mean(axis=0)
-    search_range = np.maximum(10, search_range).astype(int)
 
-    # ── 3. 独立 MLE 搜索最佳 (ds, dt, dn) ──
-
-    # 权重 & 观测值
-    weights = np.array([w for w, _, _, _ in entries])                         # (E,)
+    weights = np.array(weights)                                             # (E,)
     weights = weights / weights.sum()                                       # (E,)
-    deltas = np.array([[arr[d] for _, arr, _, _ in entries] for d in range(3)])   # (3, E)
-    distances = np.array([[arr[d] for _, _, arr, _ in entries] for d in range(3)])  # (3, E)
+    deltas = np.array(deltas).T                                             # (3, E)
 
-    # 各维度独立 MLE（搜索范围可能不同，逐维度计算）
-    ml, mle = [], []
-    for d in range(3):
-        sigma = np.log(np.abs(distances[d]) + np.e)                # (E,)
-        grid = np.arange(-search_range[d], search_range[d] + 1)    # (G,)
-        z = (grid[:, None] - deltas[d]) / sigma                    # (G, E)
-        pdf = np.exp(-0.5 * z * z) / (sigma * np.sqrt(2 * np.pi))  # (G, E)
-        l = pdf @ weights                                          # (G,)
-        ml.append(float(l.max()))
-        mle.append(int(grid[l.argmax()]))
+    # ── 2. 一次性广播计算 MLE
+    sigma = 2.0
+    grid = np.arange(-1000, 1001)                                          # (G,)
+    z = (grid[None, :, None] - deltas[:, None, :]) / sigma                 # (3, G, E)
+    pdf = np.exp(-0.5 * z * z) / (sigma * np.sqrt(2 * np.pi))              # (3, G, E)
+    l = np.einsum('dge,e->dg', pdf, weights)                               # (3, G)
+    ml = l.max(axis=1)                                                      # (3,)
+    mle = grid[l.argmax(axis=1)]                                            # (3,)
     ds_ml, dt_ml, dn_ml = ml
     ds, dt, dn = mle
 
@@ -195,7 +179,7 @@ def calibrate(ctx, cfg: RNGConfig, state: SessionState) -> dict:
     adv_bias_delta = dt * ADV_PERIOD + dn
 
     # 收敛判断：最佳修正值在各维度上都接近 0
-    converged = all(_ >= 0.2 for _ in ml) and all(abs(_) <= 2 for _ in mle)
+    converged = bool(np.all(np.abs(mle) < 2))
     
     ctx.log(
         f"[calibrate] MLE ds={ds:+d} dt={dt:+d} dn={dn:+d} | "

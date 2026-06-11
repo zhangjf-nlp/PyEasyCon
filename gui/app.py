@@ -35,7 +35,6 @@ from easycon.config import get
 from .script_engine import ScriptEngine
 
 from vision import (
-    ocr_pokemon as ocr_pokemon_vision,
     ocr_elevated as ocr_elevated_vision,
     ocr_caught_info as ocr_caught_info_vision,
     ocr_caught_iv as ocr_caught_iv_vision,
@@ -192,7 +191,6 @@ class EasyConGUI:
             get_frame=self.get_video_frame,
             log_func=self.log,
             is_running_func=self.script_engine.is_running,
-            ocr_pokemon_func=self.ocr_pokemon,
             ocr_elevated_func=self.ocr_elevated,
             ocr_caught_info_func=self.ocr_caught_info,
             ocr_caught_iv_func=self.ocr_caught_iv,
@@ -529,21 +527,6 @@ class EasyConGUI:
             self.output_panel.log(f"OCR 验证: {name}")
         return name if name and name.upper() != 'NONE' else None
     
-    def ocr_pokemon(self):
-        """自动检测画面并 OCR"""
-        frame = self.get_video_frame()
-        if frame is None:
-            self.output_panel.log("OCR 失败: 采集卡未就绪，请等待视频画面出现后重试")
-            return None
-        result = ocr_pokemon_vision(frame)
-        if result.get('screen') == 'UNKNOWN':
-            import cv2, os
-            os.makedirs('debug_ocr', exist_ok=True)
-            cv2.imwrite('debug_ocr/03_unknown_frame.png', frame)
-            from vision.ocr import classify_screen_type
-            classify_screen_type(frame, debug=True)
-        return result
-
     def ocr_elevated(self):
         """Elevated IV 界面 OCR"""
         frame = self.get_video_frame()
@@ -921,11 +904,6 @@ def is_running():
         return False
     return current_gui.script_engine.is_running()
 
-def ocr_pokemon():
-    if current_gui:
-        return current_gui.ocr_pokemon()
-    return None
-
 def ocr_elevated():
     if current_gui:
         return current_gui.ocr_elevated()
@@ -933,7 +911,7 @@ def ocr_elevated():
 
 def ocr_caught_info():
     if current_gui:
-        return current_gui.ocr_pokemon()
+        return current_gui.ocr_caught_info()
     return None
 
 def ocr_caught_iv():

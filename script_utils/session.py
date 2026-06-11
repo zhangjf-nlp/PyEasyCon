@@ -342,9 +342,3 @@ def observe_pokemon(ctx: ScriptContext, state: SessionState, cfg: RNGConfig, att
         attempt_path = f"{state.log_dir}/attempts/{attempt_index:03d}.json"
         with open(attempt_path, "w", encoding="utf-8") as f:
             json.dump(rng_attempt.to_dict(), f, ensure_ascii=False, indent=2)
-
-    precise_count = sum(1 for a in state.attempts.values() if a.is_precise)
-    vague_count = sum(1 for a in state.attempts.values() if not a.is_precise)
-    keys = sorted(state.attempts.keys())
-    attempt_range = f"#{keys[0]}-{keys[-1]}" if len(keys) > 1 else f"#{keys[0]}"
-    ctx.log(f"{attempt_range} {precise_count}p/{vague_count}v")

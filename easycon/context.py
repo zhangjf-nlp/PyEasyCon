@@ -31,7 +31,6 @@ class ScriptContext:
         get_frame: Optional[Callable[[], Optional[np.ndarray]]] = None,
         log_func: Optional[Callable[[str], None]] = None,
         is_running_func: Optional[Callable[[], bool]] = None,
-        ocr_pokemon_func: Optional[Callable[[], Any]] = None,
         ocr_elevated_func: Optional[Callable[[], Any]] = None,
         ocr_caught_info_func: Optional[Callable[[], Any]] = None,
         ocr_caught_iv_func: Optional[Callable[[], Any]] = None,
@@ -45,7 +44,6 @@ class ScriptContext:
         self.get_frame_func = get_frame
         self.log_func = log_func
         self.is_running_func = is_running_func
-        self.ocr_pokemon_func = ocr_pokemon_func
         self.ocr_elevated_func = ocr_elevated_func
         self.ocr_caught_info_func = ocr_caught_info_func
         self.ocr_caught_iv_func = ocr_caught_iv_func
@@ -203,11 +201,6 @@ class ScriptContext:
     def vlm_available(self) -> bool:
         """VLM/OCR 是否可用"""
         return self.ocr_custom_func is not None
-
-    def ocr_pokemon(self):
-        if self.ocr_pokemon_func:
-            return self.ocr_pokemon_func()
-        return None
 
     def ocr_elevated(self):
         if self.ocr_elevated_func:

@@ -564,33 +564,6 @@ def ocr_caught_iv(image: np.ndarray) -> Dict[str, object]:
     return parallel_ocr(tasks)
 
 
-def ocr_pokemon(image: Optional[np.ndarray] = None) -> Dict[str, object]:
-    """
-    自动检测画面类型并 OCR。一键入口。
-
-    返回带有 'screen' 键的平铺字典，例如:
-        {'screen': 'ELEVATED', 'level': '50', 'hp': '31', ...}
-    检测失败返回 {'screen': 'UNKNOWN'}。
-    """
-    if image is None:
-        return {'screen': SCREEN_UNKNOWN}
-    if image.shape[:2] != (SRC_HEIGHT, SRC_WIDTH):
-        full = cv2.resize(image, (SRC_WIDTH, SRC_HEIGHT), interpolation=cv2.INTER_LANCZOS4)
-    else:
-        full = image
-    screen_type = classify_screen_type(full, debug=False)
-    if screen_type == SCREEN_ELEVATED:
-        result = ocr_elevated(image)
-    elif screen_type == SCREEN_CAUGHT_INFO:
-        result = ocr_caught_info(image)
-    elif screen_type == SCREEN_CAUGHT_IV:
-        result = ocr_caught_iv(image)
-    else:
-        return {'screen': SCREEN_UNKNOWN}
-    result['screen'] = screen_type
-    return result
-
-
 def ocr_custom(roi_image: np.ndarray, prompt: str, model_type: str = None) -> Optional[str]:
     return call_vlm_func(roi_image, prompt, max_tokens=128, temperature=0.2, model_type=model_type)
 

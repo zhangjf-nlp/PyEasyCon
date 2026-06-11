@@ -15,8 +15,12 @@ def hit_init_seed(ctx: ScriptContext, cfg: RNGConfig) -> None:
     time_end = time_start + cfg.schedule.seed_ms / 1000
     if EB:
         while not ctx.search_label("FRLGCopyright", 90):
-            sleep(0.1)
-        ctx.press(EB, 3000)
+            time.sleep(0.1)
+        while ctx.search_label("FRLGCopyright", 90):
+            time.sleep(0.1)
+        ctx.hold(EB)
+        sleep(0.0, end=time_end-1.0)
+        ctx.release(EB)
     sleep(0.0, end=time_end)
     ctx.press(SB, 4000)
     sleep(1.0)

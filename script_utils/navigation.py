@@ -1,4 +1,3 @@
-from ast import Break
 from typing import List, Tuple
 from easycon.context import ScriptContext
 from easycon.controller import sleep
@@ -50,8 +49,10 @@ def restart(ctx: ScriptContext) -> None:
         if search_label_zysb() and not search_label_ysyw():
             break
         else:
+            ctx.press("B")
+            sleep(1.0)
             ctx.press("HOME")
-            sleep(3.0)
+            sleep(2.0)
     else:
         ctx.log(f"[重启失败警告] 未能识别到NS主页画面")
     
