@@ -45,36 +45,62 @@ def restart(ctx: ScriptContext) -> None:
     search_label_qhyh = lambda : any(ctx.search_label(f"NS{_}色系主题-切换用户", 70) for _ in "深浅")
     search_label_ysyw = lambda : any(ctx.search_label(f"NS{_}色系主题-由谁游玩", 70) for _ in "深浅")
     
+    ctx.screen_record_start()
+    warning = False
+    
+    import time
     for _ in range(3):
-        if search_label_zysb() and not search_label_ysyw():
-            break
+        ctx.press("HOME")
+        for __ in range(50):
+            if search_label_zysb() and not search_label_ysyw():
+                break
+            else:
+                time.sleep(0.1)
         else:
-            ctx.press("B")
-            sleep(1.0)
-            ctx.press("HOME")
-            sleep(2.0)
+            continue
+        break
     else:
         ctx.log(f"[重启失败警告] 未能识别到NS主页画面")
+        warning = True
+    time.sleep(1.0)
     
     for _ in range(3):
         ctx.press("Y")
-        sleep(3.0)
-        if search_label_qhyh():
-            break
+        for __ in range(50):
+            if search_label_qhyh():
+                break
+            else:
+                time.sleep(0.1)
+        else:
+            continue
+        break
     else:
         ctx.log(f"[重启失败警告] 未能识别到用户切换画面")
+        warning = True
+    time.sleep(1.0)
     
     ctx.press("A")
-    sleep(3.0)
     for _ in range(3):
-        if search_label_zysb() and search_label_ysyw():
-            break
-        if search_label_zysb() and not search_label_ysyw():
-            ctx.press("A")
-        sleep(3.0)
+        for __ in range(50):
+            if search_label_zysb() and search_label_ysyw():
+                break
+            else:
+                time.sleep(0.1)
+        else:
+            if search_label_zysb() and not search_label_ysyw():
+                ctx.press("A")
+            continue
+        break
     else:
-        ctx.log(f"[重启失败警告] 未能识别到用户选择画面")
-    sleep(1.0)
+        ctx.log(f"[重启失败警告] 未能识别到用户切换画面")
+        warning = True
+    time.sleep(1.0)
+
+    if warning:
+        ctx.screen_record_save("restart_with_warning.mp4")
+    else:
+        ctx.recording_flag = False
+        ctx.record_frames.clear()
 
 
 def navigate(ctx: ScriptContext, route_map: List[Tuple[str, List[Tuple[str, int]]]], current_direction: str = None) -> str:

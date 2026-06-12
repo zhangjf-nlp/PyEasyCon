@@ -81,14 +81,42 @@ class EasyConController:
 
     def connect(self, port: Optional[str] = None, timeout: float = 2.0) -> bool:
         if port is None:
-            for p in self.list_ports():
+            # ── 自动搜索：分类端口，USB 优先，蓝牙后试 ──
+            all_ports = list(serial.tools.list_ports.comports())
+            usb_ports = []
+            bt_ports = []
+            for p in all_ports:
+                hwid = (p.hwid or "").upper()
+                if "BTHENUM" in hwid or "RFCOMM" in hwid:
+                    bt_ports.append(p.device)
+                else:
+                    usb_ports.append(p.device)
+
+            if self.debug_flag:
+                print(f"USB ports: {usb_ports}, BT ports: {bt_ports}")
+
+            # 1) USB 端口 + 主波特率（覆盖绝大多数情况，最快命中最优端口）
+            for p in usb_ports:
                 if self.try_connect_port(p, self.baudrate, timeout):
                     return True
-            # 空端口参数时也尝试回退波特率
+
+            # 2) USB 端口 + 回退波特率（固件可能用了非标波特率）
             for baud in self.baudrate_fallbacks:
-                for p in self.list_ports():
+                for p in usb_ports:
                     if self.try_connect_port(p, baud, timeout):
                         return True
+
+            # 3) 蓝牙端口 + 主波特率（极少数改蓝牙方案的控制器）
+            for p in bt_ports:
+                if self.try_connect_port(p, self.baudrate, timeout):
+                    return True
+
+            # 4) 蓝牙端口 + 回退波特率
+            for baud in self.baudrate_fallbacks:
+                for p in bt_ports:
+                    if self.try_connect_port(p, baud, timeout):
+                        return True
+
             return False
         # 指定端口：先尝试主波特率，再回退
         if self.try_connect_port(port, self.baudrate, timeout):
