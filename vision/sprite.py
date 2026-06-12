@@ -41,17 +41,28 @@ def detect_gba_area(frame: np.ndarray) -> Tuple[int, int, float]:
 
 
 def get_sprite_paths(species_id: int) -> List[Tuple[str, str, str]]:
+    """Return all sprite files for a species, including multi-form variants.
+    Each entry: (display_name, normal_path, shiny_path)."""
     result = []
-    if species_id == 351:
-        for form in ["351", "351-rainy", "351-snowy", "351-sunny"]:
-            result.append((form,
-                          os.path.join(NORMAL_DIR, f"{form}.png"),
-                          os.path.join(SHINY_DIR, f"{form}.png")))
-    else:
-        sid = str(species_id)
-        result.append((sid,
-                      os.path.join(NORMAL_DIR, f"{sid}.png"),
-                      os.path.join(SHINY_DIR, f"{sid}.png")))
+    sid = str(species_id)
+    # check default form first
+    default_n = os.path.join(NORMAL_DIR, f"{sid}.png")
+    default_s = os.path.join(SHINY_DIR, f"{sid}.png")
+    if os.path.exists(default_n):
+        result.append((sid, default_n, default_s))
+    # scan for suffixed forms: {id}-{form}.png
+    for fname in sorted(os.listdir(NORMAL_DIR)):
+        if not fname.endswith('.png'):
+            continue
+        if not fname.startswith(sid + '-'):
+            continue
+        # e.g. "201-A.png" -> display_name "201-A"
+        display_name = fname[:-4]
+        result.append((
+            display_name,
+            os.path.join(NORMAL_DIR, fname),
+            os.path.join(SHINY_DIR, fname),
+        ))
     return result
 
 

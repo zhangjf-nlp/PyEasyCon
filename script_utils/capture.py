@@ -9,7 +9,7 @@ from easycon.context import ScriptContext
 from easycon.controller import sleep
 from rng.config import RNGConfig, SessionState
 from script_utils.navigation import in_wild
-from vision.sprite import identify_pokemon as _identify, detect_gba_area, SPRITE_NATIVE
+from vision.sprite import identify_pokemon, detect_gba_area, SPRITE_NATIVE
 from rng.tenlines_utils import get_species_en_name, get_species_id, get_species_zh_name, get_encounter_species_list
 
 
@@ -47,7 +47,7 @@ def check_shiny(
     if frame is None:
         raise RuntimeError("采集卡未就绪")
 
-    species_id, score, is_shiny, fx_match, fy_match = _identify(
+    species_id, score, is_shiny, fx_match, fy_match = identify_pokemon(
         frame, candidates=candidates, threshold=0.0
     )
 
