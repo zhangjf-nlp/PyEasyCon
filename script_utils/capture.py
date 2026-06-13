@@ -70,11 +70,6 @@ def check_shiny(
         f'match: {pkm_en} (#{species_id} {"shiny" if is_shiny else "normal"}) score={score:.3f}'
     )
 
-    if state is not None and state.log_dir is not None:
-        ctx.save_ocr_screenshot(
-            f"{state.log_dir}/screens/{attempt:03d}-APPEARED.png", "APPEARED"
-        )
-
     dbg = frame.copy()
     cv2.rectangle(dbg, (sx_roi, sy_roi), (sx_roi + sw_roi, sy_roi + sh_roi), (255, 255, 0), 2)
     cv2.rectangle(dbg, (fx_match, fy_match), (fx_match + spx, fy_match + spx), (0, 255, 0), 3)

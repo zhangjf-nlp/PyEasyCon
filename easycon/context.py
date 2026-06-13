@@ -3,7 +3,7 @@ import base64
 import os
 import time
 import threading
-from typing import Optional, Callable, Any
+from typing import Optional, Callable, Dict
 
 import cv2
 import numpy as np
@@ -31,11 +31,7 @@ class ScriptContext:
         get_frame: Optional[Callable[[], Optional[np.ndarray]]] = None,
         log_func: Optional[Callable[[str], None]] = None,
         is_running_func: Optional[Callable[[], bool]] = None,
-        ocr_elevated_func: Optional[Callable[[], Any]] = None,
-        ocr_caught_info_func: Optional[Callable[[], Any]] = None,
-        ocr_caught_iv_func: Optional[Callable[[], Any]] = None,
-        ocr_custom_func: Optional[Callable] = None,
-        ocr_taken_item_func: Optional[Callable] = None,
+        ocr_func: Optional[Callable] = None,
         identify_pokemon_func: Optional[Callable] = None,
         ocr_name_func: Optional[Callable] = None,
         labels_dir: str = "assets/labels",
@@ -44,11 +40,7 @@ class ScriptContext:
         self.get_frame_func = get_frame
         self.log_func = log_func
         self.is_running_func = is_running_func
-        self.ocr_elevated_func = ocr_elevated_func
-        self.ocr_caught_info_func = ocr_caught_info_func
-        self.ocr_caught_iv_func = ocr_caught_iv_func
-        self.ocr_custom_func = ocr_custom_func
-        self.ocr_taken_item_func = ocr_taken_item_func
+        self.ocr_func = ocr_func
         self.identify_pokemon_func = identify_pokemon_func
         self.ocr_name_func = ocr_name_func
         self.labels_dir = labels_dir
@@ -200,31 +192,12 @@ class ScriptContext:
 
     def vlm_available(self) -> bool:
         """VLM/OCR 是否可用"""
-        return self.ocr_custom_func is not None
+        return self.ocr_func is not None
 
-    def ocr_elevated(self):
-        if self.ocr_elevated_func:
-            return self.ocr_elevated_func()
-        return None
-
-    def ocr_caught_info(self):
-        if self.ocr_caught_info_func:
-            return self.ocr_caught_info_func()
-        return None
-
-    def ocr_caught_iv(self):
-        if self.ocr_caught_iv_func:
-            return self.ocr_caught_iv_func()
-        return None
-
-    def ocr_custom(self, image, prompt: str, model_type: str = None):
-        if self.ocr_custom_func:
-            return self.ocr_custom_func(image, prompt, model_type)
-        return None
-
-    def ocr_taken_item(self, frame):
-        if self.ocr_taken_item_func:
-            return self.ocr_taken_item_func(frame)
+    def ocr(self, screen_type: str, screenshot_save: Optional[str] = None, **kwargs) -> Optional[Dict[str, object]]:
+        """通用 OCR 入口：根据 screen_type 执行对应 ScreenOCRTask。**kwargs 传递到各 func。"""
+        if self.ocr_func:
+            return self.ocr_func(screen_type, screenshot_save, **kwargs)
         return None
 
     def identify_pokemon(self, candidates=None, threshold=0.0):
@@ -236,41 +209,6 @@ class ScriptContext:
         if self.ocr_name_func:
             return self.ocr_name_func(candidates=candidates)
         return None
-
-    def save_ocr_screenshot(self, save_path: str, screen_type: str):
-        frame = self.get_frame()
-        if frame is None:
-            return
-        from vision.ocr import get_all_roi_boxes
-
-        GROUP_MAP = {
-            "ELEVATED": "Elevated",
-            "CAUGHT_INFO": "Caught",
-            "CAUGHT_IV": "CaughtIV",
-            "APPEARED": "Appeared",
-        }
-        group = GROUP_MAP.get(screen_type)
-        if group is None:
-            return
-
-        all_boxes = get_all_roi_boxes()
-        boxes = [b for b in all_boxes if b['group'] == group]
-
-        h, w = frame.shape[:2]
-        sx = w / 1920.0
-        sy = h / 1080.0
-        annotated = frame.copy()
-        for b in boxes:
-            x, y, rw, rh = b['roi']
-            x1, y1 = int(x * sx), int(y * sy)
-            x2, y2 = int((x + rw) * sx), int((y + rh) * sy)
-            color = b['color']
-            cv2.rectangle(annotated, (x1, y1), (x2, y2), color, 2)
-            cv2.putText(annotated, b['label'], (x1, y1 - 5),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1)
-
-        os.makedirs(os.path.dirname(save_path), exist_ok=True)
-        cv2.imwrite(save_path, annotated)
 
     def screen_record_start(self):
         """开始录制GUI显示的游戏画面"""

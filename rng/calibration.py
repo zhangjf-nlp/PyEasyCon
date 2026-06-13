@@ -2,9 +2,8 @@ from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
-from rng.tenlines_utils import (
-    IVsObservation, NATURES, METHOD_NAMES,
-)
+from easycon.context import ScriptContext
+from rng.tenlines_utils import IVsObservation, NATURES, METHOD_NAMES
 from rng.config import RNGConfig, SessionState, RNGSlot, RNGDisplacement, SEED_PERIOD, ADV_PERIOD
 
 WIDE_SEED_BIAS = 3000
@@ -91,16 +90,12 @@ class RNGAttempt:
         return len(self.slots) > 0
 
     @property
-    def credit(self) -> int:
-        return 3 if self.is_precise else (1 if self.is_valid else 0)
+    def offsets(self) -> List[RNGDisplacement]:
+        return [slot - self.target for slot in self.slots]
 
-    def find_nearest(self, slot: RNGSlot) -> RNGSlot:
-        return min(self.slots, key=lambda s: s - slot)
-
-    def representative(self) -> Optional[RNGSlot]:
-        if not self.slots:
-            return None
-        return self.find_nearest(self.target)
+    @property
+    def residuals(self) -> List[RNGDisplacement]:
+        return [slot - self.target - self.calibration for slot in self.slots]
 
     def to_dict(self) -> dict:
         return {
@@ -127,7 +122,7 @@ class RNGAttempt:
         }
 
 
-def calibrate(ctx, cfg: RNGConfig, state: SessionState) -> dict:
+def calibrate(ctx: ScriptContext, cfg: RNGConfig, state: SessionState) -> dict:
     """基于加权正态分布 MLE 的连续校准算法。
     
     每个 attempt 的每个反查结果都对 ds/dt/dn 产生一个正态分布投票，
@@ -155,10 +150,9 @@ def calibrate(ctx, cfg: RNGConfig, state: SessionState) -> dict:
         time_weight = 0.8 ** (N - 1 - idx)
         slot_weight = time_weight / len(attempt.slots)
         weights.extend([slot_weight] * len(attempt.slots))
-        for i, slot in enumerate(attempt.slots):
-            delta = slot - target - attempt.calibration
-            deltas.append(delta.to_array())
-            ctx.log(f"# {attempt.id if i==0 else '':<3} - {delta} x {slot_weight:.3f}")
+        for i, residual in enumerate(attempt.residuals):
+            deltas.append(residual.to_array())
+            ctx.log(f"# {attempt.id if i==0 else '':<3} - {residual} x {slot_weight:.3f}")
 
     weights = np.array(weights)                                             # (E,)
     weights = weights / weights.sum()                                       # (E,)
@@ -177,9 +171,8 @@ def calibrate(ctx, cfg: RNGConfig, state: SessionState) -> dict:
 
     seed_bias_delta = ds * SEED_PERIOD
     adv_bias_delta = dt * ADV_PERIOD + dn
-
-    # 收敛判断：最佳修正值在各维度上都接近 0
-    converged = bool(np.all(np.abs(mle) < 2))
+    
+    converged = bool(np.all(np.abs(mle) < 2)) and attempts[-1].residuals[0].l2 < 2
     
     ctx.log(
         f"[calibrate] MLE ds={ds:+d} dt={dt:+d} dn={dn:+d} | "
@@ -194,7 +187,5 @@ def calibrate(ctx, cfg: RNGConfig, state: SessionState) -> dict:
         "seed_bias": seed_bias_delta,
         "adv_bias": adv_bias_delta,
         "converged": converged,
-        "ds": ds,
-        "dt": dt,
-        "dn": dn,
+        "displacement": RNGDisplacement(ds=ds, dt=dt, dn=dn),
     }

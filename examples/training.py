@@ -188,7 +188,7 @@ def search_and_take_meowth_items(ctx: ScriptContext, item_counts: dict) -> None:
             sleep(0.5)
             ctx.press("A")
             sleep(2.0)
-            text = ctx.ocr_taken_item(ctx.get_frame()) if ctx.vlm_available() else None
+            text = ctx.ocr("TAKEN_ITEM").get("text") if ctx.vlm_available() else None
             if text:
                 item_name = text.strip()
                 item_counts[item_name] = item_counts.get(item_name, 0) + 1

@@ -118,20 +118,13 @@ class VideoModule:
         
         def reconnect_worker():
             try:
-                import serial.tools.list_ports
-                
                 if self.controller is None:
                     self.controller = EasyConController()
                 
-                ports = list(serial.tools.list_ports.comports())
-                
-                for port in ports:
-                    try:
-                        if self.controller.connect(port.device, timeout=2.0):
-                            self.update_connection_status()
-                            return
-                    except:
-                        continue
+                # 直接调用 connect() 自动搜索，内置 USB/蓝牙端口分离优化
+                if self.controller.connect(timeout=2.0):
+                    self.update_connection_status()
+                    return
                 
                 self.update_connection_status()
             except Exception as e:
@@ -175,7 +168,7 @@ class VideoModule:
 
                             # 更新模型类型显示
                             try:
-                                from vision.ocr import get_current_model_type, OLLAMA_MODEL_NAME, SILICONFLOW_MODEL
+                                from vision.vlm import get_current_model_type, OLLAMA_MODEL_NAME, SILICONFLOW_MODEL
                                 model_type = get_current_model_type()
                                 if model_type == "vllm":
                                     self.model_type = "vLLM(本地)"
@@ -236,8 +229,8 @@ class VideoModule:
                     else:
                         # 未连接时尝试重连
                         self.check_and_reconnect()
-                elif event.key != pygame.K_TAB:
-                    # 未映射的按键：记录并显示提示（Tab除外，它用于切换叠加信息）
+                else:
+                    # 未映射的按键：记录并显示提示
                     self.last_unmapped_key = pygame.key.name(event.key)
                     self.unmapped_key_timer = pygame.time.get_ticks()
                 
@@ -273,82 +266,6 @@ class VideoModule:
         # 边框（获得焦点时显示绿色边框）
         border_color = (0, 200, 0) if self.focused else (100, 100, 100)
         pygame.draw.rect(screen, border_color, (self.x, self.y, self.width, self.height), 3 if self.focused else 2)
-        
-        # 按住Tab时显示叠加信息（连接状态、按键映射等），松开即隐藏
-        show_overlay = pygame.key.get_pressed()[pygame.K_TAB]
-        
-        if show_overlay:
-            # 标题
-            title = font.render("游戏画面", True, (200, 200, 200))
-            screen.blit(title, (self.x + 10, self.y + 10))
-            
-            # 连接状态（右上角）
-            if self.controller_status == "已连接":
-                status_color = (0, 200, 0)
-            elif self.controller_status == "连接中...":
-                status_color = (200, 200, 0)
-            else:
-                status_color = (200, 100, 100)
-            
-            status_text = font.render(f"[{self.controller_status}]", True, status_color)
-            status_rect = status_text.get_rect()
-            status_rect.topright = (self.x + self.width - 10, self.y + 10)
-            screen.blit(status_text, status_rect)
-            
-            # 焦点提示
-            if self.focused:
-                focus_hint = font.render("[已激活 - 键盘控制开启]", True, (0, 200, 0))
-                screen.blit(focus_hint, (self.x + 80, self.y + 10))
-            
-            # 按键提示（按手柄真实布局分行，每行4个）
-            hint_base_y = self.y + self.height - 12
-            hint_spacing = 18
-            hint_color = (150, 150, 150)
-            
-            hints = [
-                "G=L  T=R  F=ZL  R=ZR",          # 肩键（顶部）
-                "W=上  S=下  A=左  D=右",         # 方向键（左侧）
-                "Y=A  U=B  I=X  H=Y",             # 功能键（右侧）
-                "K=+  J=-  Z=拍照  C=HOME",        # 系统键（中部）
-                "Q=LC  E=RC",                      # 摇杆按下
-            ]
-            for i, hint_text in enumerate(hints):
-                hint_surf = font.render(hint_text, True, hint_color)
-                screen.blit(hint_surf, (self.x + 10, hint_base_y - hint_spacing * (len(hints) - i)))
-            
-            # FPS显示（右下角）
-            fps_text = font.render(f"{self.fps} FPS", True, (100, 200, 100))
-            fps_rect = fps_text.get_rect()
-            fps_rect.bottomright = (self.x + self.width - 10, self.y + self.height - 10)
-            screen.blit(fps_text, fps_rect)
-            
-            # VL模型类型显示（FPS上方）
-            model_text = font.render(f"VL: {self.model_type}", True, (100, 150, 200))
-            model_rect = model_text.get_rect()
-            model_rect.bottomright = (self.x + self.width - 10, self.y + self.height - 25)
-            screen.blit(model_text, model_rect)
-            
-            # === OCR ROI 框叠加 (1920×1080 坐标 → 缩放到显示区域) ===
-            try:
-                from vision.ocr import get_all_roi_boxes
-                rois = get_all_roi_boxes()
-                scale_x = self.width / 1920.0
-                scale_y = self.height / 1080.0
-                small_font = pygame.font.Font(os.path.join(
-                    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                    "assets", "NotoSansCJKsc-Regular.otf"), 9)
-                for box in rois:
-                    rx, ry, rw, rh = box['roi']
-                    sx = self.x + int(rx * scale_x)
-                    sy = self.y + int(ry * scale_y)
-                    sw = max(2, int(rw * scale_x))
-                    sh = max(2, int(rh * scale_y))
-                    color = box['color']
-                    pygame.draw.rect(screen, color, (sx, sy, sw, sh), 1)
-                    label_surf = small_font.render(box['label'], True, color)
-                    screen.blit(label_surf, (sx + 2, sy - 12))
-            except Exception:
-                pass
         
         # 未映射按键提示（始终显示，触发了就可见2秒）
         if self.last_unmapped_key and pygame.time.get_ticks() - self.unmapped_key_timer < 2000:

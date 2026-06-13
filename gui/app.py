@@ -35,14 +35,7 @@ from easycon.config import get
 from .script_engine import ScriptEngine
 
 from vision import (
-    ocr_elevated as ocr_elevated_vision,
-    ocr_caught_info as ocr_caught_info_vision,
-    ocr_caught_iv as ocr_caught_iv_vision,
-    ocr_custom as ocr_custom_vision,
-    ocr_taken_item as ocr_taken_item_vision,
-    ocr_pokemon_name as ocr_pokemon_name_vision,
-    classify_screen_type as classify_screen_type,
-    get_all_roi_boxes as get_all_roi_boxes,
+    ocr_skills as ocr_skills,
     check_service as check_service,
     check_vllm_service as check_vllm_service,
     check_ollama_service as check_ollama_service,
@@ -53,9 +46,13 @@ from vision import (
     get_vllm_model as get_vllm_model,
     identify_pokemon as identify_pokemon_vision,
     preload_sprites as preload_sprites,
+    MODEL_TYPE_VLLM,
+    MODEL_TYPE_OLLAMA,
+    MODEL_TYPE_SILICONFLOW,
+    OLLAMA_MODEL_NAME,
+    SILICONFLOW_MODEL,
+    VLLM_MODEL_NAME,
 )
-
-from vision.ocr import MODEL_TYPE_VLLM, MODEL_TYPE_OLLAMA, MODEL_TYPE_SILICONFLOW, OLLAMA_MODEL_NAME, SILICONFLOW_MODEL, VLLM_MODEL_NAME
 
 
 class EasyConGUI:
@@ -148,7 +145,6 @@ class EasyConGUI:
         # ============== 录像状态 ==============
         self.recording = False
         self.script_running = False
-        self.record_fps = 30
 
         # 缩放后帧缓存（避免 OCR 反复调用时重复 cv2.resize）
         self.cached_1080p_frame: Optional[np.ndarray] = None
@@ -191,11 +187,7 @@ class EasyConGUI:
             get_frame=self.get_video_frame,
             log_func=self.log,
             is_running_func=self.script_engine.is_running,
-            ocr_elevated_func=self.ocr_elevated,
-            ocr_caught_info_func=self.ocr_caught_info,
-            ocr_caught_iv_func=self.ocr_caught_iv,
-            ocr_custom_func=self.ocr_custom,
-            ocr_taken_item_func=self.ocr_taken_item,
+            ocr_func=self.ocr,
             identify_pokemon_func=self.identify_pokemon,
             ocr_name_func=self.ocr_name,
         )
@@ -222,11 +214,15 @@ class EasyConGUI:
             self.output_panel.log("无法开始录制：采集卡未就绪")
             return
 
-        h, w = frame.shape[:2]
+        record_cfg = get("record", {})
+        out_w = record_cfg.get("width", 640)
+        out_h = record_cfg.get("height", 360)
+        self.record_fps = record_cfg.get("fps", 30)
+
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')
         ts = time.strftime("%Y%m%d_%H%M%S")
         self.record_path = os.path.join(os.getcwd(), f"easycon_record_{ts}.mp4")
-        self.video_writer = cv2.VideoWriter(self.record_path, fourcc, self.record_fps, (w, h))
+        self.video_writer = cv2.VideoWriter(self.record_path, fourcc, self.record_fps, (out_w, out_h))
         if not self.video_writer.isOpened():
             self.output_panel.log("录制失败：无法创建视频文件")
             self.video_writer = None
@@ -234,7 +230,8 @@ class EasyConGUI:
 
         self.recording = True
         self.record_frame_interval = 1.0 / self.record_fps
-        self.output_panel.log(f"开始录制: {self.record_path}")
+        self.record_out_size = (out_w, out_h)
+        self.output_panel.log(f"开始录制: {self.record_path} ({out_w}x{out_h} @ {self.record_fps}fps)")
 
     def stop_and_save(self):
         """停止录制并保存视频"""
@@ -252,7 +249,6 @@ class EasyConGUI:
         """初始化控制器（后台线程）"""
         def controller_worker():
             try:
-                import serial.tools.list_ports
                 self.output_panel.log("正在搜索EasyCon控制器...")
                 
                 self.controller = EasyConController()
@@ -260,16 +256,11 @@ class EasyConGUI:
                 if hasattr(self, 'ctx') and self.ctx is not None:
                     self.ctx.controller_ref = self.controller
                 
-                ports = list(serial.tools.list_ports.comports())
-                
-                for port in ports:
-                    try:
-                        if self.controller.connect(port.device, timeout=2.0):
-                            self.output_panel.log(f"控制器已连接: {port.device}")
-                            self.video_module.update_connection_status()
-                            return
-                    except:
-                        continue
+                # 直接调用 connect() 自动搜索，内置 USB/蓝牙端口分离优化
+                if self.controller.connect(timeout=2.0):
+                    self.output_panel.log(f"控制器已连接: {self.controller.port_name}")
+                    self.video_module.update_connection_status()
+                    return
                 
                 self.output_panel.log("未找到EasyCon控制器，按键时将自动重连")
             except Exception as e:
@@ -522,47 +513,29 @@ class EasyConGUI:
         frame = self.get_video_frame()
         if frame is None:
             return None
-        name = ocr_pokemon_name_vision(frame, candidates or [], debug=False)
+        task = ocr_skills.get("POKEMON_NAME")
+        if task is None:
+            return None
+        result = task.run(frame, candidates=candidates or [], debug=False)
+        name = result.get('name')
         if name and name.upper() != 'NONE':
             self.output_panel.log(f"OCR 验证: {name}")
         return name if name and name.upper() != 'NONE' else None
     
-    def ocr_elevated(self):
-        """Elevated IV 界面 OCR"""
+    def ocr(self, screen_type: str, screenshot_save: Optional[str] = None, **kwargs):
+        """通用 OCR 入口：根据 screen_type 执行对应 ScreenOCRTask。**kwargs 传递到各 func。"""
         frame = self.get_video_frame()
         if frame is None:
             self.output_panel.log("OCR 失败: 采集卡未就绪")
             return None
-        result = ocr_elevated_vision(frame)
-        return result
-
-    def ocr_caught_info(self):
-        """Caught Info 界面 OCR"""
-        frame = self.get_video_frame()
-        if frame is None:
-            self.output_panel.log("OCR 失败: 采集卡未就绪")
+        if screen_type not in ocr_skills:
+            self.output_panel.log(f"OCR 失败: 未知类型 {screen_type}")
             return None
-        result = ocr_caught_info_vision(frame)
+        task = ocr_skills[screen_type]
+        result = task.run(frame, **kwargs)
+        if screenshot_save:
+            task.save_annotated(frame, screenshot_save)
         return result
-
-    def ocr_caught_iv(self):
-        """Caught IV 界面 OCR"""
-        frame = self.get_video_frame()
-        if frame is None:
-            self.output_panel.log("OCR 失败: 采集卡未就绪")
-            return None
-        result = ocr_caught_iv_vision(frame)
-        return result
-
-    def ocr_custom(self, image, prompt: str, model_type: str = None):
-        self.output_panel.log(f"自定义 OCR: {prompt[:40]}...")
-        result = ocr_custom_vision(image, prompt, model_type)
-        if result:
-            self.output_panel.log(f"OCR 结果: {result}")
-        return result
-
-    def ocr_taken_item(self, frame):
-        return ocr_taken_item_vision(frame)
 
     def log_ocr_result(self, result: dict):
         screen_type = result.get('screen', '')
@@ -801,6 +774,9 @@ class EasyConGUI:
                 if raw is not None:
                     now_ts = time.time()
                     if now_ts - last_record_frame >= self.record_frame_interval:
+                            out_size = getattr(self, 'record_out_size', None)
+                            if out_size and (raw.shape[1], raw.shape[0]) != out_size:
+                                raw = cv2.resize(raw, out_size)
                             self.video_writer.write(raw)
                             last_record_frame = now_ts
 
@@ -915,24 +891,9 @@ def is_running():
         return False
     return current_gui.script_engine.is_running()
 
-def ocr_elevated():
+def ocr(screen_type: str, screenshot_save: Optional[str] = None):
     if current_gui:
-        return current_gui.ocr_elevated()
-    return None
-
-def ocr_caught_info():
-    if current_gui:
-        return current_gui.ocr_caught_info()
-    return None
-
-def ocr_caught_iv():
-    if current_gui:
-        return current_gui.ocr_caught_iv()
-    return None
-
-def ocr_custom(image, prompt: str, model_type: str = None):
-    if current_gui:
-        return current_gui.ocr_custom(image, prompt, model_type)
+        return current_gui.ocr(screen_type, screenshot_save)
     return None
 
 def identify_pokemon(candidates=None, threshold=0.0):

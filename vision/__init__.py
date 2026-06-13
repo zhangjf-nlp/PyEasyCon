@@ -1,12 +1,4 @@
-from .ocr import (
-    ocr_elevated,
-    ocr_caught_info,
-    ocr_caught_iv,
-    ocr_custom,
-    ocr_taken_item,
-    ocr_pokemon_name,
-    classify_screen_type,
-    get_all_roi_boxes,
+from .vlm import (
     check_service,
     check_vllm_service,
     check_ollama_service,
@@ -15,10 +7,18 @@ from .ocr import (
     get_current_model_type,
     get_available_model_types,
     get_vllm_model,
-    SCREEN_ELEVATED,
-    SCREEN_CAUGHT_INFO,
-    SCREEN_CAUGHT_IV,
-    SCREEN_UNKNOWN,
+    MODEL_TYPE_VLLM,
+    MODEL_TYPE_OLLAMA,
+    MODEL_TYPE_SILICONFLOW,
+    VLLM_MODEL_NAME,
+    OLLAMA_MODEL_NAME,
+    SILICONFLOW_MODEL,
+)
+
+from .ocr import (
+    OCRTask,
+    ScreenOCRTask,
+    ocr_skills,
 )
 
 from .sprite import (
@@ -28,14 +28,7 @@ from .sprite import (
 )
 
 __all__ = [
-    "ocr_elevated",
-    "ocr_caught_info",
-    "ocr_caught_iv",
-    "ocr_custom",
-    "ocr_taken_item",
-    "ocr_pokemon_name",
-    "classify_screen_type",
-    "get_all_roi_boxes",
+    # VLM 服务
     "check_service",
     "check_vllm_service",
     "check_ollama_service",
@@ -44,10 +37,17 @@ __all__ = [
     "get_current_model_type",
     "get_available_model_types",
     "get_vllm_model",
-    "SCREEN_ELEVATED",
-    "SCREEN_CAUGHT_INFO",
-    "SCREEN_CAUGHT_IV",
-    "SCREEN_UNKNOWN",
+    "MODEL_TYPE_VLLM",
+    "MODEL_TYPE_OLLAMA",
+    "MODEL_TYPE_SILICONFLOW",
+    "VLLM_MODEL_NAME",
+    "OLLAMA_MODEL_NAME",
+    "SILICONFLOW_MODEL",
+    # OCR
+    "OCRTask",
+    "ScreenOCRTask",
+    "ocr_skills",
+    # Sprite
     "identify_pokemon",
     "preload_sprites",
     "detect_gba_area",

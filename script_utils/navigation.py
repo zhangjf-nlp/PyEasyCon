@@ -1,3 +1,5 @@
+import time
+from dataclasses import dataclass
 from typing import List, Tuple
 from easycon.context import ScriptContext
 from easycon.controller import sleep
@@ -48,7 +50,6 @@ def restart(ctx: ScriptContext) -> None:
     ctx.screen_record_start()
     warning = False
     
-    import time
     for _ in range(3):
         ctx.press("HOME")
         for __ in range(50):
@@ -331,3 +332,80 @@ def reverse_route_map(map: List[Tuple[str, List[Tuple[str, int]]]]):
         result[0][1][0] = (result[0][1][0][0], result[0][1][0][1] + 1)
     
     return result
+
+
+def enter_name(ctx: ScriptContext, name: str):
+    keyboards = [[
+        "ABCDEF .",
+        "GHIJKL ,",
+        "MNOPQRS ",
+        "TUVWXYZ ",
+    ], [
+        "abcdef .",
+        "ghijkl ,",
+        "mnopqrs ",
+        "tuvwxyz ",
+    ], [
+        "01234 ",
+        "56789 ",
+        "!?♀♂/-",
+        "…“”‘’ ",
+    ]]
+    
+    if len(name) > 7:
+        raise ValueError(f"[invalid name] Name too long {list(name)}")
+    
+    @dataclass
+    class Location:
+        k: int = 0
+        r: int = 0
+        c: int = 0
+
+    def locate_char(char: str) -> Location:
+        assert len(char) == 1
+        for k, keyboard in enumerate(keyboards):
+            for r, row in enumerate(keyboard):
+                if char in row:
+                    return Location(k=k, r=r, c=row.index(char))
+        raise ValueError(f"[invalid name] Name char not found {char}")
+    
+    def enter_char(char: str, src: Location) -> Location:
+        assert len(char) == 1
+        dst = locate_char(char)
+        if dst.k != src.k:
+            for _ in range(src.r):
+                ctx.press("UP")
+                sleep(1.0)
+            for _ in range(src.c):
+                ctx.press("LEFT")
+                sleep(1.0)
+            for _ in range((dst.k - src.k) % 3):
+                ctx.press("Y")
+                sleep(1.5)
+            for _ in range(dst.c):
+                ctx.press("RIGHT")
+                sleep(1.0)
+            for _ in range(dst.r):
+                ctx.press("DOWN")
+                sleep(1.0)
+        else:
+            steps = abs(dst.r - src.r)
+            button = "DOWN" if dst.r > src.r else "UP"
+            for _ in range(steps):
+                ctx.press(button)
+                sleep(1.0)
+            steps = abs(dst.c - src.c)
+            button = "RIGHT" if dst.c > src.c else "LEFT"
+            for _ in range(steps):
+                ctx.press(button)
+                sleep(1.0)
+        
+        ctx.press("A")
+        return dst
+    
+    src = Location(k=0, r=0, c=0)
+    for char in name:
+        src = enter_char(char, src)
+        sleep(2.0)
+    
+    ctx.press("X")

@@ -24,45 +24,6 @@ gui:
   font_size_small: 12
   font_mono: simsun
   font_mono_size: 13
-vision:
-  gba:
-    native_width: 240
-    native_height: 160
-    sprite_native: 64
-    search_x: 144
-    search_y_min: 0
-    search_y_max: 100
-    sprite_roi_x: 140
-    sprite_roi_w: 72
-    sprite_roi_h: 100
-  elevated:
-    level_rect: [360, 876, 138, 124]
-    stat_rects:
-      - [1545, 48, 152, 97]     # HP
-      - [1545, 148, 152, 97]    # Attack
-      - [1545, 248, 152, 97]    # Defense
-      - [1545, 348, 152, 97]    # Sp.Atk
-      - [1545, 448, 152, 97]    # Sp.Def
-      - [1545, 548, 152, 97]    # Speed
-  caught_info:
-    level_rect: [262, 124, 108, 85]
-    gender_rect: [847, 124, 68, 81]
-    nature_rect: [222, 746, 741, 97]
-  caught_iv:
-    level_rect: [262, 124, 108, 85]
-    ability_rect: [635, 853, 529, 78]
-    stat_hp_rect: [1439, 140, 288, 72]
-    stat_other_rects:
-      - [1439, 240, 288, 72]    # Attack
-      - [1439, 340, 288, 72]    # Defense
-      - [1439, 440, 288, 72]    # Sp.Atk
-      - [1439, 540, 288, 72]    # Sp.Def
-      - [1439, 640, 288, 72]    # Speed
-  name_roi: [300, 135, 400, 55]
-  screen_classifier:
-    elevated_h_ratio: 0.15
-    caught_info_h_ratio: 0.1
-    caught_iv_h_ratio: 0.1
 vl_model:
   type: vllm
   vllm:

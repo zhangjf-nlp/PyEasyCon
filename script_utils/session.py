@@ -107,33 +107,30 @@ def run_calibration(ctx: ScriptContext, state: SessionState, cfg: RNGConfig) -> 
         return
 
     result = calibrate(ctx, cfg, state)
-    ds = result["ds"]
-    dt = result["dt"]
-    dn = result["dn"]
+    calibration = result["displacement"]
 
-    predicted_seed_ms = cfg.schedule.seed_ms - ds * 16
-    predicted_tv_ms = cfg.schedule.advances_ms_tv - dt * 16
+    new_seed_ms = cfg.schedule.seed_ms - calibration.ds * 16
+    new_tv_ms = cfg.schedule.advances_ms_tv - calibration.dt * 16
 
     seed_ms_min = get("rng.calibration.seed_ms_min", 35000)
     seed_ms_max = get("rng.calibration.seed_ms_max", 60000)
     tv_ms_min = get("rng.calibration.tv_ms_min", 3000)
 
-    if predicted_seed_ms < seed_ms_min:
-        ctx.log(f"[reject] Seed takes {predicted_seed_ms}ms < {seed_ms_min}ms")
-        state.attempts.clear()
-    if predicted_seed_ms > seed_ms_max:
-        ctx.log(f"[reject] Seed takes {predicted_seed_ms}ms > {seed_ms_max}ms")
-        state.attempts.clear()
-    if predicted_tv_ms < tv_ms_min and cfg.target.advances >= 10000:
-        ctx.log(f"[reject] TV takes {predicted_tv_ms}ms < {tv_ms_min}ms")
-        state.attempts.clear()
+    if new_seed_ms < seed_ms_min:
+        ctx.log(f"[reject] Seed takes {new_seed_ms}ms < {seed_ms_min}ms")
+        state.attempts.pop()
+    if new_seed_ms > seed_ms_max:
+        ctx.log(f"[reject] Seed takes {new_seed_ms}ms > {seed_ms_max}ms")
+        state.attempts.pop()
+    if new_tv_ms < tv_ms_min:
+        ctx.log(f"[reject] TV takes {new_tv_ms}ms < {tv_ms_min}ms")
+        state.attempts.pop()
     else:
-        cfg.schedule.apply_calibration(RNGDisplacement(ds=ds, dt=dt, dn=dn))
+        cfg.schedule.apply_calibration(calibration)
         cfg.seed_bias += result["seed_bias"]
         cfg.advances_bias += result["adv_bias"]
-        disp = RNGDisplacement(ds=ds, dt=dt, dn=dn)
         for a in state.attempts.values():
-            a.calibration += disp
+            a.calibration += calibration
         ctx.log(f"target: {cfg.target}")
         ctx.log(f"SeedBias={cfg.seed_bias} AdvancesBias={cfg.advances_bias}")
         ctx.log(f"Seed takes {cfg.schedule.seed_ms}ms | "
@@ -154,9 +151,8 @@ def observe_pokemon(ctx: ScriptContext, state: SessionState, cfg: RNGConfig, att
     sleep(1.0)
     if ctx.search_label('FRLG闪光', 90):
         raise ValueError(f"[异常] 队末精灵为异色 -> 停止运行")
-    ocr_caught_info = ctx.ocr_caught_info()
+    ocr_caught_info = ctx.ocr("CAUGHT_INFO", screenshot_save=f"{state.log_dir}/screens/{attempt_index:03d}-CAUGHT_INFO.png")
     nature = ocr_caught_info.get("nature", "unknown")
-    ctx.save_ocr_screenshot(f"{state.log_dir}/screens/{attempt_index:03d}-CAUGHT_INFO.png", "CAUGHT_INFO")
     gender = (
         "male" if ctx.search_label("FRLG性别符号♂", 90)
         else "female" if ctx.search_label("FRLG性别符号♀", 90)
@@ -170,9 +166,8 @@ def observe_pokemon(ctx: ScriptContext, state: SessionState, cfg: RNGConfig, att
     sleep(0.5)
     ctx.press("RIGHT")
     sleep(2.0)
-    ocr_caught_iv = ctx.ocr_caught_iv()
+    ocr_caught_iv = ctx.ocr("CAUGHT_IV", screenshot_save=f"{state.log_dir}/screens/{attempt_index:03d}-CAUGHT_IV.png")
     ocr_caught_iv["gender"] = gender
-    ctx.save_ocr_screenshot(f"{state.log_dir}/screens/{attempt_index:03d}-CAUGHT_IV.png", "CAUGHT_IV")
     ocr_data.setdefault(attempt_index, []).append(
         save_ocr(state, ocr_caught_iv, attempt_index, pokemon)
     )
@@ -250,9 +245,8 @@ def observe_pokemon(ctx: ScriptContext, state: SessionState, cfg: RNGConfig, att
         sleep(1.5)
         ctx.press("B")
         sleep(1.5)
-        ocr_elevated = ctx.ocr_elevated()
+        ocr_elevated = ctx.ocr("ELEVATED", screenshot_save=f"{state.log_dir}/screens/{attempt_index:03d}-ELEVATEDx{i+1}.png")
 
-        ctx.save_ocr_screenshot(f"{state.log_dir}/screens/{attempt_index:03d}-ELEVATEDx{i+1}.png", "ELEVATED")
         ocr_data.setdefault(attempt_index, []).append(
             save_ocr(state, ocr_elevated, attempt_index, pokemon, candy_num=i + 1)
         )
@@ -310,7 +304,7 @@ def observe_pokemon(ctx: ScriptContext, state: SessionState, cfg: RNGConfig, att
         # ── 返回糖果菜单 ──
         for _ in range(30):
             ctx.press("B")
-            sleep(1.0)
+            sleep(3.0)
             if ctx.search_label("FRLG神奇糖果", 90):
                 break
             if ctx.search_label("FRLG技能替换", 90):
