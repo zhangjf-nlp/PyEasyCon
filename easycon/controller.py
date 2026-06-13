@@ -118,11 +118,13 @@ class EasyConController:
                         return True
 
             return False
-        # 指定端口：先尝试主波特率，再回退
-        if self.try_connect_port(port, self.baudrate, timeout):
+        # 指定端口：先尝试主波特率，再回退。
+        # 使用线程超时保护，模仿 C# 版 _TryConnect + WaitOne(1000) 模式，
+        # 防止 ser.open() 在死端口（如蓝牙串口）上长时间阻塞（Windows 默认 DCOM 超时 5s）。
+        if self._try_connect_with_timeout(port, self.baudrate, timeout):
             return True
         for baud in self.baudrate_fallbacks:
-            if self.try_connect_port(port, baud, timeout):
+            if self._try_connect_with_timeout(port, baud, timeout):
                 return True
         return False
 
@@ -188,6 +190,32 @@ class EasyConController:
             if self.debug_flag:
                 print(f"Failed to connect {port}: {e}")
             return False
+
+    def _try_connect_with_timeout(self, port: str, baudrate: int, timeout: float) -> bool:
+        """带线程超时保护的端口探测。
+        
+        模仿 C# 版 _TryConnect 的 Task.Run + WaitOne(timeout) 模式：
+        将 ser.open() + 握手放在 daemon 线程中执行，主线程等待超时后返回。
+        这样即使 ser.open() 在死端口上阻塞 5s（Windows DCOM 超时），
+        主线程也不会被卡住。
+        """
+        result: list = []
+        ready = threading.Event()
+
+        def worker():
+            try:
+                result.append(self.try_connect_port(port, baudrate, timeout))
+            except Exception:
+                result.append(False)
+            finally:
+                ready.set()
+
+        t = threading.Thread(target=worker, daemon=True)
+        t.start()
+        # 总超时 = 握手 timeout + 2s 余量（ser.open() + C# WaitOne 风格保护）
+        if not ready.wait(timeout=timeout + 2.0):
+            return False
+        return result[0] if result else False
 
     def disconnect(self):
         self.connected_flag = False
