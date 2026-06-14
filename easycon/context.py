@@ -101,6 +101,19 @@ class ScriptContext:
             return self.get_frame_func()
         return None
 
+    def screenshot(self, save_path: str) -> bool:
+        """保存当前截图到文件"""
+        frame = self.get_frame()
+        if frame is None:
+            self.log("截图失败: 无法获取画面")
+            return False
+        save_dir = os.path.dirname(save_path)
+        if save_dir:
+            os.makedirs(save_dir, exist_ok=True)
+        cv2.imwrite(save_path, frame)
+        self.log(f"截图已保存: {save_path}")
+        return True
+
     def load_label(self, label_name):
         label_path = os.path.join(self.labels_dir, f"{label_name}.IL")
         if not os.path.exists(label_path):
@@ -194,10 +207,10 @@ class ScriptContext:
         """VLM/OCR 是否可用"""
         return self.ocr_func is not None
 
-    def ocr(self, screen_type: str, screenshot_save: Optional[str] = None, **kwargs) -> Optional[Dict[str, object]]:
+    def ocr(self, screen_type: str, save_path: Optional[str] = None, **kwargs) -> Optional[Dict[str, object]]:
         """通用 OCR 入口：根据 screen_type 执行对应 ScreenOCRTask。**kwargs 传递到各 func。"""
         if self.ocr_func:
-            return self.ocr_func(screen_type, screenshot_save, **kwargs)
+            return self.ocr_func(screen_type, save_path, **kwargs)
         return None
 
     def identify_pokemon(self, candidates=None, threshold=0.0):

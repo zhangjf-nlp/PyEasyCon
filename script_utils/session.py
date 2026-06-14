@@ -151,7 +151,7 @@ def observe_pokemon(ctx: ScriptContext, state: SessionState, cfg: RNGConfig, att
     sleep(1.0)
     if ctx.search_label('FRLG闪光', 90):
         raise ValueError(f"[异常] 队末精灵为异色 -> 停止运行")
-    ocr_caught_info = ctx.ocr("CAUGHT_INFO", screenshot_save=f"{state.log_dir}/screens/{attempt_index:03d}-CAUGHT_INFO.png")
+    ocr_caught_info = ctx.ocr("CAUGHT_INFO", save_path=f"{state.log_dir}/screens/{attempt_index:03d}-CAUGHT_INFO.png")
     nature = ocr_caught_info.get("nature", "unknown")
     gender = (
         "male" if ctx.search_label("FRLG性别符号♂", 90)
@@ -166,7 +166,7 @@ def observe_pokemon(ctx: ScriptContext, state: SessionState, cfg: RNGConfig, att
     sleep(0.5)
     ctx.press("RIGHT")
     sleep(2.0)
-    ocr_caught_iv = ctx.ocr("CAUGHT_IV", screenshot_save=f"{state.log_dir}/screens/{attempt_index:03d}-CAUGHT_IV.png")
+    ocr_caught_iv = ctx.ocr("CAUGHT_IV", save_path=f"{state.log_dir}/screens/{attempt_index:03d}-CAUGHT_IV.png")
     ocr_caught_iv["gender"] = gender
     ocr_data.setdefault(attempt_index, []).append(
         save_ocr(state, ocr_caught_iv, attempt_index, pokemon)
@@ -245,7 +245,7 @@ def observe_pokemon(ctx: ScriptContext, state: SessionState, cfg: RNGConfig, att
         sleep(1.5)
         ctx.press("B")
         sleep(1.5)
-        ocr_elevated = ctx.ocr("ELEVATED", screenshot_save=f"{state.log_dir}/screens/{attempt_index:03d}-ELEVATEDx{i+1}.png")
+        ocr_elevated = ctx.ocr("ELEVATED", save_path=f"{state.log_dir}/screens/{attempt_index:03d}-ELEVATEDx{i+1}.png")
 
         ocr_data.setdefault(attempt_index, []).append(
             save_ocr(state, ocr_elevated, attempt_index, pokemon, candy_num=i + 1)

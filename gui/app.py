@@ -522,7 +522,7 @@ class EasyConGUI:
             self.output_panel.log(f"OCR 验证: {name}")
         return name if name and name.upper() != 'NONE' else None
     
-    def ocr(self, screen_type: str, screenshot_save: Optional[str] = None, **kwargs):
+    def ocr(self, screen_type: str, save_path: Optional[str] = None, **kwargs):
         """通用 OCR 入口：根据 screen_type 执行对应 ScreenOCRTask。**kwargs 传递到各 func。"""
         frame = self.get_video_frame()
         if frame is None:
@@ -533,8 +533,8 @@ class EasyConGUI:
             return None
         task = ocr_skills[screen_type]
         result = task.run(frame, **kwargs)
-        if screenshot_save:
-            task.save_annotated(frame, screenshot_save)
+        if save_path:
+            task.save_annotated(frame, save_path)
         return result
 
     def log_ocr_result(self, result: dict):
@@ -665,7 +665,7 @@ class EasyConGUI:
                 cap = self.video_module.cap
                 if cap and cap.isOpened():
                     cap.release()
-                self.video_module.cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+                self.video_module.cap = cv2.VideoCapture(get("capture.device_id", 0), cv2.CAP_DSHOW)
                 if self.video_module.cap.isOpened():
                     self.video_module.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
                 self.cached_1080p_frame = None
@@ -891,9 +891,9 @@ def is_running():
         return False
     return current_gui.script_engine.is_running()
 
-def ocr(screen_type: str, screenshot_save: Optional[str] = None):
+def ocr(screen_type: str, save_path: Optional[str] = None):
     if current_gui:
-        return current_gui.ocr(screen_type, screenshot_save)
+        return current_gui.ocr(screen_type, save_path)
     return None
 
 def identify_pokemon(candidates=None, threshold=0.0):

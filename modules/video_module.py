@@ -71,11 +71,12 @@ class VideoModule:
     
     def init_video(self):
         """初始化视频捕获"""
+        device_id = get("capture.device_id", 0)
         def init_worker():
             try:
-                self.cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+                self.cap = cv2.VideoCapture(device_id, cv2.CAP_DSHOW)
                 if not self.cap.isOpened():
-                    self.cap = cv2.VideoCapture(0)
+                    self.cap = cv2.VideoCapture(device_id)
                 if self.cap.isOpened():
                     self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
             except Exception as e:

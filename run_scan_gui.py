@@ -27,6 +27,7 @@ from assets.game_text import (
     CATEGORY_ZH_TO_EN, CATEGORY_EN_TO_ZH,
     location_to_zh as loc_zh, location_to_en as loc_en,
 )
+from easycon.config import get
 from easycon.controller import EasyConController
 
 # ── constants ──────────────────────────────────────────────────────────────────
@@ -260,9 +261,10 @@ class ScanGui(LaunchGUI):
             progress["step"] = 3
             try:
                 import cv2
-                cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+                device_id = get("capture.device_id", 0)
+                cap = cv2.VideoCapture(device_id, cv2.CAP_DSHOW)
                 if not cap.isOpened():
-                    cap = cv2.VideoCapture(0)
+                    cap = cv2.VideoCapture(device_id)
                 ok = cap.isOpened()
                 if ok:
                     cap.release()

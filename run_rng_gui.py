@@ -419,9 +419,10 @@ class RNGGui(LaunchGUI):
             progress["step"] = 3
             try:
                 import cv2
-                cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+                device_id = config_get("capture.device_id", 0)
+                cap = cv2.VideoCapture(device_id, cv2.CAP_DSHOW)
                 if not cap.isOpened():
-                    cap = cv2.VideoCapture(0)
+                    cap = cv2.VideoCapture(device_id)
                 ok = cap.isOpened()
                 if ok:
                     cap.release()
