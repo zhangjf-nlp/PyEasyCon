@@ -15,9 +15,10 @@ config_gender = "girl" # "boy" / "girl"
 config_name = "JETT"
 config_partner_name = "NULL"
 
-def hit_seed(ctx: ScriptContext, seed_ms: int = 35000, f1_ms: int = 65000, f2_ms: int = 35000, f3_ms: int = 60000):
+def hit_seed(ctx: ScriptContext, seed_ms: int = 35000, f1_ms: int = 65000, f2_ms: int = 30000, f3_ms: int = 60000):
     tids = []
     for i in range(1000):
+        print(f"{seed_ms=} {f1_ms=} {f2_ms=} {f3_ms=}")
         seed_time = time.time() + seed_ms / 1000.0
         f1_time = seed_time + f1_ms / 1000.0
         f2_time = f1_time + f2_ms / 1000.0
@@ -92,10 +93,9 @@ def hit_seed(ctx: ScriptContext, seed_ms: int = 35000, f1_ms: int = 65000, f2_ms
 
         result = ctx.ocr("TRAINER_CARD")
         tid: str = result['tid']
-        if tid.isdigit():
+        if tid.isdigit() and (0 <= int(tid) < 65536):
             tid = int(tid)
-            tids.append(tid)
-            tids = sorted(tids)
+            tids.append((f2_ms, tid))
             ctx.log(f"{tids=}")
         
         restart(ctx)

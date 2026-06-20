@@ -15,6 +15,9 @@ from gui import run_script
 from rng.tenlines_utils import get_encounter
 from assets.game_text import STAT_ZH_MAP, ALL_STATS
 from assets.basepoints import BASEPOINTS
+from vision import preload_sprites, identify_pokemon
+from script_utils.navigation import navigate, run_away, in_wild, reverse_route_map
+from script_utils.capture import open_pokemon_menu
 
 # heal center -> wild grass 路线图
 heal2grass_route_map = {

@@ -36,8 +36,9 @@ def in_wild(ctx: ScriptContext) -> bool:
         ctx.search_label("FRLG洞穴", 90),
         ctx.search_label("FRLG宝可梦塔", 85),
     ]) and not any([
-        ctx.search_label(f"NS深色系主题-主页手柄", 80),
-        ctx.search_label(f"NS浅色系主题-主页手柄", 80),
+        ctx.search_label("NS深色系主题-主页手柄", 80),
+        ctx.search_label("NS浅色系主题-主页手柄", 80),
+        ctx.search_label("FRLG野怪血条", 90),
     ])
 
 

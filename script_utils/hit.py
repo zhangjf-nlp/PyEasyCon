@@ -13,11 +13,14 @@ def hit_init_seed(ctx: ScriptContext, cfg: RNGConfig) -> None:
     time_start = time.time()
     ctx.press("A")
     time_end = time_start + cfg.schedule.seed_ms / 1000
+    while not ctx.search_label("FRLGCopyright", 90):
+        if time.time() > time_end:
+            ctx.log("版权界面等待超时 -> 递归重试")
+            return hit_init_seed(ctx, cfg)
+        time.sleep(0.1)
+    while ctx.search_label("FRLGCopyright", 90):
+        time.sleep(0.1)
     if EB:
-        while not ctx.search_label("FRLGCopyright", 90):
-            time.sleep(0.1)
-        while ctx.search_label("FRLGCopyright", 90):
-            time.sleep(0.1)
         ctx.hold(EB)
         sleep(0.0, end=time_end-1.0)
         ctx.release(EB)

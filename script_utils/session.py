@@ -146,7 +146,7 @@ def observe_pokemon(ctx: ScriptContext, state: SessionState, cfg: RNGConfig, att
     if state.log_dir is None:
         init_log_dir(ctx, state, cfg)
 
-    ocr_data: Dict[int, list] = {}
+    ocr_data = []
 
     sleep(1.0)
     if ctx.search_label('FRLG闪光', 90):
@@ -159,7 +159,7 @@ def observe_pokemon(ctx: ScriptContext, state: SessionState, cfg: RNGConfig, att
         else "unknown"
     )
     ocr_caught_info["gender"] = gender
-    ocr_data.setdefault(attempt_index, []).append(
+    ocr_data.append(
         save_ocr(state, ocr_caught_info, attempt_index, pokemon)
     )
 
@@ -168,7 +168,7 @@ def observe_pokemon(ctx: ScriptContext, state: SessionState, cfg: RNGConfig, att
     sleep(2.0)
     ocr_caught_iv = ctx.ocr("CAUGHT_IV", save_path=f"{state.log_dir}/screens/{attempt_index:03d}-CAUGHT_IV.png")
     ocr_caught_iv["gender"] = gender
-    ocr_data.setdefault(attempt_index, []).append(
+    ocr_data.append(
         save_ocr(state, ocr_caught_iv, attempt_index, pokemon)
     )
 
@@ -178,6 +178,7 @@ def observe_pokemon(ctx: ScriptContext, state: SessionState, cfg: RNGConfig, att
     pokemon_base_stats = get_personal(get_species_id(pokemon), cfg.game_version)["stats"]
 
     # 候选结果列表（首次宽搜索后不断用 ivs_range 筛选缩小）
+    require_candy_navigation = True
     candidates: Optional[List[CalibrationResult]] = None
     allow_skip = 1  # ELEVATED OCR 偶发错误时允许跳过当次观测的次数
 
@@ -199,7 +200,7 @@ def observe_pokemon(ctx: ScriptContext, state: SessionState, cfg: RNGConfig, att
     sleep(0.5)
     for i in range(cfg.max_candies):
         # ── 导航到糖果并喂糖 ──
-        if i == 0:
+        if require_candy_navigation:
             for _ in range(10):
                 ctx.press("B")
                 sleep(0.5)
@@ -221,6 +222,7 @@ def observe_pokemon(ctx: ScriptContext, state: SessionState, cfg: RNGConfig, att
                 sleep(0.5)
             for _ in range(30):
                 if ctx.search_label("FRLG神奇糖果", 90):
+                    require_candy_navigation = False
                     break
                 ctx.press("DOWN")
                 sleep(0.5)
@@ -242,12 +244,12 @@ def observe_pokemon(ctx: ScriptContext, state: SessionState, cfg: RNGConfig, att
         ctx.press("B")
         sleep(3.0)
         ctx.press("B")
-        sleep(1.5)
+        sleep(2.0)
         ctx.press("B")
-        sleep(1.5)
+        sleep(2.0)
         ocr_elevated = ctx.ocr("ELEVATED", save_path=f"{state.log_dir}/screens/{attempt_index:03d}-ELEVATEDx{i+1}.png")
 
-        ocr_data.setdefault(attempt_index, []).append(
+        ocr_data.append(
             save_ocr(state, ocr_elevated, attempt_index, pokemon, candy_num=i + 1)
         )
 
@@ -259,9 +261,10 @@ def observe_pokemon(ctx: ScriptContext, state: SessionState, cfg: RNGConfig, att
         ivs_range = obs_to_ivs_range(obs_list, pokemon_base_stats)
         if ivs_range is None:
             if allow_skip:
-                allow_skip = 0
+                allow_skip -= 1
                 ctx.log(f"[skip] ELEVATED OCR 无效 (obs#{n_obs})，丢弃本次观测")
                 obs_list.pop()
+                require_candy_navigation = True
                 continue
             else:
                 ctx.log(f"{n_obs} IVs observations | IV range invalid -> Check {state.log_dir}")
@@ -306,12 +309,13 @@ def observe_pokemon(ctx: ScriptContext, state: SessionState, cfg: RNGConfig, att
             ctx.press("B")
             sleep(3.0)
             if ctx.search_label("FRLG神奇糖果", 90):
+                sleep(1.0)
                 break
             if ctx.search_label("FRLG技能替换", 90):
                 ctx.press("B")
                 sleep(1.0)
                 ctx.press("A")
-                sleep(0.5)
+                sleep(1.0)
         else:
             break
 
@@ -323,11 +327,10 @@ def observe_pokemon(ctx: ScriptContext, state: SessionState, cfg: RNGConfig, att
     dist = lambda r: (RNGSlot(int(r.seed, 16), r.seed_time, r.advances) - cfg.target).l1
     candidates = sorted(candidates, key=dist)[:3]
 
-    rng_attempt = RNGAttempt(attempt_index, ocr_data.get(attempt_index, []), cfg.target, cfg, candidates=candidates)
+    rng_attempt = RNGAttempt(attempt_index, ocr_data, cfg.target, cfg, candidates=candidates)
 
     if not rng_attempt.is_valid:
         ctx.log(f"[invalid] #{attempt_index} -> no result")
-        ocr_data.pop(attempt_index, None)
         return
 
     state.attempts[attempt_index] = rng_attempt

@@ -58,7 +58,7 @@ class ScreenOCRTask:
         sx = w / SRC_WIDTH
         sy = h / SRC_HEIGHT
         annotated = image.copy()
-        colors = [(255, 255, 0), (0, 255, 255), (255, 0, 255), (0, 255, 0)]
+        colors = [(0, 204, 102)]
         for i, t in enumerate(self.tasks):
             x, y, rw, rh = t.roi
             x1, y1 = int(x * sx), int(y * sy)
