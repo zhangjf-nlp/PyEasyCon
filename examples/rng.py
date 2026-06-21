@@ -16,11 +16,12 @@ from script_utils.navigation import in_wild, restart
 
 
 def attempt_once(ctx: ScriptContext, cfg: RNGConfig, state: Optional[SessionState] = None) -> bool:
-    """单次乱数尝试（hit → 判定 → 校准/观察），返回 True 表示找到并处理了闪光目标"""
+    """单次刷闪尝试（hit → 判定 → 校准/观察），返回 True 表示找到并处理了闪光目标"""
     if state is None:
         state = SessionState()
     state.attempt_index += 1
-    ctx.log(f"========== 乱数尝试第 {state.attempt_index} 次 ==========")
+    mode = "乱数" if cfg.advances_bias or cfg.seed_bias else "遍历"
+    ctx.log(f"========== {mode}刷闪尝试第 {state.attempt_index} 次 ==========")
 
     hit(ctx, cfg)
 

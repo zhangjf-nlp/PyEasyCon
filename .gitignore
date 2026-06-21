@@ -15,6 +15,7 @@ build/
 *.swo
 
 # Project-specific exclusions
+scan_logs/
 rng_logs/
 examples/rng_custom*
 examples/scan_custom*

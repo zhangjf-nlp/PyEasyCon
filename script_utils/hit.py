@@ -20,10 +20,14 @@ def hit_init_seed(ctx: ScriptContext, cfg: RNGConfig) -> None:
         time.sleep(0.1)
     while ctx.search_label("FRLGCopyright", 90):
         time.sleep(0.1)
-    if EB:
-        ctx.hold(EB)
-        sleep(0.0, end=time_end-1.0)
-        ctx.release(EB)
+    if cfg.seed_bias == cfg.advances_bias == 0:
+        sleep(2.0)
+        ctx.press("A")
+        sleep(1.0)
+        ctx.press("A")
+    else:
+        if EB:
+            ctx.press(EB, 23000)
     sleep(0.0, end=time_end)
     ctx.press(SB, 4000)
     sleep(1.0)

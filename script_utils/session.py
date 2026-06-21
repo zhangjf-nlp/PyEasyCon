@@ -146,8 +146,6 @@ def observe_pokemon(ctx: ScriptContext, state: SessionState, cfg: RNGConfig, att
     if state.log_dir is None:
         init_log_dir(ctx, state, cfg)
 
-    ocr_data = []
-
     sleep(1.0)
     if ctx.search_label('FRLG闪光', 90):
         raise ValueError(f"[异常] 队末精灵为异色 -> 停止运行")
@@ -158,19 +156,17 @@ def observe_pokemon(ctx: ScriptContext, state: SessionState, cfg: RNGConfig, att
         else "female" if ctx.search_label("FRLG性别符号♀", 90)
         else "unknown"
     )
+    ability = ocr_caught_info.get("ability", "")
+    caught_level = ocr_caught_info.get("level")
     ocr_caught_info["gender"] = gender
-    ocr_data.append(
-        save_ocr(state, ocr_caught_info, attempt_index, pokemon)
-    )
+    save_ocr(state, ocr_caught_info, attempt_index, pokemon)
 
     sleep(0.5)
     ctx.press("RIGHT")
     sleep(2.0)
     ocr_caught_iv = ctx.ocr("CAUGHT_IV", save_path=f"{state.log_dir}/screens/{attempt_index:03d}-CAUGHT_IV.png")
     ocr_caught_iv["gender"] = gender
-    ocr_data.append(
-        save_ocr(state, ocr_caught_iv, attempt_index, pokemon)
-    )
+    save_ocr(state, ocr_caught_iv, attempt_index, pokemon)
 
     obs_list = [make_obs(ocr_caught_iv, nature)]
 
@@ -191,10 +187,10 @@ def observe_pokemon(ctx: ScriptContext, state: SessionState, cfg: RNGConfig, att
             seed=f"{cfg.target.seed_hex:04X}", advances=cfg.target.advances,
             settings=cfg.game_settings,
             seed_bias=WIDE_SEED_BIAS, advances_bias=WIDE_ADV_BIAS,
-            nature=nature, gender=ocr_caught_iv.get("gender", ""),
-            ability=ocr_caught_info.get("ability", ""),
+            nature=nature, gender=gender,
+            ability=ability,
             location=cfg.rng_location, category=cfg.rng_category,
-            ivs_observations=olist, pokemon=pokemon, level=ocr_caught_info.get("level"),
+            ivs_observations=olist, pokemon=pokemon, level=caught_level,
         )
 
     sleep(0.5)
@@ -248,16 +244,12 @@ def observe_pokemon(ctx: ScriptContext, state: SessionState, cfg: RNGConfig, att
         ctx.press("B")
         sleep(2.0)
         ocr_elevated = ctx.ocr("ELEVATED", save_path=f"{state.log_dir}/screens/{attempt_index:03d}-ELEVATEDx{i+1}.png")
-
-        ocr_data.append(
-            save_ocr(state, ocr_elevated, attempt_index, pokemon, candy_num=i + 1)
-        )
+        save_ocr(state, ocr_elevated, attempt_index, pokemon, candy_num=i + 1)
 
         new_obs = make_obs(ocr_elevated, nature)
         obs_list.append(new_obs)
         n_obs = len(obs_list)
-
-        # ── IV 范围计算 & 候选筛选 ──
+        
         ivs_range = obs_to_ivs_range(obs_list, pokemon_base_stats)
         if ivs_range is None:
             if allow_skip:
@@ -289,6 +281,7 @@ def observe_pokemon(ctx: ScriptContext, state: SessionState, cfg: RNGConfig, att
                     allow_skip -= 1
                     ctx.log(f"[skip] 丢弃本次观测")
                     obs_list.pop()
+                    require_candy_navigation = True
                     continue
                 else:
                     ctx.log(f"[invalid] 观测异常 -> 样本日志见 {state.log_dir}")
@@ -327,7 +320,7 @@ def observe_pokemon(ctx: ScriptContext, state: SessionState, cfg: RNGConfig, att
     dist = lambda r: (RNGSlot(int(r.seed, 16), r.seed_time, r.advances) - cfg.target).l1
     candidates = sorted(candidates, key=dist)[:3]
 
-    rng_attempt = RNGAttempt(attempt_index, ocr_data, cfg.target, cfg, candidates=candidates)
+    rng_attempt = RNGAttempt(attempt_index, obs_list, nature, gender, ability, caught_level, pokemon, cfg.target, cfg, candidates=candidates)
 
     if not rng_attempt.is_valid:
         ctx.log(f"[invalid] #{attempt_index} -> no result")

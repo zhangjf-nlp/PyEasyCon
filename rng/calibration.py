@@ -1,58 +1,17 @@
-from typing import Dict, List, Optional, Tuple
+from typing import List
 
 import numpy as np
 
 from easycon.context import ScriptContext
-from rng.tenlines_utils import IVsObservation, NATURES, METHOD_NAMES
+from rng.tenlines_utils import METHOD_NAMES
 from rng.config import RNGConfig, SessionState, RNGSlot, RNGDisplacement, SEED_PERIOD, ADV_PERIOD
 
 WIDE_SEED_BIAS = 3000
 WIDE_ADV_BIAS = 30000
 
-NATURES_LOWER = {n.lower(): n for n in NATURES}
-
 
 def make_slots(results: List) -> List[RNGSlot]:
     return [RNGSlot(int(r.seed, 16), r.seed_time, r.advances, METHOD_NAMES.get(r.method, f"Method {r.method}")) for r in results]
-
-
-def parse_entries(
-    entries: List[dict],
-) -> Tuple[List[IVsObservation], str, Optional[str], Optional[str], Optional[int], Optional[str]]:
-    obs_list: List[IVsObservation] = []
-    nature = "Any"
-    gender = None
-    ability = None
-    caught_level = None
-    pokemon = None
-    for e in entries:
-        if pokemon is None and e.get("pokemon"):
-            pokemon = e["pokemon"]
-        ocr = e.get("ocr_result", {})
-        is_caught_info = "nature" in ocr and "hp" not in ocr
-        is_iv_like = "hp" in ocr and "attack" in ocr and "defense" in ocr
-        if is_caught_info:
-            n = (ocr.get("nature") or "").strip()
-            if n:
-                nature = NATURES_LOWER.get(n.lower(), n)
-            g = (ocr.get("gender") or "").strip().lower()
-            if g in ("male", "m"):
-                gender = "M"
-            elif g in ("female", "f"):
-                gender = "F"
-            lv = ocr.get("level")
-            if lv is not None:
-                caught_level = lv
-        elif is_iv_like:
-            has_ability = "ability" in ocr
-            if has_ability:
-                ability = (ocr.get("ability") or "").strip().title()
-            obs_list.append(IVsObservation(
-                nature=nature, level=ocr["level"],
-                hp=ocr["hp"], attack=ocr["attack"], defense=ocr["defense"],
-                sp_attack=ocr["sp_atk"], sp_defense=ocr["sp_def"], speed=ocr["speed"],
-            ))
-    return obs_list, nature, gender, ability, caught_level, pokemon
 
 
 def unique_iv_count(results) -> int:
@@ -64,16 +23,20 @@ def unique_iv_count(results) -> int:
 
 
 class RNGAttempt:
-    def __init__(self, attempt_id: int, entries: List[dict], target: RNGSlot, cfg: RNGConfig,
-                 candidates=None) -> None:
+    def __init__(self, attempt_id: int, obs_list: List, nature: str, gender: str,
+                 ability: str, caught_level: int, pokemon: str,
+                 target: RNGSlot, cfg: RNGConfig, candidates=None) -> None:
         self.id = attempt_id
-        self.entries = entries
+        self.obs_list = obs_list
+        self.nature = nature
+        self.gender = gender
+        self.ability = ability
+        self.caught_level = caught_level
+        self.pokemon = pokemon
         self.target = target
         self.cfg = cfg
         self.calibration = RNGDisplacement(0, 0, 0)
 
-        self.obs_list, self.nature, self.gender, self.ability, self.caught_level, self.pokemon = \
-            parse_entries(self.entries)
         if not self.obs_list or self.pokemon is None or candidates is None:
             self.slots = []
             self.unique_iv_count = 0

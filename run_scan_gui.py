@@ -29,6 +29,7 @@ from assets.game_text import (
 )
 from easycon.config import get
 from easycon.controller import EasyConController
+from script_utils.hit import EXTRA_A_PRESSES
 
 # ── constants ──────────────────────────────────────────────────────────────────
 GAME_OPTIONS = {"火红": "fr_nx", "叶绿": "lg_nx"}
@@ -39,7 +40,7 @@ METHOD_OPTIONS = {
 }
 
 CACHE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                          "rng_logs", "scan_latest.json")
+                          "scan_logs", "latest.json")
 
 
 def get_all_locations() -> dict:
@@ -362,12 +363,47 @@ class ScanGui(LaunchGUI):
 
 # ── script generation ──────────────────────────────────────────────────────────
 
+SAFARI_ZONE_EXTRA_MS = {
+    ("Safari Zone Center", "Grass"):   16000,
+    ("Safari Zone Center", "Surfing"): 23000,
+    ("Safari Zone Center", "Rod"):     18000,
+    ("Safari Zone East", "Grass"):     27000,
+    ("Safari Zone East", "Surfing"):   39000,
+    ("Safari Zone East", "Rod"):       33000,
+    ("Safari Zone North", "Grass"):    31000,
+    ("Safari Zone North", "Surfing"):  41000,
+    ("Safari Zone North", "Rod"):      36000,
+    ("Safari Zone West", "Grass"):     38000,
+    ("Safari Zone West", "Surfing"):   45000,
+    ("Safari Zone West", "Rod"):       40000,
+}
+
+
+def compute_normal_ms_min(category: str, pokemon: str, location: str = "") -> int:
+    category = "Rod" if category.endswith("Rod") else category
+    if location.startswith("Safari Zone"):
+        safari_extra = SAFARI_ZONE_EXTRA_MS[(location, category)]
+        return (10000 if category == "Rod" else 5000) + safari_extra
+    elif category in ("Rod", "Game Corner"):
+        return 10000
+    elif category in ("Gift", "Stationary", "Legend", "Fossil", "Event"):
+        extra = EXTRA_A_PRESSES.get(pokemon, 0)
+        if pokemon == "Ho-Oh":
+            extra += 2
+        return 5000 + 3000 * max(extra, 0)
+    elif category in ("Grass", "Surfing"):
+        return 5000
+    else:
+        raise NotImplementedError(category)
+
+
 def generate_script(data: dict):
     game_ver  = GAME_OPTIONS[data["game"]]
     method    = data["method"]
     category  = data["category"]
     location  = data["location"] if method == "Wild" else category
     pokemon   = data["pokemon"]
+    normal_ms_min = compute_normal_ms_min(category, pokemon, location)
 
     script = f'''# -*- coding: utf-8 -*-
 import sys, os
@@ -382,6 +418,7 @@ if __name__ == "__main__":
         location="{location}",
         pokemon_species="{pokemon}",
         game_version="{game_ver}",
+        normal_ms_min={normal_ms_min},
     )
 '''
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
