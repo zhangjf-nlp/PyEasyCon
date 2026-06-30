@@ -21,11 +21,15 @@ def run_away(ctx: ScriptContext) -> None:
             sleep(1.0)
             break
     for _ in range(30):
-        sleep(0.5)
+        sleep(1.0)
         if in_wild(ctx):
             return
-        ctx.press("B")
-        sleep(0.3)
+        elif ctx.search_label("FRLG逃跑", 90):
+            ctx.press("A")
+            sleep(1.0)
+        else:
+            ctx.press("B")
+            sleep(0.5)
 
 
 def in_wild(ctx: ScriptContext) -> bool:

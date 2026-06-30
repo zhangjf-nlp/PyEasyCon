@@ -151,7 +151,7 @@ def get_hidden_power(ivs):
 GRASS_SLOT_TABLE = [0]*20 + [1]*20 + [2]*10 + [3]*10 + [4]*10 + [5]*10 + [6]*5 + [7]*5 + [8]*4 + [9]*4 + [10]*1 + [11]*1
 SURFING_SLOT_TABLE = [0]*60 + [1]*30 + [2]*5 + [3]*4 + [4]*1
 OLD_ROD_SLOT_TABLE = [0]*70 + [1]*30
-GOOD_ROD_SLOT_TABLE = [0]*60 + [1]*30 + [2]*7 + [3]*3
+GOOD_ROD_SLOT_TABLE = [0]*60 + [1]*20 + [2]*20
 SUPER_ROD_SLOT_TABLE = [0]*40 + [1]*40 + [2]*15 + [3]*4 + [4]*1
 
 ENCOUNTER_SLOT_TABLES = {

@@ -43,6 +43,14 @@ heal2grass_route_map = {
         ("walk", [("RIGHT", 7), ("UP", 5), ("LEFT", 9), ("UP", 2),
                   ("LEFT", 4), ("UP", 2)]),
         ("wait", [("UP", 2)]),
+    ],
+    "Viridian Forest": [
+        ("walk", [("DOWN", 9), ("RIGHT", 4), ("DOWN", 14), ("LEFT", 4),
+                  ("DOWN", 5)]),
+        ("wait", [("DOWN", 2)]),
+        ("walk", [("DOWN", 9)]),
+        ("wait", [("DOWN", 4)]),
+        ("walk", [("DOWN", 3)]),
     ]
 }
 
@@ -288,6 +296,8 @@ def defeat_pokemon(ctx: ScriptContext) -> bool:
             sleep(1.0)
             ctx.press("A")
             sleep(2.0)
+            ctx.press("A")
+            sleep(5.0)
             return False
 
         ctx.press("A")
