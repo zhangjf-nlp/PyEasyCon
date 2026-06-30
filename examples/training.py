@@ -266,7 +266,7 @@ def defeat_pokemon(ctx: ScriptContext) -> bool:
             break
 
     while True:
-        if ctx.search_label("FRLG空PP", 98):
+        if ctx.search_label("FRLG空PP", 95):
             if pp_switches == 0:
                 ctx.log(f"一技能PP耗尽, 切换三技能")
                 ctx.press("DOWN")
