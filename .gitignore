@@ -17,6 +17,8 @@ build/
 # Project-specific exclusions
 scan_logs/
 rng_logs/
+training_logs/
+custom.yaml
 examples/rng_custom*
 examples/scan_custom*
 examples/training_custom*

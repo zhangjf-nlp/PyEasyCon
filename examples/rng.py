@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import sys
 import os
+import time
 from typing import Optional
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -40,6 +41,7 @@ def attempt_once(ctx: ScriptContext, cfg: RNGConfig, state: Optional[SessionStat
             ctx.screen_record_save()
             ctx.log("捕获失败...")
             ctx.press("CAPTURE", 3000)
+            time.sleep(3.0)
             return False
         if state.fast_attempts:
             state.fast_attempts -= 1
@@ -50,7 +52,7 @@ def attempt_once(ctx: ScriptContext, cfg: RNGConfig, state: Optional[SessionStat
         run_calibration(ctx, state, cfg)
         return False
 
-    if cfg.rng_category in ["Grass", "Surfing", "SuperRod", "GoodRod", "OldRod", "Stationary", "Legend", "Event"]:
+    if cfg.rng_category in ["Grass", "Surfing", "SuperRod", "GoodRod", "OldRod", "RockSmash", "Stationary", "Legend", "Event"]:
         is_shiny, pokemon_en = check_shiny(ctx, cfg, state, state.attempt_index)
         if pokemon_en is None:
             return False
@@ -66,7 +68,7 @@ def attempt_once(ctx: ScriptContext, cfg: RNGConfig, state: Optional[SessionStat
         run_calibration(ctx, state, cfg)
         return False
 
-    if cfg.rng_category in ["Gift", "Fossil", "Game Corner"]:
+    if cfg.rng_category in ["Gift", "Fossil", "GameCorner"]:
         check_last_pokemon(ctx)
         if ctx.search_label("FRLG闪光", 80):
             ctx.log("闪光出现!")

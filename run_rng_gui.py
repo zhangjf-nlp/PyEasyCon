@@ -98,8 +98,8 @@ class RNGGui(LaunchGUI):
         msg = (
             "【功能说明】\n"
             "一键乱数刷闪\n"
-            "支持：草丛/钓鱼/冲浪/定点/礼物\n"
-            "不支持：碎岩/游走/御三家/部分定点\n"
+            "支持：草丛/钓鱼/冲浪/定点/礼物/碎岩\n"
+            "不支持：游走/御三家/部分定点\n"
             "\n"
             "【前置准备】\n"
             "0. 游戏：【NS/NS2】&【英文版FRLG】&【TID/SID/Tenlines】\n"
@@ -815,13 +815,15 @@ def compute_normal_ms_min(category: str, pokemon: str, location: str = "") -> in
     if location.startswith("Safari Zone"):
         safari_extra = SAFARI_ZONE_EXTRA_MS[(location, category)]
         return (15000 if category == "Rod" else 10000) + safari_extra
-    elif category in ("Rod", "Game Corner"):
+    elif category in ("Rod", "GameCorner"):
         return 15000
     elif category in ("Gift", "Stationary", "Legend", "Fossil", "Event"):
         extra = EXTRA_A_PRESSES.get(pokemon, 0)
         if pokemon == "Ho-Oh":
             extra += 2
         return 10000 + 3000 * max(extra, 0)
+    elif category == "RockSmash":
+        return 13000  # 碎岩：1 次额外 A 按键 (10000 + 3000 * 1)
     elif category in ("Grass", "Surfing"):
         return 10000
     else:

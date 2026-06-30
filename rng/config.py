@@ -166,6 +166,7 @@ class RNGConfig:
 @dataclass
 class SessionState:
     log_dir: Optional[str] = None
+    log_root: str = "rng_logs"
     fast_attempts: int = 0
     attempt_index: int = 0
     attempts: Dict[int, Any] = field(default_factory=dict)

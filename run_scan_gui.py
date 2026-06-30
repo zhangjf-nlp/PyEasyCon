@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import json
 import os
 import subprocess
 import sys
@@ -70,7 +69,7 @@ class ScanGui(LaunchGUI):
             "不断遭遇宝可梦刷闪\n"
             "无需获知TID/SID\n"
             "支持：草丛/钓鱼/冲浪/定点/礼物\n"
-            "不支持：碎岩/游走/御三家/部分定点\n"
+            "不支持：游走/御三家/部分定点\n"
             "\n"
             "【前置准备】\n"
             "0. 游戏：【NS/NS2】&【英文版FRLG】\n"
@@ -90,13 +89,13 @@ class ScanGui(LaunchGUI):
 
     def apply_cache(self, data):
         game = data.get("game", "")
-        if game in self.game_combo.all_options_:
-            self.game_combo.selected_index = self.game_combo.all_options_.index(game)
+        if game in self.game_combo.all_options:
+            self.game_combo.selected_index = self.game_combo.all_options.index(game)
 
         method_en   = data.get("method", "")
         method_disp = METHOD_EN_TO_ZH.get(method_en, method_en)
-        if method_disp in self.method_combo.all_options_:
-            self.method_combo.selected_index = self.method_combo.all_options_.index(method_disp)
+        if method_disp in self.method_combo.all_options:
+            self.method_combo.selected_index = self.method_combo.all_options.index(method_disp)
         self.method_combo.filter_text_ = ""
         self.method_combo.apply_filter()
 
@@ -104,32 +103,27 @@ class ScanGui(LaunchGUI):
         cats_disp = [CATEGORY_EN_TO_ZH.get(c, c) for c in cats_en]
         self.category_combo.set_options(cats_disp)
         cat_disp = CATEGORY_EN_TO_ZH.get(data.get("category", ""), "")
-        if cat_disp in self.category_combo.all_options_:
-            self.category_combo.selected_index = self.category_combo.all_options_.index(cat_disp)
+        if cat_disp in self.category_combo.all_options:
+            self.category_combo.selected_index = self.category_combo.all_options.index(cat_disp)
         self.category_combo.filter_text_ = ""
         self.category_combo.apply_filter()
 
         self.reload_location_options(method_en, data.get("category", ""))
         loc_disp = loc_zh(data.get("location", ""))
-        if loc_disp in self.location_combo.all_options_:
-            self.location_combo.selected_index = self.location_combo.all_options_.index(loc_disp)
+        if loc_disp in self.location_combo.all_options:
+            self.location_combo.selected_index = self.location_combo.all_options.index(loc_disp)
         self.location_combo.filter_text_ = ""
         self.location_combo.apply_filter()
 
         self.refresh_pokemon_options()
         pkm_zh = SPECIES_EN_TO_ZH.get(data.get("pokemon", ""), data.get("pokemon", ""))
-        if pkm_zh and pkm_zh in self.pokemon_combo.all_options_:
-            self.pokemon_combo.selected_index = self.pokemon_combo.all_options_.index(pkm_zh)
+        if pkm_zh and pkm_zh in self.pokemon_combo.all_options:
+            self.pokemon_combo.selected_index = self.pokemon_combo.all_options.index(pkm_zh)
             self.pokemon_combo.filter_text_ = ""
             self.pokemon_combo.apply_filter()
 
     def save_cache(self, data):
-        try:
-            os.makedirs(os.path.dirname(CACHE_FILE), exist_ok=True)
-            with open(CACHE_FILE, "w", encoding="utf-8") as f:
-                json.dump(data, f, ensure_ascii=False, indent=2)
-        except Exception:
-            pass
+        self.save_cache_impl(data)
 
     # ── layout ─────────────────────────────────────────────────────────────────
 
@@ -384,7 +378,7 @@ def compute_normal_ms_min(category: str, pokemon: str, location: str = "") -> in
     if location.startswith("Safari Zone"):
         safari_extra = SAFARI_ZONE_EXTRA_MS[(location, category)]
         return (10000 if category == "Rod" else 5000) + safari_extra
-    elif category in ("Rod", "Game Corner"):
+    elif category in ("Rod", "GameCorner"):
         return 10000
     elif category in ("Gift", "Stationary", "Legend", "Fossil", "Event"):
         extra = EXTRA_A_PRESSES.get(pokemon, 0)

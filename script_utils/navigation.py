@@ -35,6 +35,7 @@ def in_wild(ctx: ScriptContext) -> bool:
         ctx.search_label("FRLG水面", 90),
         ctx.search_label("FRLG洞穴", 90),
         ctx.search_label("FRLG宝可梦塔", 85),
+        ctx.search_label("FRLG宝可梦屋", 95),
     ]) and not any([
         ctx.search_label("NS深色系主题-主页手柄", 80),
         ctx.search_label("NS浅色系主题-主页手柄", 80),
@@ -66,8 +67,8 @@ def restart(ctx: ScriptContext) -> None:
         warning = True
     time.sleep(1.0)
     
-    for _ in range(3):
-        ctx.press("Y")
+    for i in range(5):
+        ctx.press("Y" if i%2==0 else "X")
         for __ in range(50):
             if search_label_qhyh():
                 break

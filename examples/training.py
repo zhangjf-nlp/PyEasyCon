@@ -38,6 +38,11 @@ heal2grass_route_map = {
         ("wait", [("LEFT", 1)]),
         ("walk", [("UP", 4), ("LEFT", 14), ("DOWN", 4), ("LEFT", 1)]),
         ("wait", [("RIGHT", 1)]),
+    ],
+    "Pokemon Mansion 1F-3F": [
+        ("walk", [("RIGHT", 7), ("UP", 5), ("LEFT", 9), ("UP", 2),
+                  ("LEFT", 4), ("UP", 2)]),
+        ("wait", [("UP", 2)]),
     ]
 }
 
@@ -198,9 +203,8 @@ def search_and_take_meowth_items(ctx: ScriptContext, item_counts: dict) -> None:
                 pickup_total += 1
                 ctx.log(f"拾取道具: {item_name}")
                 if pickup_total % 5 == 0:
-                    sorted_items = sorted(item_counts.items(), key=lambda x: x[1])
                     lines = ["喵喵累计拾取:"]
-                    for name, cnt in sorted_items:
+                    for name, cnt in sorted(item_counts.items(), key=lambda x: x[1]):
                         lines.append(f"  {name}: {cnt}")
                     ctx.log("\n".join(lines))
             else:
@@ -210,13 +214,8 @@ def search_and_take_meowth_items(ctx: ScriptContext, item_counts: dict) -> None:
             sleep(1.0)
 
 
-def use_sweet_scent(ctx: ScriptContext, item_counts: dict) -> bool:
+def use_sweet_scent(ctx: ScriptContext) -> bool:
     """使用甜甜香气触发遇敌"""
-    open_pokemon_menu(ctx)
-    sleep(2.0)
-
-    search_and_take_meowth_items(ctx, item_counts)
-
     ctx.press("UP")
     sleep(0.5)
     ctx.press("UP")
@@ -234,7 +233,9 @@ def use_sweet_scent(ctx: ScriptContext, item_counts: dict) -> bool:
         for _ in range(10):
             ctx.press("B")
             sleep(0.5)
-        return use_sweet_scent(ctx, item_counts)
+        open_pokemon_menu(ctx)
+        sleep(2.0)
+        return use_sweet_scent(ctx)
 
     ctx.press("A")
     sleep(8.0)
@@ -341,6 +342,7 @@ def training_loop(config: TrainingConfig) -> None:
 
         preload_sprites(all_species)
 
+        heal_count = 0
         battle_count = 0
         encounter_count = 0
         ev_totals = {k: 0 for k in stat_keys}
@@ -355,12 +357,15 @@ def training_loop(config: TrainingConfig) -> None:
             while ctx.is_running():
                 encounter_count += 1
                 ctx.log(f"========== 第 {encounter_count} 次遇敌 ==========")
-
-                if not use_sweet_scent(ctx, item_counts):
+                open_pokemon_menu(ctx)
+                sleep(2.0)
+                search_and_take_meowth_items(ctx, item_counts)
+                if not use_sweet_scent(ctx):
                     ctx.log("甜甜香气使用失败, 重试...")
                     sleep(2.0)
                     if in_wild(ctx):
                         heal_and_return(ctx, config, current_direction)
+                        heal_count += 1
                     continue
 
                 frame = ctx.get_frame()
@@ -387,6 +392,7 @@ def training_loop(config: TrainingConfig) -> None:
                         if in_wild(ctx):
                             ctx.log("逃跑成功 -> 治愈并返回")
                             heal_and_return(ctx, config, current_direction)
+                            heal_count += 1
                             continue
                         else:
                             ctx.log("逃跑失败 -> 停止")
@@ -404,9 +410,13 @@ def training_loop(config: TrainingConfig) -> None:
                     handle_post_battle(ctx)
 
         finally:
-            ctx.log(f"脚本结束。共遇敌 {encounter_count} 次, 击败 {battle_count} 只目标宝可梦, "
+            ctx.log(f"脚本结束。共遇敌 {encounter_count} 次, 战斗 {battle_count} 次, 回复 {heal_count} 次, "
                     f"累计: {' '.join(f'{STAT_ZH_MAP[k]}:{ev_totals[k]}' for k in stat_keys)}")
-
+            lines = ["喵喵累计拾取:"]
+            for name, cnt in sorted(item_counts.items(), key=lambda x: x[1]):
+                lines.append(f"  {name}: {cnt}")
+            ctx.log("\n".join(lines))
+    
     run_script(main)
 
 

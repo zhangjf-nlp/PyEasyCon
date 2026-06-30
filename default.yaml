@@ -59,23 +59,21 @@ rng:
     tv_ms_min: 3000
     normal_ms_min: 10000
 key_mapping:
-  default:
-    y: A
-    u: B
-    i: X
-    h: Y
-    g: L
-    t: R
-    f: ZL
-    r: ZR
-    k: PLUS
-    j: MINUS
-    z: CAPTURE
-    c: HOME
-    q: LCLICK
-    e: RCLICK
-    w: UP
-    s: DOWN
-    a: LEFT
-    d: RIGHT
-  custom: {}
+  A: y
+  B: u
+  X: i
+  Y: h
+  L: g
+  R: t
+  ZL: f
+  ZR: r
+  PLUS: k
+  MINUS: j
+  CAPTURE: z
+  HOME: c
+  LCLICK: q
+  RCLICK: e
+  UP: w
+  DOWN: s
+  LEFT: a
+  RIGHT: d

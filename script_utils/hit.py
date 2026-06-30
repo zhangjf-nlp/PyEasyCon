@@ -125,7 +125,10 @@ EXTRA_A_PRESSES = {
 
 
 def hit_A(ctx: ScriptContext, cfg: RNGConfig, end: float) -> None:
-    extra_as = EXTRA_A_PRESSES.get(cfg.pokemon_species, -1)
+    if cfg.rng_category == "RockSmash":
+        extra_as = 1
+    else:
+        extra_as = EXTRA_A_PRESSES.get(cfg.pokemon_species, -1)
     if extra_as == -1:
         raise ValueError(f"{cfg.pokemon_species}暂未支持")
     for _ in range(extra_as):
@@ -153,9 +156,9 @@ def hit_normal_frame(ctx: ScriptContext, cfg: RNGConfig) -> bool:
         hit_sweet_scent(ctx, cfg, end)
     elif cfg.rng_category in ["OldRod", "GoodRod", "SuperRod"]:
         hit_rod(ctx, cfg, end)
-    elif cfg.rng_category == "Game Corner":
+    elif cfg.rng_category == "GameCorner":
         hit_game_corner(ctx, cfg, end)
-    elif cfg.rng_category in ["Gift", "Stationary", "Legend", "Fossil", "Event"]:
+    elif cfg.rng_category in ["Gift", "Stationary", "Legend", "Fossil", "Event", "RockSmash"]:
         hit_A(ctx, cfg, end)
     else:
         raise NotImplementedError(cfg.rng_category)

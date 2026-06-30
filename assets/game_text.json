@@ -8,18 +8,18 @@
     },
     "all_stats": ["hp", "attack", "defense", "sp_atk", "sp_def", "speed"],
     "category_zh_to_en": {
-        "赠送": "Gift", "游戏城": "Game Corner", "定点": "Stationary",
+        "赠送": "Gift", "游戏城": "GameCorner", "定点": "Stationary",
         "传说": "Legend", "化石": "Fossil", "活动": "Event",
-        "草丛": "Grass", "冲浪": "Surfing", "超级钓竿": "SuperRod",
-        "好钓竿": "GoodRod", "破旧钓竿": "OldRod"
+        "草丛": "Grass", "冲浪": "Surfing", "碎岩": "RockSmash",
+        "超级钓竿": "SuperRod", "好钓竿": "GoodRod", "破旧钓竿": "OldRod"
     },
     "method_zh_to_en": {"固定": "Static", "野生": "Wild"},
-    "static_categories": ["Gift", "Game Corner", "Stationary", "Legend", "Fossil", "Event"],
-    "wild_categories": ["Grass", "Surfing", "SuperRod", "GoodRod", "OldRod"],
+    "static_categories": ["Gift", "GameCorner", "Stationary", "Legend", "Fossil", "Event"],
+    "wild_categories": ["Grass", "Surfing", "SuperRod", "GoodRod", "OldRod", "RockSmash"],
     "static_pokemon_map": {
         "Fossil":      ["Omanyte", "Kabuto", "Aerodactyl"],
         "Gift":        ["Eevee", "Lapras"],
-        "Game Corner": ["Abra", "Clefairy", "Scyther", "Pinsir", "Dratini", "Porygon"],
+        "GameCorner": ["Abra", "Clefairy", "Scyther", "Pinsir", "Dratini", "Porygon"],
         "Stationary":  ["Snorlax", "Electrode", "Hypno"],
         "Legend":      ["Articuno", "Zapdos", "Moltres", "Mewtwo"],
         "Event":       ["Deoxys", "Lugia", "Ho-Oh"]

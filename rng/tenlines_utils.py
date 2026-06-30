@@ -307,6 +307,17 @@ def load_frlg_encounters(game_version: str = "fr_nx") -> dict:
                             "min_level": slot["min_level"],
                             "max_level": slot["max_level"],
                         })
+        rock_smash = enc.get("rock_smash_mons")
+        if rock_smash and rock_smash.get("encounter_rate", 0) > 0:
+            key = (location_name, "RockSmash")
+            if key not in result:
+                result[key] = {"rate": rock_smash["encounter_rate"], "slots": []}
+            for slot in rock_smash["mons"]:
+                result[key]["slots"].append({
+                    "species": slot["species"],
+                    "min_level": slot["min_level"],
+                    "max_level": slot["max_level"],
+                })
     return result
 
 def get_encounter(location: str, category: str, game_version: str = "fr_nx") -> Optional[dict]:
@@ -367,17 +378,26 @@ class IVsObservation:
     sp_defense: int = 0
     speed: int = 0
 
+    # Gen 3 FRLG theoretical bounds:
+    #   level: 1–100
+    #   HP:  1–714  (Blissey 255 base + 31 IV + 252 EV @ Lv100)
+    #   other stats: 1–669 (same formula, 1.1× nature at Lv100)
+    # Using generous upper bounds to only reject clearly absurd OCR misreads.
+    _MAX_LEVEL = 100
+    _MAX_HP    = 714
+    _MAX_STAT  = 669
+
     @property
     def is_valid(self) -> bool:
         return (
             isinstance(self.nature, str) and self.nature in NATURES
-            and isinstance(self.level, int) and self.level >= 1
-            and isinstance(self.hp, int) and self.hp > 0
-            and isinstance(self.attack, int) and self.attack > 0
-            and isinstance(self.defense, int) and self.defense > 0
-            and isinstance(self.sp_attack, int) and self.sp_attack > 0
-            and isinstance(self.sp_defense, int) and self.sp_defense > 0
-            and isinstance(self.speed, int) and self.speed > 0
+            and isinstance(self.level, int) and 1 <= self.level <= self._MAX_LEVEL
+            and isinstance(self.hp, int) and 1 <= self.hp <= self._MAX_HP
+            and isinstance(self.attack, int) and 1 <= self.attack <= self._MAX_STAT
+            and isinstance(self.defense, int) and 1 <= self.defense <= self._MAX_STAT
+            and isinstance(self.sp_attack, int) and 1 <= self.sp_attack <= self._MAX_STAT
+            and isinstance(self.sp_defense, int) and 1 <= self.sp_defense <= self._MAX_STAT
+            and isinstance(self.speed, int) and 1 <= self.speed <= self._MAX_STAT
         )
 
 SOUND_LABEL_TO_VALUE = {"Mono": "mono", "Stereo": "stereo"}
@@ -877,6 +897,8 @@ def calibration(
     _ = ability_idx  # 保留变量但不用
     ability_id = None
     if ivs_range is None and ivs_observations is not None:
+        if not all(obs.is_valid for obs in ivs_observations):
+            return []
         ivs_range = iv_calculator(ivs_observations, base_stats)
     target_initial_seed = int(seed, 16)
     tsv = tid ^ sid

@@ -59,7 +59,7 @@ def launch(
             pass
 
     def main(ctx: ScriptContext) -> None:
-        state = SessionState(fast_attempts=65536)
+        state = SessionState(fast_attempts=65536, log_root="scan_logs")
         start_k = load_progress()
         if start_k:
             ctx.log(f"[scan] resuming from k={start_k}")

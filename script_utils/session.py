@@ -36,7 +36,7 @@ def obs_to_ivs_range(
 
 def init_log_dir(ctx: ScriptContext, state: SessionState, cfg: RNGConfig) -> str:
     ts = time.strftime("%Y%m%d_%H%M%S")
-    d = f"rng_logs/{ts}_{cfg.pokemon_species}"
+    d = f"{state.log_root}/{ts}_{cfg.pokemon_species}"
     os.makedirs(d, exist_ok=True)
     os.makedirs(f"{d}/screens", exist_ok=True)
     os.makedirs(f"{d}/attempts", exist_ok=True)
@@ -84,10 +84,21 @@ def save_ocr(state: SessionState, ocr_result: Dict[str, Any], attempt_index: int
     return entry
 
 
-def make_obs(ocr: Dict[str, Any], nature: str) -> IVsObservation:
+def make_obs(ocr: Dict[str, Any], nature: str) -> Optional[IVsObservation]:
+    # Validate OCR values before constructing IVsObservation, to prevent
+    # absurd misreads (e.g. level=256, stat=3000) from reaching the C++ layer.
+    level = ocr.get("level")
+    if not isinstance(level, int) or not (1 <= level <= 100):
+        print(f"[OCR异常] level 越界: {level} (期望 1–100)")
+        return None
+    for key in ("hp", "attack", "defense", "sp_atk", "sp_def", "speed"):
+        val = ocr.get(key)
+        if not isinstance(val, int) or not (1 <= val <= 714):
+            print(f"[OCR异常] {key} 越界: {val} (期望 1–714)")
+            return None
     return IVsObservation(
         nature=nature.title(),
-        level=ocr["level"],
+        level=level,
         hp=ocr["hp"],
         attack=ocr["attack"],
         defense=ocr["defense"],
@@ -168,7 +179,11 @@ def observe_pokemon(ctx: ScriptContext, state: SessionState, cfg: RNGConfig, att
     ocr_caught_iv["gender"] = gender
     save_ocr(state, ocr_caught_iv, attempt_index, pokemon)
 
-    obs_list = [make_obs(ocr_caught_iv, nature)]
+    obs = make_obs(ocr_caught_iv, nature)
+    if obs is None:
+        ctx.log(f"[skip] CAUGHT_IV OCR 数值越界 -> 样本日志见 {state.log_dir}")
+        return None
+    obs_list = [obs]
 
     # 宝可梦基础种族值（用于 n_combos 判定是否触发搜索）
     pokemon_base_stats = get_personal(get_species_id(pokemon), cfg.game_version)["stats"]
@@ -247,6 +262,11 @@ def observe_pokemon(ctx: ScriptContext, state: SessionState, cfg: RNGConfig, att
         save_ocr(state, ocr_elevated, attempt_index, pokemon, candy_num=i + 1)
 
         new_obs = make_obs(ocr_elevated, nature)
+        if new_obs is None:
+            ctx.log(f"[skip] ELEVATED OCR 数值越界 (obs#{len(obs_list) + 1})，丢弃本次观测")
+            allow_skip = max(allow_skip - 1, 0)
+            require_candy_navigation = True
+            continue
         obs_list.append(new_obs)
         n_obs = len(obs_list)
         

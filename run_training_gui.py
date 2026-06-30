@@ -23,9 +23,15 @@ class TrainingGUI(LaunchGUI):
     TOTAL_SCALE = 2
     WINDOW_TITLE = "EasyCon EV训练配置"
 
+    CACHE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                              "training_logs", "latest.json")
+
     def __init__(self):
         super().__init__()
         self.show_instructions()
+
+    def cache_file(self) -> str:
+        return self.CACHE_FILE
 
     def show_instructions(self):
         """显示前置说明"""
@@ -182,9 +188,12 @@ class TrainingGUI(LaunchGUI):
         if errors:
             self.set_status(errors[0], C_RED)
             return
-        self.save_cache_impl(data)
+        self.save_cache(data)
         self.result = data
         self.running = False
+
+    def save_cache(self, data: dict):
+        self.save_cache_impl(data)
 
 
 # ── helpers ────────────────────────────────────────────────────────────────────

@@ -1,24 +1,24 @@
 """
 Key Mapping Panel Module - 按键映射展示和设定面板
-支持查看、修改、确认和重置键盘→控制器按键映射，持久化到 default.yaml
+支持查看、修改、确认和重置键盘→控制器按键映射。
+默认映射存 default.yaml，用户自定义存 custom.yaml（custom 优先）。
 """
 
 import os
 import pygame
-import yaml
 from typing import Dict, Optional, Tuple
 
-# 默认按键映射（pygame key → GamePadKey 名称）
+# 默认按键映射（GamePadKey 名称 → pygame key）
 DEFAULT_KEY_MAPPING = {
-    'y': 'A',       'u': 'B',
-    'i': 'X',       'h': 'Y',
-    'g': 'L',       't': 'R',
-    'f': 'ZL',      'r': 'ZR',
-    'k': 'PLUS',    'j': 'MINUS',
-    'z': 'CAPTURE', 'c': 'HOME',
-    'q': 'LCLICK',  'e': 'RCLICK',
-    'w': 'UP',      's': 'DOWN',
-    'a': 'LEFT',    'd': 'RIGHT',
+    'A': 'y',       'B': 'u',
+    'X': 'i',       'Y': 'h',
+    'L': 'g',       'R': 't',
+    'ZL': 'f',      'ZR': 'r',
+    'PLUS': 'k',    'MINUS': 'j',
+    'CAPTURE': 'z', 'HOME': 'c',
+    'LCLICK': 'q',  'RCLICK': 'e',
+    'UP': 'w',      'DOWN': 's',
+    'LEFT': 'a',    'RIGHT': 'd',
 }
 
 # pygame key name → constant
@@ -43,56 +43,21 @@ PYGAME_KEY_MAP = {
 PYGAME_KEY_REVERSE = {v: k for k, v in PYGAME_KEY_MAP.items()}
 
 
-def seq_representer(dumper, data):
-    if all(not isinstance(item, (list, dict)) for item in data):
-        return dumper.represent_sequence('tag:yaml.org,2002:seq', data, flow_style=True)
-    return dumper.represent_sequence('tag:yaml.org,2002:seq', data, flow_style=False)
-
-yaml.add_representer(list, seq_representer)
-
-
-def load_mapping_from_yaml(yaml_path: str) -> Dict[str, str]:
-    default_key_to_gamepad = dict(DEFAULT_KEY_MAPPING)
-    default_mapping = {v: k for k, v in default_key_to_gamepad.items()}
-    custom_mapping: Dict[str, str] = {}
-    try:
-        if os.path.exists(yaml_path):
-            with open(yaml_path, 'r', encoding='utf-8') as f:
-                data = yaml.safe_load(f) or {}
-            km = data.get('key_mapping', {})
-            if isinstance(km, dict):
-                yaml_default = km.get('default', {})
-                if isinstance(yaml_default, dict) and yaml_default:
-                    for k, v in yaml_default.items():
-                        if isinstance(v, str):
-                            default_mapping[v] = k
-                yaml_custom = km.get('custom', {})
-                if isinstance(yaml_custom, dict):
-                    for k, v in yaml_custom.items():
-                        if isinstance(v, str):
-                            custom_mapping[v] = k
-    except Exception:
-        pass
-    merged = dict(default_mapping)
-    merged.update(custom_mapping)
-    return merged
+def load_mapping_from_yaml() -> Dict[str, str]:
+    """从 config（default.yaml + custom.yaml 合并）加载按键映射。
+    返回 gamepad -> key_name 字典。"""
+    from easycon.config import get
+    km = get("key_mapping", {})
+    if not isinstance(km, dict):
+        return {}
+    # 过滤非法项，保证 gamepad/key_name 均为字符串
+    return {str(k): str(v) for k, v in km.items() if isinstance(v, str)}
 
 
-def save_custom_to_yaml(yaml_path: str, custom_mapping: Dict[str, str]) -> None:
-    data = {}
-    try:
-        if os.path.exists(yaml_path):
-            with open(yaml_path, 'r', encoding='utf-8') as f:
-                data = yaml.safe_load(f) or {}
-    except Exception:
-        pass
-    if 'key_mapping' not in data:
-        data['key_mapping'] = {}
-    km = data['key_mapping']
-    km['default'] = dict(DEFAULT_KEY_MAPPING)
-    km['custom'] = {v: k for k, v in custom_mapping.items()}
-    with open(yaml_path, 'w', encoding='utf-8') as f:
-        yaml.dump(data, f, allow_unicode=True, sort_keys=False)
+def save_custom_to_yaml(custom_mapping: Dict[str, str]) -> None:
+    """将自定义映射写入 custom.yaml（gamepad -> key_name，仅存与默认不同的项）。"""
+    from easycon.config import set as config_set
+    config_set("key_mapping", dict(custom_mapping))
 
 
 # ── 配色 ──────────────────────────────────────────────────────────────────
@@ -162,11 +127,6 @@ class KeyMappingPanel:
         self.width = width
         self.height = height
 
-        self.yaml_path = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-            "default.yaml"
-        )
-
         font_path = os.path.join(
             os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
             "assets", "NotoSansCJKsc-Regular.otf"
@@ -202,7 +162,7 @@ class KeyMappingPanel:
         }
 
     def load(self):
-        self.mapping = load_mapping_from_yaml(self.yaml_path)
+        self.mapping = load_mapping_from_yaml()
         self.build_items()
 
     def build_items(self):
@@ -281,22 +241,21 @@ class KeyMappingPanel:
         self.editing = False
         self.editing_item = None
         self.editing_msg = ""
+        # 只保存与默认不同的项（gamepad -> key_name）
         custom = {}
         for gamepad, key_name in self.mapping.items():
-            if DEFAULT_KEY_MAPPING.get(key_name) != gamepad:
+            if DEFAULT_KEY_MAPPING.get(gamepad) != key_name:
                 custom[gamepad] = key_name
-        save_custom_to_yaml(self.yaml_path, custom)
-        return "keymap: 按键映射已保存到 default.yaml"
+        save_custom_to_yaml(custom)
+        return "keymap: 按键映射已保存到 custom.yaml"
 
     def reset(self) -> Optional[str]:
-        default_key_to_gamepad = dict(DEFAULT_KEY_MAPPING)
-        self.mapping = {v: k for k, v in default_key_to_gamepad.items()}
+        self.mapping = dict(DEFAULT_KEY_MAPPING)
         self.build_items()
         self.editing = False
         self.editing_item = None
         self.editing_msg = "已重置为默认按键映射"
-        custom = {}
-        save_custom_to_yaml(self.yaml_path, custom)
+        save_custom_to_yaml({})
         return f"keymap: {self.editing_msg}"
 
     # ── 布局 ──────────────────────────────────────────────────────────────

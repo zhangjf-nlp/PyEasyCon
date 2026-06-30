@@ -65,7 +65,7 @@ OCR 识别个体值需要 VL 视觉语言模型，支持两种模型自动回退
 | `script_mankey.py` | Route 22 | 草丛 | 猴怪 |
 | `script_gyarados.py` | Route 22 | 超级钓竿 | 暴鲤龙 |
 | `script_poliwag.py` | Route 22 | 超级钓竿 | 蚊香蝌蚪 |
-| `script_porygon.py` | Game Corner | 定点 | 3D龙 |
+| `script_porygon.py` | GameCorner | 定点 | 3D龙 |
 
 每个脚本自动完成：**尝试命中乱数帧 → 捕获/兑换精灵 → OCR获取精灵信息 → 反查校准 → 循环至闪光**。
 

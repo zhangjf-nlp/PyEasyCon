@@ -30,7 +30,7 @@ from modules.key_mapping import KeyMappingPanel
 current_gui = None
 
 from easycon import EasyConController, GamePadKey, ScriptContext
-from easycon.config import get
+from easycon.config import get, set as config_set
 
 from .script_engine import ScriptEngine
 
@@ -156,17 +156,23 @@ class EasyConGUI:
         gap = 8
         # 输出面板标题栏：x=10, y=382, title_h=30
         btn_y = 388
-        # LabelMaker 风格：等间距右对齐
+        # LabelMaker 风格：等间距右对齐（switch 在最右，其余左移一个按钮宽度+间距）
         btn_right = 10 + 640 - 10  # 输出面板右边界
-        positions = [btn_right - (btn_w + gap) * (i + 1) + gap for i in range(4)]
+        positions = [btn_right - (btn_w + gap) * (i + 1) + gap for i in range(5)]
         self.btn_rects = {
-            'save':   pygame.Rect(positions[0], btn_y, btn_w, btn_h),
-            'record': pygame.Rect(positions[1], btn_y, btn_w, btn_h),
-            'stop':   pygame.Rect(positions[2], btn_y, btn_w, btn_h),
-            'run':    pygame.Rect(positions[3], btn_y, btn_w, btn_h),
+            'switch': pygame.Rect(positions[0], btn_y, btn_w, btn_h),
+            'save':   pygame.Rect(positions[1], btn_y, btn_w, btn_h),
+            'record': pygame.Rect(positions[2], btn_y, btn_w, btn_h),
+            'stop':   pygame.Rect(positions[3], btn_y, btn_w, btn_h),
+            'run':    pygame.Rect(positions[4], btn_y, btn_w, btn_h),
         }
         self.btn_pressed = None
         self.btn_pressed_frames = 0
+
+        # ============== 视频源切换状态 ==============
+        self.current_device_id = get("capture.device_id", 0)
+        self.manual_device_switch = False  # 用户手动切换后置 True，run 后持久化
+        self.switching_device = False
         
         # 脚本引擎
         self.script_engine = ScriptEngine(log_func=self.output_panel.log)
@@ -325,10 +331,115 @@ class EasyConGUI:
             if (frame.shape[1], frame.shape[0]) != (cap_w, cap_h):
                 self.ctx.log(f"自动缩放画面至: {cap_w}x{cap_h}")
                 self.ctx.log(f"若脚本出错请检查标签匹配度")
+        # 用户手动切换过视频源 -> 持久化到 custom.yaml（custom 优先级高于 default）
+        if self.manual_device_switch:
+            try:
+                config_set("capture.device_id", self.current_device_id)
+                self.output_panel.log(f"已保存视频设备 #{self.current_device_id} 到 custom.yaml")
+                self.manual_device_switch = False
+            except Exception as e:
+                self.output_panel.log(f"保存视频设备配置失败: {e}")
         self.script_engine.run(self.ctx)
-    
+
     def stop_script(self):
         self.script_engine.stop()
+
+    # ============== 视频源切换 ==============
+
+    def switch_video_source(self):
+        """切换到下一个可用的视频设备（采集卡/摄像头）。
+        同步执行：DSHOW 后端对 COM 线程模型敏感，跨线程操作 cap 会导致主线程
+        画面卡死，因此切换期间短暂阻塞主循环（可接受，切换是低频用户操作）。"""
+        if self.switching_device:
+            self.output_panel.log("正在切换视频源，请稍候")
+            return
+        self.switching_device = True
+
+        # 抑制 OpenCV DSHOW 枚举时的警告
+        try:
+            cv2.utils.logging.setLogLevel(cv2.utils.logging.LOG_LEVEL_ERROR)
+        except Exception:
+            pass
+
+        try:
+            current_id = self.current_device_id
+
+            # 先释放当前 cap：DSHOW 不允许同一设备被同时打开两次，
+            # 不释放的话当前设备枚举不到，candidates 会少一个
+            old_cap = self.video_module.cap
+            if old_cap is not None:
+                try:
+                    if old_cap.isOpened():
+                        old_cap.release()
+                except Exception:
+                    pass
+                self.video_module.cap = None
+                self.cached_1080p_frame = None
+
+            # 枚举 0-7 号设备（DSHOW 优先，失败回退默认 API）
+            candidates = []
+            for idx in range(8):
+                try:
+                    c = cv2.VideoCapture(idx, cv2.CAP_DSHOW)
+                    if not c.isOpened():
+                        c = cv2.VideoCapture(idx)
+                    if c.isOpened():
+                        ret, frame = c.read()
+                        c.release()
+                        if ret and frame is not None:
+                            candidates.append(idx)
+                except Exception:
+                    pass
+
+            if not candidates:
+                self.output_panel.log("未找到任何可用视频设备，恢复原设备")
+                self.apply_video_device(current_id)
+                return
+
+            # 只有当前设备 -> 不切换
+            other = [d for d in candidates if d != current_id]
+            if not other:
+                self.output_panel.log(
+                    f"仅有当前设备 #{current_id}，无其它设备可切换（可用: {candidates}）")
+                self.apply_video_device(current_id)
+                return
+
+            # 切到下一个（按列表顺序循环）
+            try:
+                pos = candidates.index(current_id)
+            except ValueError:
+                pos = -1
+            next_id = candidates[(pos + 1) % len(candidates)]
+
+            self.apply_video_device(next_id)
+            self.manual_device_switch = True
+            self.current_device_id = next_id
+            self.output_panel.log(
+                f"已切换到视频设备 #{next_id}（可用: {candidates}）"
+                + "，Run 后将保存到 custom.yaml")
+        except Exception as e:
+            self.output_panel.log(f"切换视频源失败: {e}")
+        finally:
+            self.switching_device = False
+
+    def apply_video_device(self, device_id: int):
+        """实际切换 VideoModule 的采集设备。"""
+        old_cap = self.video_module.cap
+        if old_cap is not None:
+            try:
+                if old_cap.isOpened():
+                    old_cap.release()
+            except Exception:
+                pass
+            self.video_module.cap = None
+
+        new_cap = cv2.VideoCapture(device_id, cv2.CAP_DSHOW)
+        if not new_cap.isOpened():
+            new_cap = cv2.VideoCapture(device_id)
+        if new_cap.isOpened():
+            new_cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+        self.video_module.cap = new_cap
+        self.cached_1080p_frame = None
     
     # ============== 脚本API ==============
     
@@ -618,6 +729,8 @@ class EasyConGUI:
                 color = (180, 120, 40)
         elif btn_name == 'save':
             color = (60, 80, 120) if self.recording else (80, 80, 80)
+        elif btn_name == 'switch':
+            color = (80, 110, 130)
         else:
             color = (60, 60, 60)
 
@@ -662,13 +775,7 @@ class EasyConGUI:
 
             # 每 10 分钟重启采集卡，防止 DShow 内部缓冲区缓慢泄漏
             if now - last_cap_restart > 600 and not self.script_running:
-                cap = self.video_module.cap
-                if cap and cap.isOpened():
-                    cap.release()
-                self.video_module.cap = cv2.VideoCapture(get("capture.device_id", 0), cv2.CAP_DSHOW)
-                if self.video_module.cap.isOpened():
-                    self.video_module.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-                self.cached_1080p_frame = None
+                self.apply_video_device(self.current_device_id)
                 last_cap_restart = now
             # 始终采集 raw_frame 供脚本 OCR 使用；可见时才渲染 pygame Surface
             window_active = pygame.display.get_active()
@@ -737,6 +844,8 @@ class EasyConGUI:
                                     self.stop_and_save()
                                 else:
                                     self.output_panel.log("当前未在录制，无需保存")
+                            elif btn_name == 'switch':
+                                self.switch_video_source()
 
             # ========= LabelMaker 事件 =========
             for event in events:
@@ -801,11 +910,12 @@ class EasyConGUI:
             # 按键映射面板
             self.key_mapping.draw(self.screen, self.font, self.font_mono_small)
 
-            # 四个按钮（LabelMaker 风格，覆盖在输出面板标题行右侧）
+            # 五个按钮（LabelMaker 风格，覆盖在输出面板标题行右侧）
             self.draw_button(self.screen, self.font_mono_small, 'run',    "Run")
             self.draw_button(self.screen, self.font_mono_small, 'stop',   "Stop")
             self.draw_button(self.screen, self.font_mono_small, 'record', "Record")
             self.draw_button(self.screen, self.font_mono_small, 'save',   "Save")
+            self.draw_button(self.screen, self.font_mono_small, 'switch', "Switch")
 
             # 焦点边框
             focus_color = (0, 180, 240)
