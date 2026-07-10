@@ -299,7 +299,7 @@ class RNGGui(LaunchGUI):
             ("默认", self.on_default),
             ("重置", self.on_reset),
             ("退出", self.on_quit),
-        ])
+        ], right_callbacks={0: lambda: self.on_confirm(skip_checks=True)})
 
         self.H = self.final_height(y)
         self.resize_to_fit()
@@ -392,21 +392,35 @@ class RNGGui(LaunchGUI):
 
     # ── buttons ────────────────────────────────────────────────────────────────
 
-    def on_confirm(self):
+    def on_confirm(self, skip_checks: bool = False):
         data = self.collect_inputs()
         if data is None:
-            self.set_status("请填写所有必填字段。", C_RED)
+            self.set_status("请填写所有必填字段。" if not self.use_en else "Please fill all required fields.", C_RED)
             return
 
+        en = self.use_en
+
+        # ── 参数校验 ──
+        errors = self.validate(data)
+        if errors:
+            self.show_message(
+                "配置校验失败" if not en else "Validation Failed",
+                "\n\n".join(errors))
+            self.set_status(errors[0], C_RED)
+            return
+
+        if skip_checks:
+            # 右键跳过：仅做参数校验，不检测硬件
+            self.save_cache(data)
+            self.result = data
+            self.running = False
+            return
+
+        # ── 硬件检测 ──
         progress = {"step": 0, "failed_msg": "", "data": data}
 
         def run_checks():
             progress["step"] = 1
-            errors = self.validate(data)
-            if errors:
-                progress["failed_msg"] = "\n\n".join(errors)
-                return
-            progress["step"] = 2
             try:
                 c = EasyConController()
                 if not c.list_ports() or not c.connect(timeout=2.0):
@@ -416,7 +430,7 @@ class RNGGui(LaunchGUI):
             except Exception:
                 progress["failed_msg"] = "未识别到可用控制器"
                 return
-            progress["step"] = 3
+            progress["step"] = 2
             try:
                 import cv2
                 device_id = config_get("capture.device_id", 0)
@@ -427,33 +441,25 @@ class RNGGui(LaunchGUI):
                 if ok:
                     cap.release()
                 if not ok:
-                    progress["failed_msg"] = "Capture card not found" if self.use_en else "未识别到采集卡"
+                    progress["failed_msg"] = "Capture card not found" if en else "未识别到采集卡"
                     return
             except Exception:
-                progress["failed_msg"] = "Capture card not found" if self.use_en else "未识别到采集卡"
+                progress["failed_msg"] = "Capture card not found" if en else "未识别到采集卡"
                 return
 
-        en = self.use_en
         steps = [
-            "(1/3) Validating parameters...",
-            "(2/3) Detecting controller...",
-            "(3/3) Detecting capture card...",
+            "(1/2) Detecting controller...",
+            "(2/2) Detecting capture card...",
         ] if en else [
-            "(1/3) 正在验证参数有效性...",
-            "(2/3) 正在检测控制器...",
-            "(3/3) 正在检测采集卡...",
+            "(1/2) 正在检测控制器...",
+            "(2/2) 正在检测采集卡...",
         ]
         title = "Checking" if en else "正在检测"
         self.show_progress(run_checks, progress, steps, title)
 
         if progress["failed_msg"]:
-            self.show_message(
-                "配置校验失败" if progress["step"] == 1 else "检测失败",
-                progress["failed_msg"])
-            if progress["step"] == 1:
-                self.set_status(progress["failed_msg"].split("\n")[0], C_RED)
-            else:
-                self.set_status(progress["failed_msg"], C_RED)
+            self.show_message("检测失败" if not en else "Detection Failed", progress["failed_msg"])
+            self.set_status(progress["failed_msg"], C_RED)
             return
 
         self.save_cache(data)

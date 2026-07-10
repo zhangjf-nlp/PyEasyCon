@@ -394,7 +394,7 @@ def training_loop(config: TrainingConfig) -> None:
                     ctx.press("CAPTURE", 3000)
                     break
 
-                if species_id is not None and score >= 0.95 and species_id in targets:
+                if species_id is not None and score >= 0.90 and species_id in targets:
                     ctx.log(f"{prefix} -> 击败")
                     if not defeat_pokemon(ctx):
                         ctx.log("击败失败 -> 逃跑")

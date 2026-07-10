@@ -166,7 +166,7 @@ class ScanGui(LaunchGUI):
             ("确定", self.on_confirm),
             ("重置", self.on_reset),
             ("退出", self.on_quit),
-        ])
+        ], right_callbacks={0: lambda: self.on_confirm(skip_checks=True)})
 
         self.H = self.final_height(y)
         self.resize_to_fit()
@@ -229,21 +229,31 @@ class ScanGui(LaunchGUI):
         self.status_text  = text
         self.status_color = color
 
-    def on_confirm(self):
+    def on_confirm(self, skip_checks: bool = False):
         data = self.collect_inputs()
         if data is None:
             self.set_status("请填写所有必填字段。", C_RED)
             return
 
+        # ── 参数校验 ──
+        errs = self.validate(data)
+        if errs:
+            self.show_message("配置校验失败", "\n\n".join(errs))
+            self.set_status(errs[0], C_RED)
+            return
+
+        if skip_checks:
+            # 右键跳过：仅做参数校验，不检测硬件
+            self.save_cache(data)
+            self.result = data
+            self.running = False
+            return
+
+        # ── 硬件检测 ──
         progress = {"step": 0, "failed_msg": ""}
 
         def checks():
             progress["step"] = 1
-            errs = self.validate(data)
-            if errs:
-                progress["failed_msg"] = "\n\n".join(errs)
-                return
-            progress["step"] = 2
             try:
                 c = EasyConController()
                 if not c.list_ports() or not c.connect(timeout=2.0):
@@ -253,7 +263,7 @@ class ScanGui(LaunchGUI):
             except Exception:
                 progress["failed_msg"] = "未识别到可用控制器"
                 return
-            progress["step"] = 3
+            progress["step"] = 2
             try:
                 import cv2
                 device_id = get("capture.device_id", 0)
@@ -269,14 +279,12 @@ class ScanGui(LaunchGUI):
             except Exception:
                 progress["failed_msg"] = "未识别到采集卡"
 
-        steps = ["(1/3) 正在验证参数...", "(2/3) 正在检测控制器...", "(3/3) 正在检测采集卡..."]
+        steps = ["(1/2) 正在检测控制器...", "(2/2) 正在检测采集卡..."]
         self.show_progress(checks, progress, steps)
 
         if progress["failed_msg"]:
-            self.show_message(
-                "配置校验失败" if progress["step"] == 1 else "检测失败",
-                progress["failed_msg"])
-            self.set_status(progress["failed_msg"].split("\n")[0], C_RED)
+            self.show_message("检测失败", progress["failed_msg"])
+            self.set_status(progress["failed_msg"], C_RED)
             return
 
         self.save_cache(data)

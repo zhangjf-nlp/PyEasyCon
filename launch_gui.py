@@ -615,17 +615,22 @@ class ComboBox:
 
 class Button:
     """按钮"""
-    def __init__(self, x: int, y: int, w: int, h: int, text: str, callback: Callable):
+    def __init__(self, x: int, y: int, w: int, h: int, text: str, callback: Callable,
+                 right_callback: Optional[Callable] = None):
         self.rect = pygame.Rect(x, y, w, h)
         self.text = text
         self.callback = callback
+        self.right_callback = right_callback
         self.font = get_font(16, bold=True)
         self.hovered = False
 
     def handle_event(self, event: pygame.event.Event) -> bool:
-        if event.type == MOUSEBUTTONDOWN and event.button == 1:
-            if self.hovered:
+        if event.type == MOUSEBUTTONDOWN and self.hovered:
+            if event.button == 1:
                 self.callback()
+                return True
+            if event.button == 3 and self.right_callback:
+                self.right_callback()
                 return True
         return False
 
@@ -848,8 +853,9 @@ class LaunchGUI:
         return cb
 
     def make_button(self, x: int, y: int, w: int, h: int,
-                    text: str, callback: Callable) -> Button:
-        btn = Button(x, y, w, h, text, callback)
+                    text: str, callback: Callable,
+                    right_callback: Optional[Callable] = None) -> Button:
+        btn = Button(x, y, w, h, text, callback, right_callback)
         self.widgets.append(btn)
         return btn
 
@@ -876,12 +882,16 @@ class LaunchGUI:
         return y + ROW_H + ROW_GAP
 
     def add_button_row(self, y: int, buttons: List[Tuple[str, Callable]],
-                       btn_w: int = 120, btn_gap: int = 14) -> int:
-        """添加按钮行，返回下一行的 y 坐标"""
+                       btn_w: int = 120, btn_gap: int = 14,
+                       right_callbacks: Optional[dict] = None) -> int:
+        """添加按钮行，返回下一行的 y 坐标。
+        right_callbacks: {index: callback} 指定索引按钮的右键回调。"""
         total_w = btn_w * len(buttons) + btn_gap * (len(buttons) - 1)
         bx = (self.W - total_w) // 2
+        rc = right_callbacks or {}
         for i, (text, callback) in enumerate(buttons):
-            self.make_button(bx + i * (btn_w + btn_gap), y, btn_w, 38, text, callback)
+            self.make_button(bx + i * (btn_w + btn_gap), y, btn_w, 38, text,
+                             callback, rc.get(i))
         return y + 38 + SIDE_PAD
 
     # ── 主循环 ────────────────────────────────────────────────────────────────
