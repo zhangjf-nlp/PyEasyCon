@@ -9,6 +9,7 @@ import os
 import subprocess
 import sys
 import threading
+import time
 from typing import Optional, Callable, List, Tuple, Any
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -999,6 +1000,102 @@ class LaunchGUI:
             pygame.display.flip()
             self.clock.tick(30)
 
+    def show_parallel_progress(self, checks: List[Tuple[str, Callable]],
+                                title: str = "正在检测"):
+        """并行进度弹窗——所有检测项同时运行，完成后显示 ✓/✗。
+
+        checks: [(名称, check_func), ...]
+          check_func 签名为 func(results: list, idx: int)，
+          需设置 results[idx] = (ok: bool, msg: str)
+        返回: results 列表，每个元素为 (ok, msg) 或 None（被中断）
+        """
+        n = len(checks)
+        results: list = [None] * n  # None=进行中, (True/False, msg)=已完成
+        threads = []
+
+        def worker(idx, func):
+            try:
+                func(results, idx)
+            except Exception as e:
+                if results[idx] is None:
+                    results[idx] = (False, str(e))
+
+        for i, (_, func) in enumerate(checks):
+            t = threading.Thread(target=worker, args=(i, func), daemon=True)
+            t.start()
+            threads.append(t)
+
+        font = get_font(15)
+        font_title = get_font(18, bold=True)
+        font_status = get_font(15, bold=True)
+        msg_w = min(420, self.W - 40)
+        msg_h = 70 + n * 34
+        msg_rect = pygame.Rect((self.W - msg_w) // 2, (self.H - msg_h) // 2,
+                                msg_w, msg_h)
+
+        while any(t.is_alive() for t in threads):
+            for ev in pygame.event.get():
+                if ev.type == QUIT:
+                    self.result = None
+                    self.running = False
+                    return results
+
+            self.draw_base()
+            overlay = pygame.Surface((self.W, self.H), pygame.SRCALPHA)
+            overlay.fill((0, 0, 0, 160))
+            self.screen.blit(overlay, (0, 0))
+            pygame.draw.rect(self.screen, C_PANEL, msg_rect, border_radius=8)
+            pygame.draw.rect(self.screen, C_ACCENT, msg_rect, width=2, border_radius=8)
+            self.screen.blit(font_title.render(title, True, C_TEXT),
+                             (msg_rect.x + 20, msg_rect.y + 18))
+
+            for i, (name, _) in enumerate(checks):
+                y = msg_rect.y + 52 + i * 34
+                if results[i] is None:
+                    status = "…"
+                    color = C_TEXT_DIM
+                elif results[i][0]:
+                    status = "✓"
+                    color = C_GREEN
+                else:
+                    status = "✗"
+                    color = C_RED
+                txt = font.render(f"  {name}", True, C_TEXT)
+                self.screen.blit(txt, (msg_rect.x + 24, y))
+                st = font_status.render(status, True, color)
+                self.screen.blit(st, (msg_rect.x + msg_w - 48, y))
+
+            pygame.display.flip()
+            self.clock.tick(30)
+
+        # 再渲染一次确保最终状态（✓/✗）显示出来
+        self.draw_base()
+        overlay = pygame.Surface((self.W, self.H), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 160))
+        self.screen.blit(overlay, (0, 0))
+        pygame.draw.rect(self.screen, C_PANEL, msg_rect, border_radius=8)
+        pygame.draw.rect(self.screen, C_ACCENT, msg_rect, width=2, border_radius=8)
+        self.screen.blit(font_title.render(title, True, C_TEXT),
+                         (msg_rect.x + 20, msg_rect.y + 18))
+        for i, (name, _) in enumerate(checks):
+            y = msg_rect.y + 52 + i * 34
+            if results[i] is None:
+                status, color = "…", C_TEXT_DIM
+            elif results[i][0]:
+                status, color = "✓", C_GREEN
+            else:
+                status, color = "✗", C_RED
+            txt = font.render(f"  {name}", True, C_TEXT)
+            self.screen.blit(txt, (msg_rect.x + 24, y))
+            st = font_status.render(status, True, color)
+            self.screen.blit(st, (msg_rect.x + msg_w - 48, y))
+        pygame.display.flip()
+
+        # 短暂停留让用户看到完整结果
+        time.sleep(0.5)
+
+        return results
+
     def show_message(self, title: str, message: str):
         """显示消息弹窗，支持鼠标滚轮和滚动条"""
         font_title = get_font(18, bold=True)
@@ -1083,3 +1180,17 @@ class LaunchGUI:
             self.screen.blit(hint, (msg_rect.centerx - hint.get_width() // 2, msg_rect.bottom - 30))
             pygame.display.flip()
             self.clock.tick(60)
+
+
+# ── 公共工具函数 ─────────────────────────────────────────────────────────────
+
+def connect_controller():
+    """连接并返回 EasyConController 实例，失败返回 None"""
+    from easycon.controller import EasyConController
+    try:
+        c = EasyConController()
+        if c.list_ports() and c.connect(timeout=2.0):
+            return c
+        return None
+    except Exception:
+        return None

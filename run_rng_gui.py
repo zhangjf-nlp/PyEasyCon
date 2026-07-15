@@ -6,9 +6,7 @@ RNG 配置 GUI —— 基于 pygame 的乱数配置界面
 
 import json
 import os
-import subprocess
 import sys
-from datetime import datetime
 from typing import Optional
 from urllib.parse import urlparse, parse_qs
 
@@ -19,8 +17,9 @@ from launch_gui import (
     get_font, C_TEXT_DIM,
     C_RED, C_GREEN,
     ROW_H, ROW_GAP, SIDE_PAD, BOX_W, LBL_W,
+    connect_controller,
 )
-from rng.config import RNGConfig, RNGSlot, GameSettings
+from rng.config import RNGConfig, RNGSlot, GameSettings, SessionState
 from rng.tenlines_utils import (
     calibration as calibration_api,
     get_encounter_species_list,
@@ -299,7 +298,7 @@ class RNGGui(LaunchGUI):
             ("默认", self.on_default),
             ("重置", self.on_reset),
             ("退出", self.on_quit),
-        ], right_callbacks={0: lambda: self.on_confirm(skip_checks=True)})
+        ])
 
         self.H = self.final_height(y)
         self.resize_to_fit()
@@ -392,7 +391,7 @@ class RNGGui(LaunchGUI):
 
     # ── buttons ────────────────────────────────────────────────────────────────
 
-    def on_confirm(self, skip_checks: bool = False):
+    def on_confirm(self):
         data = self.collect_inputs()
         if data is None:
             self.set_status("请填写所有必填字段。" if not self.use_en else "Please fill all required fields.", C_RED)
@@ -400,37 +399,26 @@ class RNGGui(LaunchGUI):
 
         en = self.use_en
 
-        # ── 参数校验 ──
-        errors = self.validate(data)
-        if errors:
-            self.show_message(
-                "配置校验失败" if not en else "Validation Failed",
-                "\n\n".join(errors))
-            self.set_status(errors[0], C_RED)
-            return
+        # ── 3 步并行检测 ──
+        def check_params(results, idx):
+            errors = self.validate(data)
+            if errors:
+                results[idx] = (False, errors[0])
+            else:
+                results[idx] = (True, "")
 
-        if skip_checks:
-            # 右键跳过：仅做参数校验，不检测硬件
-            self.save_cache(data)
-            self.result = data
-            self.running = False
-            return
-
-        # ── 硬件检测 ──
-        progress = {"step": 0, "failed_msg": "", "data": data}
-
-        def run_checks():
-            progress["step"] = 1
+        def check_controller(results, idx):
             try:
                 c = EasyConController()
                 if not c.list_ports() or not c.connect(timeout=2.0):
-                    progress["failed_msg"] = "未识别到可用控制器"
+                    results[idx] = (False, "未识别到可用控制器")
                     return
                 c.disconnect()
+                results[idx] = (True, "")
             except Exception:
-                progress["failed_msg"] = "未识别到可用控制器"
-                return
-            progress["step"] = 2
+                results[idx] = (False, "未识别到可用控制器")
+
+        def check_capture(results, idx):
             try:
                 import cv2
                 device_id = config_get("capture.device_id", 0)
@@ -441,25 +429,38 @@ class RNGGui(LaunchGUI):
                 if ok:
                     cap.release()
                 if not ok:
-                    progress["failed_msg"] = "Capture card not found" if en else "未识别到采集卡"
-                    return
+                    results[idx] = (False,
+                        "Capture card not found" if en else "未识别到采集卡")
+                else:
+                    results[idx] = (True, "")
             except Exception:
-                progress["failed_msg"] = "Capture card not found" if en else "未识别到采集卡"
-                return
+                results[idx] = (False,
+                    "Capture card not found" if en else "未识别到采集卡")
 
-        steps = [
-            "(1/2) Detecting controller...",
-            "(2/2) Detecting capture card...",
-        ] if en else [
-            "(1/2) 正在检测控制器...",
-            "(2/2) 正在检测采集卡...",
-        ]
         title = "Checking" if en else "正在检测"
-        self.show_progress(run_checks, progress, steps, title)
+        results = self.show_parallel_progress([
+            ("参数校验",   check_params),
+            ("控制器检测", check_controller),
+            ("采集卡检测", check_capture),
+        ], title=title)
 
-        if progress["failed_msg"]:
-            self.show_message("检测失败" if not en else "Detection Failed", progress["failed_msg"])
-            self.set_status(progress["failed_msg"], C_RED)
+        # 被中断
+        if not self.running:
+            return
+
+        # 收集失败项
+        failures = [
+            (name, msg) for (name, _), (ok, msg) in
+            zip([("参数校验", None), ("控制器检测", None), ("采集卡检测", None)],
+                results)
+            if ok is not None and not ok
+        ]
+        if failures:
+            msgs = [f"• {name}: {msg}" for name, msg in failures]
+            self.show_message(
+                "检测失败" if not en else "Detection Failed",
+                "\n".join(msgs))
+            self.set_status(failures[0][1], C_RED)
             return
 
         self.save_cache(data)
@@ -836,58 +837,6 @@ def compute_normal_ms_min(category: str, pokemon: str, location: str = "") -> in
         raise NotImplementedError(category)
 
 
-def generate_script(data: dict):
-    game_version = GAME_OPTIONS[data["game"]]
-    rng_method = METHOD_OPTIONS[data["method"]]["rng_method"]
-    location = data["location"] if data["method"] == "Wild" else data["category"]
-    seed_hex = data["seed"].upper()
-    normal_ms_min = compute_normal_ms_min(data["category"], data["pokemon"], location)
-
-    script = f'''# -*- coding: utf-8 -*-
-import sys, os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from rng.config import GameSettings, RNGConfig, RNGSlot, SessionState
-from examples.rng import launch
-
-cfg = RNGConfig(
-    game_version="{game_version}",
-    trainer_id={data['tid']},
-    secret_id={data['sid']},
-    game_settings=GameSettings.from_string(
-        "{data['settings']}"
-    ),
-    pokemon_species="{data['pokemon']}",
-    rng_category="{data['category']}",
-    rng_location="{location}",
-    rng_method="{rng_method}",
-    target=RNGSlot(0x{seed_hex}, 0, {data['advances']}),
-    seed_bias=-4000,
-    advances_bias=-10000,
-    normal_ms_min={normal_ms_min},
-)
-state = SessionState()
-
-if __name__ == "__main__":
-    launch(cfg, state)
-'''
-
-    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                               "examples", f"rng_custom_{ts}.py")
-
-    with open(script_path, "w", encoding="utf-8") as f:
-        f.write(script)
-    return script_path
-
-
-def run_script(script_path: str):
-    python_exe = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                              "Python312", "python.exe")
-    subprocess.Popen([python_exe, "-u", script_path],
-                     cwd=os.path.dirname(os.path.abspath(__file__)))
-
-
 # ── entry ──────────────────────────────────────────────────────────────────────
 
 def main():
@@ -898,12 +847,37 @@ def main():
     if data is None:
         print("Cancelled." if use_en else "用户取消。")
         return
-    try:
-        script_path = generate_script(data)
-    except Exception as e:
-        print(f"脚本生成失败: {e}")
+
+    game_version = GAME_OPTIONS[data["game"]]
+    rng_method = METHOD_OPTIONS[data["method"]]["rng_method"]
+    location = data["location"] if data["method"] == "Wild" else data["category"]
+    seed_hex = data["seed"].upper()
+    normal_ms_min = compute_normal_ms_min(data["category"], data["pokemon"], location)
+
+    cfg = RNGConfig(
+        game_version=game_version,
+        trainer_id=data['tid'],
+        secret_id=data['sid'],
+        game_settings=GameSettings.from_string(data['settings']),
+        pokemon_species=data['pokemon'],
+        rng_category=data['category'],
+        rng_location=location,
+        rng_method=rng_method,
+        target=RNGSlot(int(seed_hex, 16), 0, data['advances']),
+        seed_bias=-4000,
+        advances_bias=-10000,
+        normal_ms_min=normal_ms_min,
+    )
+    state = SessionState()
+
+    # 连接 controller 一次，传递给 rng_launch 复用
+    controller = connect_controller()
+    if controller is None:
+        print("无法连接控制器，请检查硬件。")
         return
-    run_script(script_path)
+
+    from examples.rng import launch as rng_launch
+    rng_launch(cfg, state, controller=controller)
 
 
 if __name__ == "__main__":

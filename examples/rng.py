@@ -83,7 +83,7 @@ def attempt_once(ctx: ScriptContext, cfg: RNGConfig, state: Optional[SessionStat
     raise NotImplementedError(cfg.rng_category)
 
 
-def launch(cfg: RNGConfig, state: SessionState = None) -> None:
+def launch(cfg: RNGConfig, state: SessionState = None, controller=None) -> None:
     state = SessionState() if state is None else state
     def main(ctx: ScriptContext) -> None:
         init_log_dir(ctx, state, cfg)
@@ -132,4 +132,4 @@ def launch(cfg: RNGConfig, state: SessionState = None) -> None:
 
         ctx.press("CAPTURE", 3000)
 
-    run_script(main)
+    run_script(main, controller=controller)

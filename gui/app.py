@@ -58,7 +58,7 @@ from vision import (
 class EasyConGUI:
     """EasyCon 主GUI类 - 整合所有模块"""
     
-    def __init__(self, script_path=None):
+    def __init__(self, script_path=None, controller=None):
         # 初始化pygame
         pygame.init()
         pygame.display.init()
@@ -182,9 +182,19 @@ class EasyConGUI:
         if script_path and os.path.exists(script_path):
             with open(script_path, 'r', encoding='utf-8') as f:
                 self.script_code = f.read()
-        
+
+        # 如果注入了已有 controller，直接使用，避免重复连接
+        if controller is not None:
+            self.controller = controller
+            self.video_module.set_controller(self.controller)
+            self.output_panel.log(f"已复用外部控制器: {controller.port_name}")
+        else:
+            self.controller = None
+
         # 初始化控制器和视频（在模块创建之后）
-        self.init_controller()
+        # 如果已有 controller（外部注入），跳过自动连接
+        if self.controller is None:
+            self.init_controller()
         self.init_vllm_status()
         
         # 创建脚本执行上下文
@@ -1016,10 +1026,17 @@ def ocr_name_api(candidates=None):
         return current_gui.ocr_name(candidates=candidates)
     return None
 
-def run_script(script_func):
+def run_script(script_func, controller=None):
+    """运行脚本。
+
+    Args:
+        script_func: 脚本主函数，签名为 func(ctx: ScriptContext)
+        controller: 可选，外部已连接的 EasyConController 实例。
+                   如果提供，将复用该连接，避免重复握手。
+    """
     caller_path = inspect.stack()[1].filename
     script_path = caller_path if os.path.isfile(caller_path) and caller_path.endswith('.py') else None
-    gui = EasyConGUI(script_path=script_path)
+    gui = EasyConGUI(script_path=script_path, controller=controller)
     gui.script_engine.set_script_func(script_func)
     if script_path:
         gui.output_panel.log(f"已加载: {os.path.basename(script_path)}")

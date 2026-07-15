@@ -30,6 +30,7 @@ def launch(
     pokemon_species: str,
     game_version: str,
     normal_ms_min: int = NORMAL_MS_MIN,
+    controller=None,
 ) -> None:
     rng_method = "Static 1" if method == "Static" else "Wild 1"
 
@@ -98,7 +99,7 @@ def launch(
             
             save_progress(k)
 
-    run_script(main)
+    run_script(main, controller=controller)
 
 
 if __name__ == "__main__":

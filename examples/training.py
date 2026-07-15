@@ -71,6 +71,7 @@ def format_ev(bp, stat_keys=None):
 
 @dataclass
 class TrainingConfig:
+    game_version: str = "fr_nx"  # fr_nx: 火红, lg_nx: 叶绿
     location: str = "Route 1"
     stat1: str = "speed"
     stat2: Optional[str] = None  # None 或 "(空)" 表示只训练 stat1
@@ -96,7 +97,7 @@ def resolve_target_species(config: TrainingConfig):
         if k not in stat_keys:
             stat_keys.append(k)
 
-    encounter = get_encounter(config.location, "Grass", "fr_nx")
+    encounter = get_encounter(config.location, "Grass", config.game_version)
     if encounter is None:
         raise RuntimeError(
             f"未找到遇敌数据: location={config.location}, category=Grass"
@@ -129,9 +130,9 @@ def resolve_target_species(config: TrainingConfig):
     return targets, sorted(encounter_species), stat_keys
 
 
-def get_location_basepoints(location: str) -> List[str]:
+def get_location_basepoints(location: str, game_version: str = "fr_nx") -> List[str]:
     """获取指定地点的草地宝可梦的所有基础点数类型"""
-    encounter = get_encounter(location, "Grass", "fr_nx")
+    encounter = get_encounter(location, "Grass", game_version)
     if encounter is None:
         return []
     encounter_species = {slot["species"] for slot in encounter.get("slots", []) if "species" in slot}
@@ -339,7 +340,7 @@ def heal_and_return(ctx: ScriptContext, config: TrainingConfig, current_directio
     return current_direction
 
 
-def training_loop(config: TrainingConfig) -> None:
+def launch(config: TrainingConfig, controller=None) -> None:
     def main(ctx: ScriptContext) -> None:
         targets, all_species, stat_keys = resolve_target_species(config)
 
@@ -426,14 +427,15 @@ def training_loop(config: TrainingConfig) -> None:
             for name, cnt in sorted(item_counts.items(), key=lambda x: x[1]):
                 lines.append(f"  {name}: {cnt}")
             ctx.log("\n".join(lines))
-    
-    run_script(main)
+
+    run_script(main, controller=controller)
 
 
 if __name__ == "__main__":
     cfg = TrainingConfig(
+        game_version="fr_nx",
         location="Route 22",
         stat1="attack",
         stat2="speed",
     )
-    training_loop(cfg)
+    launch(cfg)
