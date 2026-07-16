@@ -133,6 +133,9 @@ class EasyConGUI:
         self.key_mapping = KeyMappingPanel(660, 382, 360, 398)
         # 同步按键映射到 VideoModule
         self.sync_keymap_to_video()
+        
+        # 初始时视频模块聚焦，停止SDL文本输入以兼容中文输入法
+        self.video_module.set_focused(True)
 
         self.script_code = ""
         self.label_debug_saved = set()
@@ -141,6 +144,7 @@ class EasyConGUI:
         self.running = False
         self.clock = pygame.time.Clock()
         self.focused_module = 'video'
+        self.module_clicked = True  # 是否点击过子模块（用于控制边框显示），默认已点击游戏画面
         
         # ============== 录像状态 ==============
         self.recording = False
@@ -820,17 +824,31 @@ class EasyConGUI:
                     prev = self.focused_module
 
                     # 焦点区域
+                    in_module = False
                     if 10 <= mx <= 650 and 10 <= my <= 370:
                         self.focused_module = 'video'
+                        self.module_clicked = True
+                        in_module = True
                     elif 660 <= mx <= 1020 and 10 <= my <= 370:
                         self.focused_module = 'label'
+                        self.module_clicked = True
+                        in_module = True
                     elif 10 <= mx <= 650 and 382 <= my <= 780:
                         self.focused_module = 'output'
+                        self.module_clicked = True
+                        in_module = True
                     elif 660 <= mx <= 1020 and 382 <= my <= 780:
                         self.focused_module = 'keymap'
+                        self.module_clicked = True
+                        in_module = True
+
+                    if not in_module:
+                        # 点击了非子模块区域，取消高亮
+                        self.module_clicked = False
+                        self.video_module.set_focused(False)
 
                     if self.focused_module != prev:
-                        self.video_module.focused = (self.focused_module == 'video')
+                        self.video_module.set_focused(self.focused_module == 'video')
 
                     # 按钮逻辑
                     for btn_name, btn_rect in self.btn_rects.items():
@@ -927,17 +945,18 @@ class EasyConGUI:
             self.draw_button(self.screen, self.font_mono_small, 'save',   "Save")
             self.draw_button(self.screen, self.font_mono_small, 'switch', "Switch")
 
-            # 焦点边框
-            focus_color = (0, 180, 240)
-            focus_rects = {
-                'video':  (10, 10, 640, 360),
-                'label':  (660, 10, 360, 360),
-                'output': (10, 382, 640, 398),
-                'keymap': (660, 382, 360, 398),
-            }
-            if self.focused_module in focus_rects:
-                pygame.draw.rect(self.screen, focus_color,
-                               focus_rects[self.focused_module], 2)
+            # 焦点边框：仅当用户点击过子模块后才显示，绿色，线宽8
+            if self.module_clicked:
+                focus_color = (0, 200, 0)
+                focus_rects = {
+                    'video':  (10, 10, 640, 360),
+                    'label':  (660, 10, 360, 360),
+                    'output': (10, 382, 640, 398),
+                    'keymap': (660, 382, 360, 398),
+                }
+                if self.focused_module in focus_rects:
+                    pygame.draw.rect(self.screen, focus_color,
+                                   focus_rects[self.focused_module], 8)
 
             pygame.display.flip()
             frame_count += 1

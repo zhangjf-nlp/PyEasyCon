@@ -361,9 +361,9 @@ class KeyMappingPanel:
             t = self.font_small.render(text, True, (220, 220, 220))
             screen.blit(t, t.get_rect(center=rect.center))
 
-        # 面板边框
-        pygame.draw.rect(screen, PANEL_BORDER,
-                        (self.x, self.y, self.width, self.height), 1)
+        # 面板边框（与标签制作、运行输出等模块风格一致）
+        pygame.draw.rect(screen, (100, 100, 100),
+                        (self.x, self.y, self.width, self.height), 2)
 
     def draw_item_row(self, screen, rect, gp_name, key_name,
                       is_selected=False, is_hover=False):

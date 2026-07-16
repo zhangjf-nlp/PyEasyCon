@@ -54,7 +54,7 @@ class VideoModule:
         
         # 状态
         self.pressed_keys: set = set()
-        self.focused = True  # 默认获得焦点，可直接操控游戏
+        self.focused = False  # 初始未聚焦，由GUI统一设置以正确控制SDL文本输入
         self.last_unmapped_key = None  # 最后按下的未映射按键
         self.unmapped_key_timer = 0  # 未映射按键提示计时器
         
@@ -198,6 +198,24 @@ class VideoModule:
                 return time.time() - self.last_frame_time
         return -1.0
     
+    def set_focused(self, focused: bool):
+        """设置焦点状态，同时控制SDL文本输入以兼容中文输入法"""
+        if focused == self.focused:
+            return
+        self.focused = focused
+        try:
+            if focused:
+                # 聚焦时停止SDL文本输入，使KEYDOWN事件正常触发（兼容中文输入法）
+                pygame.key.stop_text_input()
+            else:
+                # 失焦时恢复文本输入
+                pygame.key.start_text_input()
+                pygame.key.set_text_input_rect(
+                    pygame.Rect(0, 0, pygame.display.get_surface().get_width(),
+                               pygame.display.get_surface().get_height()))
+        except Exception:
+            pass
+
     def handle_event(self, event: pygame.event.Event) -> bool:
         """
         处理事件
@@ -208,10 +226,10 @@ class VideoModule:
             if event.button == 1:
                 mx, my = event.pos
                 if self.x <= mx <= self.x + self.width and self.y <= my <= self.y + self.height:
-                    self.focused = True
+                    self.set_focused(True)
                     return True
                 else:
-                    self.focused = False
+                    self.set_focused(False)
         
         # 只有获得焦点时才处理键盘事件
         if self.focused:
@@ -264,10 +282,30 @@ class VideoModule:
             rect = text.get_rect(center=(self.x + self.width // 2, self.y + self.height // 2))
             screen.blit(text, rect)
         
-        # 边框（获得焦点时显示绿色边框）
-        border_color = (0, 200, 0) if self.focused else (100, 100, 100)
-        pygame.draw.rect(screen, border_color, (self.x, self.y, self.width, self.height), 3 if self.focused else 2)
-        
+        # 未聚焦时绘制水印提示
+        if not self.focused:
+            # 使用半透明黑色底色让水印更清晰
+            watermark_bg = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
+            watermark_bg.fill((0, 0, 0, 80))
+            screen.blit(watermark_bg, (self.x, self.y))
+            # 渲染水印文字（两行）
+            wm_font = pygame.font.Font(os.path.join(
+                os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                "assets", "NotoSansCJKsc-Regular.otf"
+            ), 20) if os.path.exists(os.path.join(
+                os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                "assets", "NotoSansCJKsc-Regular.otf"
+            )) else pygame.font.SysFont(None, 20)
+            line1 = wm_font.render("点击游戏画面", True, (255, 255, 255))
+            line2 = wm_font.render("启用按键映射", True, (255, 255, 255))
+            cx = self.x + self.width // 2
+            cy = self.y + self.height // 2
+            screen.blit(line1, line1.get_rect(center=(cx, cy - 15)))
+            screen.blit(line2, line2.get_rect(center=(cx, cy + 15)))
+
+        # 默认边框（与标签制作、运行输出等模块风格一致，始终显示）
+        pygame.draw.rect(screen, (100, 100, 100), (self.x, self.y, self.width, self.height), 2)
+
         # 未映射按键提示（始终显示，触发了就可见2秒）
         if self.last_unmapped_key and pygame.time.get_ticks() - self.unmapped_key_timer < 2000:
             unmapped_text = font.render(f"未定义按键: [{self.last_unmapped_key}]", True, (255, 180, 50))
